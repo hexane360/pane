@@ -1,16 +1,18 @@
 
 import sys
 from dataclasses import dataclass
-from typing import Optional, Callable, Union, Sequence, Literal, Any
+import abc
+from typing import Optional, Callable, Union, Mapping, Sequence, Literal, Any
+from typing import TypeVar, Generic, Protocol, runtime_checkable
 from typing import Dict, Tuple, List
 
+from .convert import DataType, Converter, FromData, IntoData, from_data, into_data, convert
+from .wrappers import OptionalConverter
 from .field import Field
 
 
-Layout = Union[Literal['int'], Literal['float'], Literal['complex'], Literal['bool'], Literal['none'],
-               Literal['str'], Literal['tuple'], Literal['struct'], Literal['map'], Literal['seq']]
-
 ClassLayout = Union[Literal['tuple'], Literal['struct']]
+T = TypeVar('T')
 
 
 @dataclass(init=False)
@@ -43,12 +45,12 @@ class PaneOptions:
 
 
 def pane(cls=None, /,
-         name: str = None, *,
-         ser_name: str = None,
-         de_name: str = None,
+         name: Optional[str] = None, *,
+         ser_name: Optional[str] = None,
+         de_name: Optional[str] = None,
          closed: bool = False):
 
-	opts = PaneOptions(name, ser_name, de_name, closed)
+	opts = PaneOptions(name, ser_name=ser_name, de_name=de_name, closed=closed)
 
 	def wrap(cls):
 		return _process(cls, opts)
@@ -77,4 +79,4 @@ def _process(cls, opts: PaneOptions):
 	              for name, ty in annotations.items()]
 
 
-__ALL__ = [Field, pane]
+__ALL__ = [DataType, Converter, FromData, IntoData, from_data, into_data, convert, Field, pane, OptionalConverter]

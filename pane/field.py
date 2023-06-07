@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Generic, Optional, TypeVar, Type, Callable, Any, Union
+from typing import Generic, Optional, TypeVar, Type, Callable, Any, Union, cast
 from typing import Sequence, List
 
 
@@ -56,8 +56,10 @@ class Field(Generic[T]):
 
 	@staticmethod
 	def with_name(name: str, ty: Union[Field[T], Type[T]]) -> Field[T]:
-		if not isinstance(ty, Field):
-			ty = Field(ty)
+		if isinstance(ty, Field):
+			field = ty
+		else:
+			field = cast(Field[T], Field(ty))
 
-		ty.name = name
-		return ty
+		field.name = name
+		return field
