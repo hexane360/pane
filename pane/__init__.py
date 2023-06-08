@@ -1,35 +1,30 @@
 
 import sys
 from dataclasses import dataclass
-import abc
-from typing import Optional, Callable, Union, Mapping, Sequence, Literal, Any
-from typing import TypeVar, Generic, Protocol, runtime_checkable
-from typing import Dict, Tuple, List
+import typing as t
 
-from .convert import DataType, IntoData, from_data, into_data, convert
-from .converter import FromData, Converter
-from .wrappers import OptionalConverter
+from .convert import DataType, IntoData, FromData, from_data, into_data, convert
 from .field import Field
 
 
-ClassLayout = Union[Literal['tuple'], Literal['struct']]
-T = TypeVar('T')
+ClassLayout = t.Literal['tuple', 'struct']
+T = t.TypeVar('T')
 
 
 @dataclass(init=False)
 class PaneOptions:
-    name: Optional[str]
-    ser_name: Optional[str]
-    de_name: Optional[str]
+    name: t.Optional[str]
+    ser_name: t.Optional[str]
+    de_name: t.Optional[str]
     ser_format: ClassLayout
-    de_format: Optional[Sequence[ClassLayout]]
+    de_format: t.Optional[t.Sequence[ClassLayout]]
     closed: bool
 
-    def __init__(self, name: Optional[str] = None, *,
-                 ser_name: Optional[str] = None,
-                 de_name: Optional[str] = None,
+    def __init__(self, name: t.Optional[str] = None, *,
+                 ser_name: t.Optional[str] = None,
+                 de_name: t.Optional[str] = None,
                  ser_format: ClassLayout = 'struct',
-                 de_format: Optional[Sequence[ClassLayout]] = None,
+                 de_format: t.Optional[t.Sequence[ClassLayout]] = None,
                  closed: bool = False):
         if name is not None:
             if ser_name is not None or de_name is not None:
@@ -46,9 +41,9 @@ class PaneOptions:
 
 
 def pane(cls=None, /,
-         name: Optional[str] = None, *,
-         ser_name: Optional[str] = None,
-         de_name: Optional[str] = None,
+         name: t.Optional[str] = None, *,
+         ser_name: t.Optional[str] = None,
+         de_name: t.Optional[str] = None,
          closed: bool = False):
 
     opts = PaneOptions(name, ser_name=ser_name, de_name=de_name, closed=closed)
@@ -80,4 +75,4 @@ def _process(cls, opts: PaneOptions):
                   for name, ty in annotations.items()]
 
 
-__ALL__ = [DataType, Converter, FromData, IntoData, from_data, into_data, convert, Field, pane, OptionalConverter]
+__ALL__ = [DataType, IntoData, FromData, from_data, into_data, convert, Field, pane]

@@ -1,11 +1,9 @@
 import typing as t
 
-from .converter import Convertible, Converter, IntoData, DataType, DataTypes
-from .converters import from_data
+from .converter import IntoData, FromData, DataType, DataTypes, Convertible, ConvertError
+from .converter import make_converter
 
-
-ConvertibleT = t.TypeVar('ConvertibleT', bound=Convertible)
-
+T = t.TypeVar('T', bound=Convertible)
 
 def into_data(val: t.Union[IntoData, DataType]) -> DataType:
     if isinstance(val, DataTypes):
@@ -15,6 +13,19 @@ def into_data(val: t.Union[IntoData, DataType]) -> DataType:
     raise TypeError(f"Can't convert {type(val)} to data.")
 
 
-def convert(val: t.Union[IntoData, DataType], ty: t.Type[ConvertibleT]) -> ConvertibleT:
+def from_data(val: DataType, ty: t.Type[T]) -> T:
+    if not isinstance(val, DataTypes):
+        raise TypeError(f"Type {type(val)} is not a valid data interchange type.")
+
+    converter = make_converter(ty)
+    return converter.convert(val)
+
+
+def convert(val: t.Union[IntoData, DataType], ty: t.Type[T]) -> T:
     data = into_data(val)
     return from_data(data, ty)
+
+__all__ = [
+	'IntoData', 'FromData', 'DataType', 'ConvertError',
+    'from_data', 'into_data', 'make_converter', 'convert',
+]
