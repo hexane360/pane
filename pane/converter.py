@@ -177,12 +177,27 @@ class NoneConverter(Converter[None]):
     def try_convert(self, val: t.Any) -> None:
         if val is None:
             return val
-        return None
+        raise ParseInterrupt()
 
     def collect_errors(self, val) -> t.Optional[SimpleErrorNode]:
         if val is None:
             return None
         return SimpleErrorNode("null value", val)
+
+
+@dataclasses.dataclass
+class LiteralConverter(Converter):
+    vals: t.Sequence[t.Any]
+
+    def try_convert(self, val: t.Any) -> t.Any:
+        if val in self.vals:
+            return val
+        raise ParseInterrupt()
+
+    def collect_errors(self, val) -> t.Optional[SimpleErrorNode]:
+        if val in self.vals:
+            return None
+        return SimpleErrorNode(', '.join(map(repr, self.vals)), val)
 
 
 @dataclasses.dataclass(init=False)
@@ -364,8 +379,13 @@ def make_converter(ty: t.Type[T]) -> Converter[T]:
     # TODO forward ref check
     # TODO eat annotation
 
+    # special types
     if base is t.Union:
         return UnionConverter(args)
+    if base is t.Literal:
+        return LiteralConverter(args)
+    if not isinstance(base, type):
+        raise TypeError(f"Unsupported special type '{base}'")
 
     if issubclass(base, FromData):
         return base._converter(*args, annotations=None)

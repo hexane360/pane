@@ -5,7 +5,8 @@ import typing as t
 import pytest
 
 from .convert import convert, make_converter, ConvertError
-from .converter import ScalarConverter, StructConverter, TupleConverter, SequenceConverter, UnionConverter, Converter
+from .converter import ScalarConverter, StructConverter, TupleConverter, SequenceConverter
+from .converter import UnionConverter, LiteralConverter, Converter
 from .converter import ErrorNode, SumErrorNode, SimpleErrorNode, ProductErrorNode
 from .converter import ErrorNode
 
@@ -39,6 +40,7 @@ class TestConverter(Converter[TestConvertible]):
     (t.Tuple[int, str], TupleConverter(tuple, (int, str))),
     (TestConvertible, TestConverter()),
     (t.Union[str, int], UnionConverter((str, int))),
+    (t.Literal['a', 'b', 'c'], LiteralConverter(('a', 'b', 'c')))
 ])
 def test_make_converter(input, conv: Converter):
     assert make_converter(input) == conv
@@ -46,7 +48,9 @@ def test_make_converter(input, conv: Converter):
 
 @pytest.mark.parametrize(('ty', 'val', 'result'), [
     (int, 's', SimpleErrorNode('an int', 's')),
-    ({'x': int, 'y': float}, {'x': 5, 'y': 4}, {'x': 5, 'y': 4.})
+    ({'x': int, 'y': float}, {'x': 5, 'y': 4}, {'x': 5, 'y': 4.}),
+    (t.Union[int, float, str], 5., 5.),
+    (t.Union[str, float, int], 5, 5.),
 ])
 def test_convert(ty, val, result):
     if isinstance(result, ErrorNode):
