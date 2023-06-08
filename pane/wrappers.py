@@ -1,24 +1,25 @@
-#!/usr/bin/env python3
-from typing import Generic, Optional, TypeVar
 
-from .convert import Converter, Type, Convertible, make_converter
+import typing as t
 
-
-T = TypeVar('T', bound=Convertible)
+from .convert import Converter, Convertible
+from .converters import make_converter
 
 
-class OptionalConverter(Generic[T], Converter[Optional[T]]):
-	def __init__(self, t: Type[T]):
-		self.T = t
-		self.inner = make_converter(self.T)
+T = t.TypeVar('T', bound=Convertible)
 
-	def expected(self) -> str:
-		return f"{self.inner.expected()} or None"
 
-	def convert_none(self, val: None) -> None:
-		return None
+class OptionalConverter(t.Generic[T], Converter[t.Optional[T]]):
+    def __init__(self, t: t.Type[T]):
+        self.T = t
+        self.inner = make_converter(self.T)
 
-	def convert(self, val) -> Optional[T]:
-		if val is None:
-			return self.convert_none(val)
-		return self.inner.convert(val)
+    def expected(self) -> str:
+        return f"{self.inner.expected()} or None"
+
+    def convert_none(self, val: None) -> None:
+        return None
+
+    def convert(self, val) -> t.Optional[T]:
+        if val is None:
+            return self.convert_none(val)
+        return self.inner.convert(val)

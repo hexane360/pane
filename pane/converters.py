@@ -1,198 +1,142 @@
 from __future__ import annotations
 
 from collections import abc
-import typing
-from typing import Union, Mapping, Sequence, Any
-from typing import Type, TypeVar, Generic
-from typing import Dict, List
+from types import NotImplementedType
+import typing as t
 
-from .converter import Converter, Convertible, FromData, DataType, DataTypes
+from .converter import Converter, Convertible, FromData, DataType, DataTypes, missing
 
 
-ConvertibleT = TypeVar('ConvertibleT', bound=Convertible)
-ConvertibleTco = TypeVar('ConvertibleTco', bound=Convertible, covariant=True)
-Int = TypeVar('Int', bound=int)
-Float = TypeVar('Float', bound=float)
-Complex = TypeVar('Complex', bound=complex)
-Str = TypeVar('Str', bound=str)
-DictT = TypeVar('DictT', bound=Union[dict, Dict])
-ListT = TypeVar('ListT', bound=Union[list, List])
-K = TypeVar('K', bound=Convertible)
-V = TypeVar('V', bound=Convertible)
+ConvertibleT = t.TypeVar('ConvertibleT', bound=Convertible)
+ConvertibleTco = t.TypeVar('ConvertibleTco', bound=Convertible, covariant=True)
+T = t.TypeVar('T')
+DictT = t.TypeVar('DictT', bound=t.Union[dict, t.Dict])
+ListT = t.TypeVar('ListT', bound=t.Union[list, t.List])
+K = t.TypeVar('K', bound=Convertible)
+V = t.TypeVar('V', bound=Convertible)
 
 
-class AnyConverter(Converter[Any]):
-	def expected(self) -> str:
-		return "anything"
+class AnyConverter(Converter[t.Any]):
+    def expected(self) -> str:
+        return "anything"
 
-	def convert(self, val) -> Any:
-		return val
-
-
-class IntConverter(Generic[Int], Converter[Int]):
-	def __init__(self, ty: Type[Int]):
-		self.ty: Type[Int] = ty
-
-	def expected(self) -> str:
-		return "an int"
-
-	def convert_int(self, val: int) -> Int:
-		return self.ty(val)
+    def try_convert(self, val, annotation=missing) -> t.Any:
+        return val
 
 
-class FloatConverter(Generic[Float], Converter[Float]):
-	def __init__(self, ty: Type[Float]):
-		self.ty: Type[Float] = ty
+class ScalarConverter(t.Generic[T], Converter[T]):
+    def __init__(self, to_type: t.Type[T], from_types: t.Union[type, t.Tuple[type, ...]], name: str):
+        self.to_type = to_type
+        self.from_types = from_types
+        self.name = name
 
-	def expected(self) -> str:
-		return "a float"
+    def expected(self) -> str:
+        return self.name
 
-	def convert_float(self, val: float) -> Float:
-		return self.ty(val)
-
-	def convert_int(self, val: int) -> Float:
-		return self.ty(val)
-
-
-class ComplexConverter(Generic[Complex], Converter[Complex]):
-	def __init__(self, ty: Type[Complex]):
-		self.ty: Type[Complex] = ty
-
-	def expected(self) -> str:
-		return "a complex float"
-
-	def convert_complex(self, val: complex) -> Complex:
-		return self.ty(val.real, val.imag)
-
-	def convert_float(self, val: float) -> Complex:
-		return self.ty(val)
-
-	def convert_int(self, val: int) -> Complex:
-		return self.ty(val)
-
-
-class StrConverter(Generic[Str], Converter[Str]):
-	def __init__(self, ty: Type[Str]):
-		self.ty: Type[Str] = ty
-
-	def expected(self) -> str:
-		return "a string"
-
-	def convert_str(self, val: str) -> Str:
-		return self.ty(val)
+    def try_convert(self, val, annotation=missing) -> t.Union[T, NotImplementedType]:
+        if not isinstance(val, self.from_types):
+            return NotImplemented
+        return self.to_type(val)
 
 
 class NoneConverter(Converter[None]):
-	def expected(self) -> str:
-		return "null value"
+    def expected(self) -> str:
+        return "null value"
 
-	def convert_none(self, val: None) -> None:
-		return None
-
-
-class DictConverter(Generic[K, V], Converter[Dict[K, V]]):
-	def __init__(self, ty: Type[Dict], k: Type[K] = Any, v: Type[V] = Any):  # type: ignore
-		self.ty: Type[Dict] = ty
-		self.K: Type[K] = k
-		self.V: Type[V] = v
-
-	def expected(self) -> str:
-		return "a dictionary"
-
-	def convert_map(self, val: Mapping) -> Dict[K, V]:
-		if self.K is Any and self.V is Any:
-			return self.ty(val.items())
-		return self.ty((from_data(k, self.K), from_data(v, self.V)) for (k, v) in val.items())
+    def try_convert(self, val, annotation=missing) -> t.Union[None, NotImplementedType]:
+        if val is None:
+            return val
+        return NotImplemented
 
 
-class ListConverter(Generic[K], Converter[List[K]]):
-	def __init__(self, ty: Type[List], k: Type[K] = Any):  # type: ignore
-		self.ty: Type[List] = ty
-		self.K: Type[K] = k
+class DictConverter(t.Generic[K, V], Converter[t.Dict[K, V]]):
+    def __init__(self, ty: t.Type[t.Dict], k: t.Type[K] = t.Any, v: t.Type[V] = t.Any):
+        self.ty: t.Type[t.Dict] = ty
+        self.K: t.Type[K] = k
+        self.V: t.Type[V] = v
 
-	def expected(self) -> str:
-		return "a list"
+    def expected(self) -> str:
+        return "a dictionary"
 
-	def convert_seq(self, val: Sequence) -> List[K]:
-		if self.K is Any:
-			return self.ty(val)
-		return self.ty(from_data(v, self.K) for v in val)
+    def convert_map(self, val: t.Mapping) -> t.Dict[K, V]:
+        if self.K is t.Any and self.V is t.Any:
+            return self.ty(val.items())
+        return self.ty((from_data(k, self.K), from_data(v, self.V)) for (k, v) in val.items())
+
+
+class ListConverter(t.Generic[K], Converter[t.Sequence[K]]):
+    def __init__(self, ty: t.Type[t.Sequence], k: t.Type[K] = t.Any):
+        self.ty: t.Type[t.Sequence] = ty
+        self.K: t.Type[K] = k
+
+    def expected(self) -> str:
+        return "a list"
+
+    def try_convert(self, val, annotation=missing) -> t.Union[t.Sequence, NotImplementedType]:
+        if isinstance(val, abc.Sequence) and not isinstance(val, str):
+            return self.ty(from_data(v, self.K) for v in val)  # type: ignore
+        return NotImplemented
 
 
 class UnionConverter(Converter):
-	def __init__(self, ty, *args: Type[Convertible]):
-		self.args = args
+    def __init__(self, ty, *args: t.Type[Convertible]):
+        self.args = args
 
-	def expected(self) -> str:
-		return " or ".join(make_converter(ty).expected() for ty in self.args)
+    def expected(self) -> str:
+        return " or ".join(make_converter(ty).expected() for ty in self.args)
 
-	def convert(self, val):
-		exc = None
-		for ty in self.args:
-			try:
-				return from_data(val, ty)
-			except Exception as e:
-				exc = e
-		if exc is None:
-			raise TypeError("Can't convert value to empty union.")
-		raise exc
-
-
-class MyData(Generic[K]):
-	def __init__(self, val: K):
-		self.inner: K = val
-
-	@classmethod
-	def _converter(cls, *args: Type[Convertible]) -> MyDataConverter:
-		return MyDataConverter(cls, args[0] if len(args) > 0 else Any)
+    def convert(self, val):
+        exc = None
+        for ty in self.args:
+            try:
+                return from_data(val, ty)
+            except Exception as e:
+                exc = e
+        if exc is None:
+            raise TypeError("Can't convert value to empty union.")
+        raise exc
 
 
-class MyDataConverter(Generic[K], Converter[MyData[K]]):
-	def __init__(self, ty: Type[MyData], k: Type[K]):
-		self.ty: Type[MyData] = ty
-		self.K: Type[K] = k
+def from_data(val: DataType, ty: t.Type[ConvertibleT]) -> ConvertibleT:
+    if not isinstance(val, DataTypes):
+        raise TypeError(f"Type {type(val)} is not a valid data interchange type.")
 
-	def convert(self, val) -> MyData[K]:
-		return MyData(from_data(val, self.K))
+    if ty is t.Any:
+        return val  # type: ignore
 
-
-def from_data(val: DataType, ty: Type[ConvertibleT]) -> ConvertibleT:
-	if not isinstance(val, DataTypes):
-		raise TypeError(f"Type {type(val)} is not a valid data interchange type.")
-
-	if ty is Any:
-		return val  # type: ignore
-
-	converter = make_converter(ty)
-	return converter.convert(val)
+    converter = make_converter(ty)
+    return converter.convert(val)
 
 
-def make_converter(ty: Type[ConvertibleT]) -> Converter[ConvertibleT]:
-	if ty is Any:
-		return AnyConverter()
+_BASIC_CONVERTERS = {
+    str: ScalarConverter(str, str, 'str'),
+    int: ScalarConverter(int, int, 'an int'),
+    float: ScalarConverter(float, (int, float), 'an int'),
+    complex: ScalarConverter(complex, (int, float, complex), 'a complex float'),
+}
 
-	base = typing.get_origin(ty) or ty
-	args = typing.get_args(ty)
 
-	if issubclass(base, FromData):
-		return base._converter(*args)
+def make_converter(ty: t.Type[ConvertibleT]) -> Converter[ConvertibleT]:
+    if ty is t.Any:
+        return AnyConverter()
 
-	if issubclass(base, str):
-		return StrConverter(ty)  # type: ignore
-	if issubclass(base, complex):
-		return ComplexConverter(ty)  # type: ignore
-	if issubclass(base, float):
-		return FloatConverter(ty)  # type: ignore
-	if issubclass(base, int):
-		return IntConverter(ty)  # type: ignore
-	if base is None:
-		return NoneConverter()  # type: ignore
-	if issubclass(base, (list, abc.Sequence)):
-		return ListConverter(base, args[0] if len(args) > 0 else Any)  # type: ignore
-	if issubclass(base, (dict, abc.Mapping)):
-		args = typing.get_args(ty)
-		return DictConverter(base,  # type: ignore
-		                     args[0] if len(args) > 0 else Any,
-		                     args[1] if len(args) > 1 else Any)  # type: ignore
+    base = t.get_origin(ty) or ty
+    args = t.get_args(ty)
 
-	raise TypeError(f"Can't convert data into type '{ty}'")
+    if issubclass(base, FromData):
+        return base._converter(*args, annotation=None)
+
+    if ty in _BASIC_CONVERTERS:
+        return _BASIC_CONVERTERS[ty]
+    if base is None:
+        return NoneConverter()  # type: ignore
+
+    if issubclass(base, (list, abc.Sequence)):
+        return ListConverter(base, args[0] if len(args) > 0 else t.Any)  # type: ignore
+    if issubclass(base, (dict, abc.Mapping)):
+        args = t.get_args(ty)
+        return DictConverter(base,  # type: ignore
+                             args[0] if len(args) > 0 else t.Any,
+                             args[1] if len(args) > 1 else t.Any)  # type: ignore
+
+    raise TypeError(f"Can't convert data into type '{ty}'")
