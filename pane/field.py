@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import typing as t
 from typing import Generic, Optional, TypeVar, Type, Callable, Any, Union, cast
 from typing import Sequence, List
 
@@ -9,57 +10,57 @@ T = TypeVar('T')
 
 
 class _Missing:
-	pass
+    pass
 
 
 _MISSING = _Missing()
 
 
-@dataclass(init=False)
-class Field(Generic[T]):
-	name: Optional[str]
-	type: Type[T]
-	ser_name: Optional[str]
-	de_name: Optional[str]
-	aliases: Optional[List[str]]
-	default: Union[T, _Missing]
-	default_factory: Optional[Callable[[], T]]
-	flatten: bool
+@dataclass(kw_only=True)
+class FieldSpec:
+    aliases: Optional[List[str]] = None
+    save_name: t.Optional[str] = None
+    init: bool = True
+    default: Union[t.Any, _Missing] = _MISSING
+    default_factory: Optional[Callable[[], t.Any]] = None
+    kw_only: bool = False
+    flatten: bool = False
 
-	def __init__(self, type: Type[T] = Any, /, *,
-	             name: Optional[str] = None,
-	             ser_name: Optional[str] = None,
-	             de_name: Optional[str] = None,
-	             aliases: Union[str, Sequence[str], None] = None,
-	             flatten: bool = False,
-	             default: Union[T, _Missing] = _MISSING,
-	             default_factory: Optional[Callable[[], T]] = None):
-		self.name = None
-		self.type = type
-		if name is not None:
-			if self.ser_name is not None or self.de_name is not None:
-				raise ValueError("`name` overrides `ser_name` and `de_name`.")
-			self.ser_name = name
-			self.de_name = name
-		else:
-			self.ser_name = ser_name
-			self.de_name = de_name
-		self.default = default
-		self.default_factory = default_factory
-		self.flatten = flatten
+    def __post_init__(self):
+        if isinstance(self.aliases, str):
+            self.aliases = [self.aliases]
 
-		if isinstance(aliases, str):
-			aliases = [aliases]
-		elif aliases is not None:
-			aliases = list(aliases)
-		self.aliases = aliases
+        if self.flatten:
+            raise NotImplementedError()
 
-	@staticmethod
-	def with_name(name: str, ty: Union[Field[T], Type[T]]) -> Field[T]:
-		if isinstance(ty, Field):
-			field = ty
-		else:
-			field = cast(Field[T], Field(ty))
+    def make_field(self, name: str, ty: Union[type, _Missing] = _MISSING) -> Field:
+        py_name = name = name
+        ty = t.cast(type, t.Any if ty is _MISSING else ty)
+        return Field(name=name, py_name=py_name, type=ty, save_name=self.save_name, aliases=self.aliases,
+                     init=self.init, default=self.default, default_factory=self.default_factory,
+                     kw_only=self.kw_only, flatten=self.flatten)
 
-		field.name = name
-		return field
+    def is_optional(self) -> bool:
+        return self.default is not _MISSING or self.default_factory is not None
+
+
+@dataclass(kw_only=True)
+class Field(FieldSpec):
+    name: str
+    type: type
+    py_name: str
+
+
+def field(*,
+    aliases: Optional[List[str]] = None,
+    save_name: t.Optional[str] = None,
+    init: bool = True,
+    default: Union[T, _Missing] = _MISSING,
+    default_factory: Optional[Callable[[], T]] = None,
+    kw_only: bool = False,
+    flatten: bool = False,
+) -> t.Any:
+    return FieldSpec(
+        aliases=aliases, save_name=save_name, flatten=flatten, init=init,
+        default=default, default_factory=default_factory, kw_only=kw_only
+    )
