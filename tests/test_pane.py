@@ -5,6 +5,7 @@ import pytest
 from dataclasses import field, dataclass
 
 import pane
+from pane.convert import ErrorNode, ProductErrorNode, DuplicateKeyError
 
 
 def f(*args, **kwargs):
@@ -38,12 +39,22 @@ def test_pane_unchecked(args, result):
     assert TestClass.make_unchecked(*args, **kwargs).__dict__ == result
 
 
+@pytest.mark.parametrize(('args', 'result'), [
+    (f(), "TestClass(x=3, y=5.0)"),
+    (f(4), "TestClass(x=4, y=5.0)"),
+    (f(y=8), "TestClass(x=3, y=8.0)"),
+])
+def test_pane_repr(args, result):
+    (args, kwargs) = args
+    assert repr(TestClass(*args, **kwargs)) == result
+
+
 class TestClass2(pane.PaneBase):
     x: int = 1
     z: int = pane.field(default=3, kw_only=True)
     y: int = 2
     _: pane.KW_ONLY
-    w: int = 4
+    w: int = pane.field(default=4, aliases=('W', 'P'))
 
     __test__ = False
 
@@ -77,8 +88,14 @@ def test_make_unchecked_signature(cls, sig):
     assert str(inspect.signature(cls.make_unchecked)) == sig
 
 
-@pytest.mark.parametrize(('cls', 'val'), [
-    (TestClass, {'x': 3, 'y': 5.})
+@pytest.mark.parametrize(('cls', 'val', 'result'), [
+    #(TestClass, {'x': 3, 'y': 5.}, TestClass(3, 5.)),
+    (TestClass2, {'x': 3, 'w': 3, 'W': 4}, ProductErrorNode('TestClass2', {'W': DuplicateKeyError('W', ('W', 'P'))}, {'x': 3, 'w': 3, 'W': 4})),
 ])
-def test_pane_convert(cls, val):
-    pane.convert(val, cls)
+def test_pane_convert(cls, val, result):
+    if isinstance(result, ErrorNode):
+        with pytest.raises(pane.ConvertError) as e:
+            pane.convert(val, cls)
+        assert e.value.tree == result
+    else:
+        assert pane.convert(val, cls) == result

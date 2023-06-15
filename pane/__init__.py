@@ -3,12 +3,14 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass, KW_ONLY
 from inspect import Signature, Parameter
+from io import StringIO
 import typing as t
 
 from .convert import DataType, IntoData, FromData, from_data, into_data, convert
-from .convert import StructConverter, Converter, make_converter
+from .convert import Converter, make_converter, ConvertError
 from .convert import ParseInterrupt, WrongTypeError, ProductErrorNode, DuplicateKeyError
-from .field import Field, FieldSpec, field, _MISSING
+from .field import Field, FieldSpec, field, RenameStyle, _MISSING
+from .util import FileOrPath, open_file
 
 
 ClassLayout = t.Literal['tuple', 'struct']
@@ -31,6 +33,7 @@ class PaneOptions:
     kw_only: bool = False
     ser_format: ClassLayout = 'struct'
     de_format: t.Optional[t.Sequence[ClassLayout]] = None
+    rename: t.Optional[RenameStyle] = None
 
 
 @t.dataclass_transform(
@@ -55,20 +58,44 @@ class PaneBase:
         frozen: bool = False,
         init: bool = True,
         kw_only: bool = False,
+        rename: t.Optional[RenameStyle] = None
     ):
         opts = PaneOptions(
             name=name, eq=eq, order=order, frozen=frozen,
-            init=init, kw_only=kw_only,
+            init=init, kw_only=kw_only, rename=rename,
             ser_format=ser_format, de_format=de_format,
         )
         setattr(cls, PANE_OPTS, opts)
 
         _process(cls, opts)
 
+    def __repr__(self) -> str:
+        inside = ", ".join(f"{field.py_name}={getattr(self, field.py_name)!r}" for field in self.__pane_fields__)
+        return f"{self.__class__.__name__}({inside})"
+
     @classmethod
     def make(cls, obj) -> t.Self:
         conv: Converter = getattr(cls, '_converter')()
         return conv.convert(obj)
+
+    @classmethod
+    def from_json(cls, f: FileOrPath) -> t.Self:
+        import json
+        with open_file(f) as f:
+            obj = json.load(f)
+        return cls.make(obj)
+
+    @classmethod
+    def from_yaml(cls, f: FileOrPath) -> t.Self:
+        import yaml
+        try:
+            from yaml import CLoader as Loader
+        except ImportError:
+            from yaml import Loader
+
+        with open_file(f) as f:
+            obj = yaml.load(f, Loader)
+        return cls.make(obj)
 
     # TODO can we give this proper types?
     @classmethod
@@ -254,7 +281,7 @@ class PaneConverter(Converter[PaneBase]):
 
             children = {}
             extra = set()
-            values: t.Dict[str, t.Any] = {}
+            seen = set()
             for (k, v) in val.items():
                 if k not in self.field_map:
                     extra.add(k)  # unknown key
@@ -262,19 +289,20 @@ class PaneConverter(Converter[PaneBase]):
 
                 field = self.fields[self.field_map[k]]
                 conv = self.field_converters[self.field_map[k]]
-                if field.py_name in values:
+                if field.py_name in seen:
                     children[k] = DuplicateKeyError(k, field.aliases or field.name)
                     continue
+                seen.add(field.py_name)
 
                 if (node := conv.collect_errors(v)) is not None:
                     children[k] = node
 
             missing = set()
             for field in self.fields:
-                if field.py_name not in values and not field.is_optional:
+                if field.py_name not in seen and not field.is_optional:
                     missing.add(field.name)
 
-            if len(missing) or len(children):
+            if len(missing) or len(children) or len(extra):
                 return ProductErrorNode(self.name, children, val, missing, extra)
             return None
         return WrongTypeError(self.name, val)
@@ -282,5 +310,5 @@ class PaneConverter(Converter[PaneBase]):
 
 __ALL__ = [
     DataType, IntoData, FromData, from_data, into_data, convert,
-    Field, PaneOptions, PaneBase,
+    Field, PaneOptions, PaneBase, ConvertError
 ]
