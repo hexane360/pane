@@ -89,7 +89,7 @@ def test_make_unchecked_signature(cls, sig):
 
 
 @pytest.mark.parametrize(('cls', 'val', 'result'), [
-    #(TestClass, {'x': 3, 'y': 5.}, TestClass(3, 5.)),
+    (TestClass, {'x': 3, 'y': 5.}, TestClass(3, 5.)),
     (TestClass2, {'x': 3, 'w': 3, 'W': 4}, ProductErrorNode('TestClass2', {'W': DuplicateKeyError('W', ('W', 'P'))}, {'x': 3, 'w': 3, 'W': 4})),
 ])
 def test_pane_convert(cls, val, result):

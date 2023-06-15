@@ -149,6 +149,18 @@ def _make_init(cls, opts: PaneOptions, fields: t.Sequence[Field]):
     setattr(cls, 'make_unchecked', make_unchecked)
 
 
+def _make_eq(cls, fields: t.Sequence[Field]):
+    def __eq__(self, other: t.Any) -> bool:
+        if self.__class__ != other.__class__:
+            return False
+        return all(
+            getattr(self, field.py_name) == getattr(other, field.py_name)
+            for field in fields
+        )
+
+    setattr(cls, '__eq__', __eq__)
+
+
 def _process(cls, opts: PaneOptions):
     fields = {}
 
@@ -217,6 +229,9 @@ def _process(cls, opts: PaneOptions):
 
     if opts.init:
         _make_init(cls, opts, cls_fields)
+
+    if opts.eq:
+        _make_eq(cls, cls_fields)
 
     return cls
 
