@@ -412,7 +412,7 @@ class DelegateConverter(t.Generic[T, U], Converter[T]):
 _BASIC_CONVERTERS = {
     str: ScalarConverter(str, str, 'a str'),
     int: ScalarConverter(int, int, 'an int'),
-    float: ScalarConverter(float, (int, float), 'an int'),
+    float: ScalarConverter(float, (int, float), 'a float'),
     complex: ScalarConverter(complex, (int, float, complex), 'a complex float'),
 }
 

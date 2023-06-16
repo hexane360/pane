@@ -6,7 +6,7 @@ import typing as t
 import pytest
 
 import pane
-from pane.convert import ErrorNode, ProductErrorNode, DuplicateKeyError
+from pane.convert import ErrorNode, ProductErrorNode, DuplicateKeyError, WrongTypeError
 
 
 def check_ord(obj, other, ordering: t.Literal[-1, 0, 1]):
@@ -67,6 +67,14 @@ def test_pane_ord():
         check_ord(TestClass(x=1, y=3.), 5, -1)
 
 
+class TestClassInherit(TestClass):
+    z: float = pane.field(default=3., kw_only=True)
+
+
+class TestClassInherit2(TestClassInherit):
+    w: int = 4
+
+
 class TestClass2(pane.PaneBase):
     x: int = 1
     z: int = pane.field(default=3, kw_only=True)
@@ -91,6 +99,8 @@ class TestClass3(pane.PaneBase, kw_only=True):
     (TestClass, '(x: int = 3, y: float = 5.0) -> None'),
     (TestClass2, '(x: int = 1, y: int = 2, *, z: int = 3, w: int = 4) -> None'),
     (TestClass3, '(*, x: int = 1, z: int = 3, y: int = 2, w: int = 4) -> None'),
+    (TestClassInherit, '(x: int = 3, y: float = 5.0, *, z: float = 3.0) -> None'),
+    (TestClassInherit2, '(x: int = 3, y: float = 5.0, w: int = 4, *, z: float = 3.0) -> None'),
 ])
 def test_init_signature(cls, sig):
     assert str(inspect.signature(cls.__init__)) == sig
@@ -120,16 +130,57 @@ def test_pane_convert(cls, val, result):
 
 
 T = t.TypeVar('T')
+U = t.TypeVar('U')
 
 
 class GenericPane(pane.PaneBase, t.Generic[T]):
     x: T
 
+class GenericInherit(GenericPane[U]):
+    y: U
 
-def test_generic_pane():
-    with pytest.raises(pane.ConvertError):
-        GenericPane[int]('str')  # type: ignore
+class ConcreteGenericInherit(GenericPane[int]):
+    y: float
 
-    GenericPane[int](5)
-    with pytest.warns(UserWarning, match="Unbound TypeVar '~T'. Will be interpreted as Any."):
-        GenericPane('any value')
+class GenericGenericInherit(GenericInherit[T]):
+    z: T
+
+class GenericConcreteInherit(GenericInherit[int], t.Generic[T]):
+    z: T
+
+
+@pytest.mark.parametrize(('cls', 'sig'), [
+    (GenericPane, '(x: ~T) -> None'),
+    (GenericPane[int], '(x: int) -> None'),
+    (ConcreteGenericInherit, '(x: int, y: float) -> None'),
+    (GenericInherit, '(x: ~U, y: ~U) -> None'),
+    (GenericInherit[float], '(x: float, y: float) -> None'),
+    (GenericGenericInherit, '(x: ~T, y: ~T, z: ~T) -> None'),
+    (GenericGenericInherit[float], '(x: float, y: float, z: float) -> None'),
+    (GenericConcreteInherit, '(x: int, y: int, z: ~T) -> None'),
+    (GenericConcreteInherit[float], '(x: int, y: int, z: float) -> None'),
+])
+def test_generic_signatures(cls, sig):
+    assert str(inspect.signature(cls.__init__)) == sig
+    assert str(inspect.signature(cls)) == sig
+
+
+@pytest.mark.parametrize(('cls', 'args', 'error'), [
+    (GenericPane[int], f('s'), WrongTypeError('an int', 's')),
+    (GenericPane[int], f(5), None),
+    (GenericPane, f('any value'), UserWarning("Unbound TypeVar '~T'. Will be interpreted as Any.")),
+    (GenericInherit[float], f('s', 5.), WrongTypeError('a float', 's')),
+    (GenericInherit[float], f(5., 's'), WrongTypeError('a float', 's')),
+])
+def test_generic_pane_init(cls, args, error):
+    (args, kwargs) = args
+
+    if isinstance(error, ErrorNode):
+        with pytest.raises(pane.ConvertError) as e:
+            cls(*args, **kwargs)
+        assert e.value.tree == error
+    elif isinstance(error, Warning):
+        with pytest.warns(type(error), match=error.args[0]):
+            cls(*args, **kwargs)
+    else:
+        cls(*args, **kwargs)

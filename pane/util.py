@@ -1,4 +1,5 @@
 
+import sys
 from pathlib import Path
 from io import TextIOBase, IOBase, TextIOWrapper, BufferedIOBase
 from contextlib import AbstractContextManager, nullcontext
@@ -46,6 +47,26 @@ def open_file(f: FileOrPath,
     return nullcontext(f)  # don't close a f we didn't open
 
 
+def _collect_typevars(d, ty):
+    if isinstance(ty, type):
+        pass
+    elif isinstance(ty, t.Sequence):
+        for arg in ty:
+            _collect_typevars(d, arg)
+    elif hasattr(ty, '__typing_subst__'):
+        d[ty] = None
+    else:
+        for ty in getattr(ty, '__parameters__', ()):
+            d[ty] = None
+
+
+def collect_typevars(args) -> tuple[t.Union[t.TypeVar, t.ParamSpec]]:
+    # loosely based on typing._collect_parameters
+    d = {}
+    _collect_typevars(d, args)
+    return tuple(d.keys())
+
+
 def _union_args(ty: t.Type) -> t.Sequence[t.Type]:
     base = t.get_origin(ty) or ty
     args = t.get_args(ty)
@@ -56,9 +77,12 @@ def _union_args(ty: t.Type) -> t.Sequence[t.Type]:
     return (ty,)
 
 
-def replace_typevars(ty: t.Type, replacements: t.Mapping[t.TypeVar, t.Type]) -> t.Type:
-    if isinstance(ty, t.TypeVar):
+
+def replace_typevars(ty: t.Type, replacements: t.Mapping[t.Union[t.TypeVar, t.ParamSpec], t.Type]) -> t.Type:
+    if isinstance(ty, (t.TypeVar, t.ParamSpec)):
         return replacements.get(ty, ty)
+    if isinstance(ty, (list, tuple)):
+        return type(ty)(replace_typevars(t, replacements) for t in ty)
 
     base = t.get_origin(ty) or ty
     args = t.get_args(ty)
@@ -78,3 +102,22 @@ def replace_typevars(ty: t.Type, replacements: t.Mapping[t.TypeVar, t.Type]) -> 
             return next(iter(args))
 
     return base[*args]
+
+
+def get_type_hints(cls: type) -> t.Dict[str, t.Any]:
+    # modified version of typing.get_type_hints
+
+    globalns = getattr(sys.modules.get(cls.__module__, None), '__dict__', {})
+    localns = dict(vars(cls))
+
+    d = {}
+    for name, value in cls.__dict__.get('__annotations__', {}).items():
+        if value is None:
+            value = type(None)
+        if isinstance(value, str):
+            value = t.ForwardRef(value, is_argument=False, is_class=True)
+        # private access inside typing.
+        value = t._eval_type(value, globalns, localns)  # type: ignore
+        d[name] = value
+
+    return d

@@ -10,7 +10,7 @@ from .convert import DataType, IntoData, FromData, from_data, into_data, convert
 from .convert import Converter, make_converter, ConvertError
 from .convert import ParseInterrupt, WrongTypeError, ProductErrorNode, DuplicateKeyError
 from .field import Field, FieldSpec, field, RenameStyle, _MISSING
-from .util import FileOrPath, open_file
+from .util import FileOrPath, open_file, get_type_hints
 
 
 ClassLayout = t.Literal['tuple', 'struct']
@@ -18,6 +18,7 @@ T = t.TypeVar('T')
 
 
 PANE_FIELDS = '__pane_fields__'
+PANE_BOUNDVARS = '__pane_boundvars__'
 PANE_OPTS = '__pane_opts__'
 POST_INIT = '__post_init__'
 
@@ -60,12 +61,11 @@ class PaneBase:
         kw_only: bool = False,
         rename: t.Optional[RenameStyle] = None
     ):
+        old_params = getattr(cls, '__parameters__', ())
         super().__init_subclass__()
+        setattr(cls, '__parameters__', old_params + getattr(cls, '__parameters__', ()))
 
-        if hasattr(cls, PANE_FIELDS) and hasattr(cls, PANE_OPTS):
-            # we're already initialized (used in __class_getitem__)
-            return
-
+        # TODO: inherit PaneOptions
         opts = PaneOptions(
             name=name, eq=eq, order=order, frozen=frozen,
             init=init, kw_only=kw_only, rename=rename,
@@ -76,7 +76,7 @@ class PaneBase:
         _process(cls, opts)
 
     def __class_getitem__(cls, params):
-        typevars = t.cast(t.Optional[t.Sequence[t.TypeVar]], getattr(cls, '__parameters__', None))
+        typevars = getattr(cls, '__parameters__', ())
         if not isinstance(params, tuple):
             params = (params,)
 
@@ -84,15 +84,12 @@ class PaneBase:
             raise TypeError(f"type '{cls}' is not subscriptable")
 
         alias = super().__class_getitem__(params)  # type: ignore
-        if typevars is None:  # t.Generic will probably raise in this case
-            return alias
 
-        # perform typevar => bound parameter replacements
-        replacements = dict(zip(typevars, params))
-        fields = tuple((field.replace_typevars(replacements)
-                       for field in getattr(cls, PANE_FIELDS)))
-
-        bound = type(cls.__name__, (cls,), {PANE_FIELDS: fields, PANE_OPTS: getattr(cls, PANE_OPTS)})
+        # return subclass with bound type variables
+        bound_vars = dict(zip(typevars, params))
+        bound = type(cls.__name__, (cls,), {
+            PANE_BOUNDVARS: bound_vars, '__parameters__': alias.__parameters__,
+        })
         return bound
 
     def __repr__(self) -> str:
@@ -130,6 +127,7 @@ class PaneBase:
 
 
 def _make_init(cls, opts: PaneOptions, fields: t.Sequence[Field]):
+
     params = []
     for field in fields:
         kind = Parameter.KEYWORD_ONLY if field.kw_only else Parameter.POSITIONAL_OR_KEYWORD
@@ -219,26 +217,28 @@ def _make_ord(cls, fields: t.Sequence[Field]):
 
 
 def _process(cls, opts: PaneOptions):
-    fields = {}
-
     globals = sys.modules[cls.__module__].__dict__ if cls.__module__ in sys.modules else {}
 
-    # todo work with mro/subclassing
-    for base in cls.__mro__[-1:0:-1]:
-        base_fields = getattr(base, "__ser_fields__", None)
-        if base_fields is not None:
-            for f in base_fields.values():
-                fields[f.name] = f
+    # TODO handle overriding a field
+    cls_fields: t.List[Field] = []
+    kw_only_fields: t.List[Field] = []
 
-    annotations = t.get_type_hints(cls, localns={cls.__name__: cls}, include_extras=True)
+    for base in cls.__bases__:
+        if not hasattr(base, PANE_OPTS):
+            continue
+        for field in getattr(base, PANE_FIELDS, ()):
+            if field.kw_only:
+                kw_only_fields.append(field)
+            else:
+                cls_fields.append(field)
 
-    cls_fields = []
-    kw_only_fields = []
+    annotations = get_type_hints(cls)
+
     kw_only = opts.kw_only
+    if kw_only:
+        cls_fields.extend(kw_only_fields)
 
     for name, ty in annotations.items():
-        if name in (PANE_FIELDS, PANE_OPTS):
-            continue
         if ty == KW_ONLY:
             kw_only = True
             cls_fields.extend(kw_only_fields)
@@ -270,6 +270,9 @@ def _process(cls, opts: PaneOptions):
     # put keyword-only fields at end
     if not kw_only:
         cls_fields.extend(kw_only_fields)
+
+    bound_vars = getattr(cls, PANE_BOUNDVARS, {})
+    cls_fields = [field.replace_typevars(bound_vars) for field in cls_fields]
 
     setattr(cls, PANE_FIELDS, cls_fields)
     setattr(cls, '_converter', classmethod(PaneConverter))
