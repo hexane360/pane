@@ -365,12 +365,12 @@ class SequenceConverter(t.Generic[T], Converter[t.Sequence[T]]):
         self.v_conv = make_converter(v)
 
     def try_convert(self, val: t.Any) -> t.Sequence[T]:
-        if not isinstance(val, t.Sequence):
+        if not isinstance(val, t.Sequence) or isinstance(val, str):
             raise ParseInterrupt
         return self.ty(self.v_conv.try_convert(v) for v in val)  # type: ignore
 
     def collect_errors(self, val: t.Any) -> t.Union[None, WrongTypeError, ProductErrorNode]:
-        if not isinstance(val, t.Sequence):
+        if not isinstance(val, t.Sequence) or isinstance(val, str):
             return WrongTypeError("sequence", val)
         nodes = {}
         for (i, v) in enumerate(val):

@@ -8,7 +8,21 @@ version = "0.1"
 authors = [
 	{name = "Colin Gilgenbach", email = "hexane@mit.edu"},
 ]
-description = ""
+license = {file = "LICENSE.txt"}
+description = "A modern dataclass & data conversion library, focused on speed and expressiveness."
+readme = "README.md"
+keywords = ["dataclass", "validation", "parsing", "conversion"]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Typing :: Typed",
+]
+
 requires-python = ">=3.9"
 dependencies = [
   'PyYAML >= 6.0',
