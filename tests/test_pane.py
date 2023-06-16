@@ -1,11 +1,21 @@
 
 import inspect
+from dataclasses import field, dataclass
+import typing as t
 
 import pytest
-from dataclasses import field, dataclass
 
 import pane
 from pane.convert import ErrorNode, ProductErrorNode, DuplicateKeyError
+
+
+def check_ord(obj, other, ordering: t.Literal[-1, 0, 1]):
+    assert (obj < other) == (ordering < 0)
+    assert (obj > other) == (ordering > 0)
+    assert (obj <= other) == (ordering <= 0)
+    assert (obj >= other) == (ordering >= 0)
+    assert (obj == other) == (ordering == 0)
+    assert (obj != other) == (ordering != 0)
 
 
 def f(*args, **kwargs):
@@ -49,6 +59,14 @@ def test_pane_repr(args, result):
     assert repr(TestClass(*args, **kwargs)) == result
 
 
+def test_pane_ord():
+    check_ord(TestClass(x=1, y=3.), TestClass(x=2, y=1.), -1)
+    check_ord(TestClass(x=2, y=3.), TestClass(x=2, y=1.), 1)
+    check_ord(TestClass(x=2, y=1.), TestClass(x=2, y=1.), 0)
+    with pytest.raises(TypeError):
+        check_ord(TestClass(x=1, y=3.), 5, -1)
+
+
 class TestClass2(pane.PaneBase):
     x: int = 1
     z: int = pane.field(default=3, kw_only=True)
@@ -90,7 +108,7 @@ def test_make_unchecked_signature(cls, sig):
 
 @pytest.mark.parametrize(('cls', 'val', 'result'), [
     (TestClass, {'x': 3, 'y': 5.}, TestClass(3, 5.)),
-    (TestClass2, {'x': 3, 'w': 3, 'W': 4}, ProductErrorNode('TestClass2', {'W': DuplicateKeyError('W', ('W', 'P'))}, {'x': 3, 'w': 3, 'W': 4})),
+    (TestClass2, {'x': 3, 'w': 3, 'W': 4}, ProductErrorNode('TestClass2', {'W': DuplicateKeyError('W', ('w', 'W', 'P'))}, {'x': 3, 'w': 3, 'W': 4})),
 ])
 def test_pane_convert(cls, val, result):
     if isinstance(result, ErrorNode):
@@ -99,3 +117,19 @@ def test_pane_convert(cls, val, result):
         assert e.value.tree == result
     else:
         assert pane.convert(val, cls) == result
+
+
+T = t.TypeVar('T')
+
+
+class GenericPane(pane.PaneBase, t.Generic[T]):
+    x: T
+
+
+def test_generic_pane():
+    with pytest.raises(pane.ConvertError):
+        GenericPane[int]('str')  # type: ignore
+
+    GenericPane[int](5)
+    with pytest.warns(UserWarning, match="Unbound TypeVar '~T'. Will be interpreted as Any."):
+        GenericPane('any value')

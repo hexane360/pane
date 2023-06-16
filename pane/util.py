@@ -2,6 +2,7 @@
 from pathlib import Path
 from io import TextIOBase, IOBase, TextIOWrapper, BufferedIOBase
 from contextlib import AbstractContextManager, nullcontext
+from itertools import chain
 import typing as t
 
 
@@ -43,3 +44,37 @@ def open_file(f: FileOrPath,
 
     _validate_file(f, mode)
     return nullcontext(f)  # don't close a f we didn't open
+
+
+def _union_args(ty: t.Type) -> t.Sequence[t.Type]:
+    base = t.get_origin(ty) or ty
+    args = t.get_args(ty)
+
+    if base is t.Union:
+        return args
+
+    return (ty,)
+
+
+def replace_typevars(ty: t.Type, replacements: t.Mapping[t.TypeVar, t.Type]) -> t.Type:
+    if isinstance(ty, t.TypeVar):
+        return replacements.get(ty, ty)
+
+    base = t.get_origin(ty) or ty
+    args = t.get_args(ty)
+
+    if not len(args):
+        return ty
+
+    args = (replace_typevars(ty, replacements) for ty in args)
+
+    if base is t.Union:
+        # deduplicate union
+        args = tuple(chain.from_iterable(map(_union_args, args)))
+        args = dict.fromkeys(args).keys()
+
+        if len(args) == 1:
+            # single-element union, return as value
+            return next(iter(args))
+
+    return base[*args]

@@ -3,6 +3,7 @@ from __future__ import annotations
 import abc
 import sys
 from io import StringIO
+import warnings
 import dataclasses
 from itertools import chain
 import typing as t
@@ -419,10 +420,11 @@ _BASIC_CONVERTERS = {
 def make_converter(ty: t.Type[T]) -> Converter[T]:
     if ty is t.Any:
         return AnyConverter()
-
+    if isinstance(ty, t.TypeVar):
+        warnings.warn(f"Unbound TypeVar '{ty}'. Will be interpreted as Any.")
+        return AnyConverter()
     if isinstance(ty, (dict, t.Dict)):
         return StructConverter('dict', type(ty), ty)
-
     if isinstance(ty, (tuple, t.Tuple)):
         return TupleConverter(type(ty), ty)
 

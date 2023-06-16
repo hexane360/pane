@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from dataclasses import dataclass, KW_ONLY
 from inspect import Signature, Parameter
-from io import StringIO
+from types import NotImplementedType
 import typing as t
 
 from .convert import DataType, IntoData, FromData, from_data, into_data, convert
@@ -60,6 +60,12 @@ class PaneBase:
         kw_only: bool = False,
         rename: t.Optional[RenameStyle] = None
     ):
+        super().__init_subclass__()
+
+        if hasattr(cls, PANE_FIELDS) and hasattr(cls, PANE_OPTS):
+            # we're already initialized (used in __class_getitem__)
+            return
+
         opts = PaneOptions(
             name=name, eq=eq, order=order, frozen=frozen,
             init=init, kw_only=kw_only, rename=rename,
@@ -69,8 +75,28 @@ class PaneBase:
 
         _process(cls, opts)
 
+    def __class_getitem__(cls, params):
+        typevars = t.cast(t.Optional[t.Sequence[t.TypeVar]], getattr(cls, '__parameters__', None))
+        if not isinstance(params, tuple):
+            params = (params,)
+
+        if not hasattr(super(), '__class_getitem__'):
+            raise TypeError(f"type '{cls}' is not subscriptable")
+
+        alias = super().__class_getitem__(params)  # type: ignore
+        if typevars is None:  # t.Generic will probably raise in this case
+            return alias
+
+        # perform typevar => bound parameter replacements
+        replacements = dict(zip(typevars, params))
+        fields = tuple((field.replace_typevars(replacements)
+                       for field in getattr(cls, PANE_FIELDS)))
+
+        bound = type(cls.__name__, (cls,), {PANE_FIELDS: fields, PANE_OPTS: getattr(cls, PANE_OPTS)})
+        return bound
+
     def __repr__(self) -> str:
-        inside = ", ".join(f"{field.py_name}={getattr(self, field.py_name)!r}" for field in self.__pane_fields__)
+        inside = ", ".join(f"{field.name}={getattr(self, field.name)!r}" for field in self.__pane_fields__)
         return f"{self.__class__.__name__}({inside})"
 
     @classmethod
@@ -109,7 +135,7 @@ def _make_init(cls, opts: PaneOptions, fields: t.Sequence[Field]):
         kind = Parameter.KEYWORD_ONLY if field.kw_only else Parameter.POSITIONAL_OR_KEYWORD
         default = field.default if field.default is not _MISSING else Parameter.empty
         annotation = field.type if field.type is not _MISSING else Parameter.empty
-        params.append(Parameter(field.py_name, kind, default=default, annotation=annotation))
+        params.append(Parameter(field.name, kind, default=default, annotation=annotation))
 
     sig = Signature(params, return_annotation=None)
 
@@ -121,8 +147,8 @@ def _make_init(cls, opts: PaneOptions, fields: t.Sequence[Field]):
             raise TypeError(*e.args) from None
 
         for field in t.cast(t.Sequence[Field], getattr(self, PANE_FIELDS)):
-            if field.py_name in args:
-                val = args[field.py_name]
+            if field.name in args:
+                val = args[field.name]
                 if checked:
                     val = convert(val, field.type)  # type: ignore
             elif field.default is not _MISSING:
@@ -131,7 +157,7 @@ def _make_init(cls, opts: PaneOptions, fields: t.Sequence[Field]):
                 val = field.default_factory()
             else:
                 raise RuntimeError()
-            object.__setattr__(self, field.py_name, val)
+            object.__setattr__(self, field.name, val)
 
         if hasattr(self, POST_INIT):
             getattr(self, POST_INIT)()
@@ -150,15 +176,46 @@ def _make_init(cls, opts: PaneOptions, fields: t.Sequence[Field]):
 
 
 def _make_eq(cls, fields: t.Sequence[Field]):
+    #eq_fields = list(filter(lambda f: f.eq, fields))
     def __eq__(self, other: t.Any) -> bool:
         if self.__class__ != other.__class__:
             return False
         return all(
-            getattr(self, field.py_name) == getattr(other, field.py_name)
+            getattr(self, field.name) == getattr(other, field.name)
             for field in fields
         )
 
     setattr(cls, '__eq__', __eq__)
+
+
+def _make_ord(cls, fields: t.Sequence[Field]):
+    #ord_fields = list(filter(lambda f: f.ord, fields))
+    def _pane_ord(self, other: t.Any) -> t.Union[NotImplementedType, t.Literal[-1, 0, 1]]:
+        if self.__class__ != other.__class__:
+            return NotImplemented
+        for field in fields:
+            if getattr(self, field.name) == getattr(other, field.name):
+                continue
+            return 1 if getattr(self, field.name) > getattr(other, field.name) else -1
+        return 0
+
+    def __lt__(self, other: t.Any):
+        return NotImplemented if (o := _pane_ord(self, other)) is NotImplemented else o < 0
+
+    def __le__(self, other: t.Any):
+        return NotImplemented if (o := _pane_ord(self, other)) is NotImplemented else o <= 0
+
+    def __gt__(self, other: t.Any):
+        return NotImplemented if (o := _pane_ord(self, other)) is NotImplemented else o > 0
+
+    def __ge__(self, other: t.Any):
+        return NotImplemented if (o := _pane_ord(self, other)) is NotImplemented else o >= 0
+
+    setattr(cls, '_pane_ord', _pane_ord)
+    setattr(cls, '__lt__', __lt__)
+    setattr(cls, '__le__', __le__)
+    setattr(cls, '__gt__', __gt__)
+    setattr(cls, '__ge__', __ge__)
 
 
 def _process(cls, opts: PaneOptions):
@@ -198,7 +255,7 @@ def _process(cls, opts: PaneOptions):
                 setattr(cls, name, field.default)
         else:
             # otherwise make new Field
-            field = Field(name=name, py_name=name, type=ty)
+            field = Field(name=name, type=ty, in_names=[name], out_name=name)
             if hasattr(cls, name):
                 field.default = getattr(cls, name)
 
@@ -229,18 +286,18 @@ def _process(cls, opts: PaneOptions):
 
     if opts.init:
         _make_init(cls, opts, cls_fields)
-
     if opts.eq:
         _make_eq(cls, cls_fields)
+    if opts.order:
+        _make_ord(cls, cls_fields)
 
     return cls
 
 
 class PaneConverter(Converter[PaneBase]):
-    def __init__(self, cls: t.Type[PaneBase], *args, annotations: t.Optional[t.Tuple[t.Any, ...]] = None):
-        if len(args):
-            cls = cls[*args]  # type: ignore
-        self.cls: t.Type[PaneBase] = cls
+    def __init__(self, cls: t.Type[PaneBase],
+                 annotations: t.Optional[t.Tuple[t.Any, ...]] = None):
+        self.cls = cls
         self.name = self.cls.__name__
         self.opts: PaneOptions = getattr(self.cls, PANE_OPTS)
         self.fields: t.Sequence[Field] = getattr(self.cls, PANE_FIELDS)
@@ -249,7 +306,7 @@ class PaneConverter(Converter[PaneBase]):
 
         for (i, field) in enumerate(self.fields):
             self.field_map[field.name] = i
-            for alias in field.aliases or ():
+            for alias in field.in_names:
                 self.field_map[alias] = i
 
     @property
@@ -273,12 +330,12 @@ class PaneConverter(Converter[PaneBase]):
                 field = self.fields[self.field_map[k]]
                 conv = self.field_converters[self.field_map[k]]
 
-                if field.py_name in values:
+                if field.name in values:
                     raise ParseInterrupt()  # multiple values for key
-                values[field.py_name] = conv.try_convert(v)
+                values[field.name] = conv.try_convert(v)
 
             for field in self.fields:
-                if field.py_name not in values and not field.is_optional:
+                if field.name not in values and not field.is_optional:
                     raise ParseInterrupt()
 
             return self.cls.make_unchecked(**values)
@@ -304,17 +361,17 @@ class PaneConverter(Converter[PaneBase]):
 
                 field = self.fields[self.field_map[k]]
                 conv = self.field_converters[self.field_map[k]]
-                if field.py_name in seen:
-                    children[k] = DuplicateKeyError(k, field.aliases or field.name)
+                if field.name in seen:
+                    children[k] = DuplicateKeyError(k, field.in_names)
                     continue
-                seen.add(field.py_name)
+                seen.add(field.name)
 
                 if (node := conv.collect_errors(v)) is not None:
                     children[k] = node
 
             missing = set()
             for field in self.fields:
-                if field.py_name not in seen and not field.is_optional:
+                if field.name not in seen and not field.is_optional:
                     missing.add(field.name)
 
             if len(missing) or len(children) or len(extra):

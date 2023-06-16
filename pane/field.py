@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import itertools
 import re
 import typing as t
+
+from .util import replace_typevars
 
 
 class _Missing:
@@ -60,9 +62,30 @@ def rename_field(field: str, style: RenameStyle) -> str:
 
 
 @dataclass(kw_only=True)
+class Field:
+    name: str
+    type: type
+    in_names: t.Sequence[str]
+    out_name: str
+    init: bool = True
+    default: t.Union[t.Any, _Missing] = _MISSING
+    default_factory: t.Optional[t.Callable[[], t.Any]] = None
+    kw_only: bool = False
+    flatten: bool = False
+
+    def is_optional(self) -> bool:
+        return self.default is not _MISSING or self.default_factory is not None
+
+    def replace_typevars(self, replacements: t.Mapping[t.TypeVar, t.Type]) -> t.Self:
+        return replace(self, type=replace_typevars(self.type, replacements))
+
+
+@dataclass(kw_only=True)
 class FieldSpec:
+    rename: t.Optional[str] = None
+    in_names: t.Optional[t.Sequence[str]] = None
     aliases: t.Optional[t.Sequence[str]] = None
-    save_name: t.Optional[str] = None
+    out_name: t.Optional[str] = None
     init: bool = True
     default: t.Union[t.Any, _Missing] = _MISSING
     default_factory: t.Optional[t.Callable[[], t.Any]] = None
@@ -77,33 +100,44 @@ class FieldSpec:
             raise NotImplementedError()
 
     def make_field(self, name: str, ty: t.Union[type, _Missing] = _MISSING) -> Field:
-        py_name = name = name
+        # out_name
+        if self.out_name is not None:
+            out_name = self.out_name
+        elif self.rename is not None:
+            out_name = self.rename
+        else:
+            out_name = name
+
+        if sum(p is not None for p in (self.rename, self.aliases, self.in_names)) > 1:
+            raise TypeError("Can only specify one of 'rename', 'aliases', and 'in_names'")
+
+        if self.rename is not None:
+            in_names = (self.rename,)
+        elif self.aliases is not None:
+            in_names = (name, *(alias for alias in self.aliases if alias != name))
+        elif self.in_names is not None:
+            in_names = self.in_names
+        else:
+            in_names = (name,)
+
         ty = t.cast(type, t.Any if ty is _MISSING else ty)
-        return Field(name=name, py_name=py_name, type=ty, save_name=self.save_name, aliases=self.aliases,
+        return Field(name=name, type=ty, out_name=out_name, in_names=in_names,
                      init=self.init, default=self.default, default_factory=self.default_factory,
                      kw_only=self.kw_only, flatten=self.flatten)
 
-    def is_optional(self) -> bool:
-        return self.default is not _MISSING or self.default_factory is not None
 
-
-@dataclass(kw_only=True)
-class Field(FieldSpec):
-    name: str
-    type: type
-    py_name: str
-
-
+# TODO overloads here
 def field(*,
+    rename: t.Optional[str] = None,
+    in_names: t.Optional[t.Sequence[str]] = None,
     aliases: t.Optional[t.Sequence[str]] = None,
-    save_name: t.Optional[str] = None,
+    out_name: t.Optional[str] = None,
     init: bool = True,
     default: t.Union[T, _Missing] = _MISSING,
     default_factory: t.Optional[t.Callable[[], T]] = None,
     kw_only: bool = False,
-    flatten: bool = False,
 ) -> t.Any:
     return FieldSpec(
-        aliases=aliases, save_name=save_name, flatten=flatten, init=init,
-        default=default, default_factory=default_factory, kw_only=kw_only
+        rename=rename, in_names=in_names, aliases=aliases, out_name=out_name,
+        init=init, default=default, default_factory=default_factory, kw_only=kw_only
     )
