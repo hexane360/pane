@@ -5,6 +5,7 @@ from dataclasses import dataclass, KW_ONLY
 from inspect import Signature, Parameter
 from types import NotImplementedType
 import typing as t
+from typing_extensions import dataclass_transform, Self
 
 from .convert import DataType, IntoData, FromData, from_data, into_data, convert
 from .convert import Converter, make_converter, ConvertError
@@ -37,7 +38,7 @@ class PaneOptions:
     rename: t.Optional[RenameStyle] = None
 
 
-@t.dataclass_transform(
+@dataclass_transform(
     eq_default=True,
     order_default=True,
     frozen_default=True,
@@ -97,19 +98,19 @@ class PaneBase:
         return f"{self.__class__.__name__}({inside})"
 
     @classmethod
-    def make(cls, obj) -> t.Self:
+    def make(cls, obj: t.Any) -> Self:
         conv: Converter = getattr(cls, '_converter')()
         return conv.convert(obj)
 
     @classmethod
-    def from_json(cls, f: FileOrPath) -> t.Self:
+    def from_json(cls, f: FileOrPath) -> Self:
         import json
         with open_file(f) as f:
             obj = json.load(f)
         return cls.make(obj)
 
     @classmethod
-    def from_yaml(cls, f: FileOrPath) -> t.Self:
+    def from_yaml(cls, f: FileOrPath) -> Self:
         import yaml
         try:
             from yaml import CLoader as Loader
@@ -122,7 +123,7 @@ class PaneBase:
 
     # TODO can we give this proper types?
     @classmethod
-    def make_unchecked(cls, *args, **kwargs) -> t.Self:
+    def make_unchecked(cls, *args, **kwargs) -> Self:
         ...
 
 

@@ -16,16 +16,21 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
   "Development Status :: 3 - Alpha",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Typing :: Typed",
 ]
 
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
   'PyYAML >= 6.0',
+  'typing_extensions ~= 4.5'  # frozen_default
 ]
 
 [tool.setuptools]
+
+[tool.pyright]
+pythonVersion = "3.10"
+typeCheckingMode = "basic"
+

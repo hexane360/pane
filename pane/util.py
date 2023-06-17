@@ -101,7 +101,7 @@ def replace_typevars(ty: t.Type, replacements: t.Mapping[t.Union[t.TypeVar, t.Pa
             # single-element union, return as value
             return next(iter(args))
 
-    return base[*args]
+    return base[tuple(args)]
 
 
 def get_type_hints(cls: type) -> t.Dict[str, t.Any]:
