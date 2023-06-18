@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from dataclasses import dataclass, KW_ONLY
+from dataclasses import dataclass, KW_ONLY, replace
 from inspect import Signature, Parameter
 from types import NotImplementedType
 import typing as t
@@ -34,8 +34,12 @@ class PaneOptions:
     init: bool = True
     kw_only: bool = False
     ser_format: ClassLayout = 'struct'
-    de_format: t.Optional[t.Sequence[ClassLayout]] = None
+    de_format: t.Sequence[ClassLayout] = ('struct',)
     rename: t.Optional[RenameStyle] = None
+
+    def replace(self, **changes):
+        changes['name'] = changes.get('name', None)
+        return replace(self, **{k: v for (k, v) in changes.items() if v is not None})
 
 
 @dataclass_transform(
@@ -51,26 +55,28 @@ class PaneBase:
 
     def __init_subclass__(
         cls,
-        *,
+        *args,
         name: t.Optional[str] = None,
-        ser_format: ClassLayout = 'struct',
+        ser_format: t.Optional[ClassLayout] = None,
         de_format: t.Optional[t.Sequence[ClassLayout]] = None,
-        eq: bool = True,
-        order: bool = True,
-        frozen: bool = False,
-        init: bool = True,
-        kw_only: bool = False,
-        rename: t.Optional[RenameStyle] = None
+        eq: t.Optional[bool] = None,
+        order: t.Optional[bool] = None,
+        frozen: t.Optional[bool] = None,
+        init: t.Optional[bool] = None,
+        kw_only: t.Optional[bool] = None,
+        rename: t.Optional[RenameStyle] = None,
+        **kwargs,
     ):
         old_params = getattr(cls, '__parameters__', ())
-        super().__init_subclass__()
+        super().__init_subclass__(*args, **kwargs)
         setattr(cls, '__parameters__', old_params + getattr(cls, '__parameters__', ()))
 
-        # TODO: inherit PaneOptions
-        opts = PaneOptions(
-            name=name, eq=eq, order=order, frozen=frozen,
-            init=init, kw_only=kw_only, rename=rename,
-            ser_format=ser_format, de_format=de_format,
+        # handle option inheritance
+        opts = getattr(cls, '__pane_opts__', PaneOptions())
+        opts = opts.replace(
+            name=name, ser_format=ser_format, de_format=de_format,
+            eq=eq, order=order, frozen=frozen, init=init,
+            kw_only=kw_only, rename=rename,
         )
         setattr(cls, PANE_OPTS, opts)
 
@@ -218,8 +224,6 @@ def _make_ord(cls, fields: t.Sequence[Field]):
 
 
 def _process(cls, opts: PaneOptions):
-    globals = sys.modules[cls.__module__].__dict__ if cls.__module__ in sys.modules else {}
-
     # TODO handle overriding a field
     cls_fields: t.List[Field] = []
     kw_only_fields: t.List[Field] = []
@@ -375,7 +379,7 @@ class PaneConverter(Converter[PaneBase]):
 
             missing = set()
             for field in self.fields:
-                if field.name not in seen and not field.is_optional:
+                if field.name not in seen and not field.is_optional():
                     missing.add(field.name)
 
             if len(missing) or len(children) or len(extra):

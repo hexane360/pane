@@ -81,6 +81,7 @@ class ProductErrorNode(ErrorNode):
     extra: t.AbstractSet[str] = dataclasses.field(default_factory=set)
 
     def print_error(self, indent="", inside_sum=False, file=sys.stdout):
+        print(f"print_error {self.expected} {self.children} {self.actual} {self.missing} {self.extra}")
         # fuse together consecutive productnodes
         while len(self.children) == 1 and not len(self.missing) and not len(self.extra):
             field, child = next(iter(self.children.items()))
@@ -97,6 +98,9 @@ class ProductErrorNode(ErrorNode):
             if not isinstance(field, str):
                 field = '/'.join(field)
             print(f"{indent}  Missing required field '{field}'", file=file)
+
+        for field in self.extra:
+            print(f"{indent}  Unexpected field '{field}'", file=file)
 
 
 @dataclasses.dataclass
@@ -427,11 +431,12 @@ def make_converter(ty: t.Type[T]) -> Converter[T]:
         return StructConverter('dict', type(ty), ty)
     if isinstance(ty, (tuple, t.Tuple)):
         return TupleConverter(type(ty), ty)
+    if isinstance(ty, t.ForwardRef) or isinstance(ty, str):
+        raise TypeError(f"Unresolved forward reference '{ty}'")
 
     base = t.get_origin(ty) or ty
     args = t.get_args(ty)
 
-    # TODO forward ref check
     # TODO eat annotation
 
     # special types
@@ -439,6 +444,7 @@ def make_converter(ty: t.Type[T]) -> Converter[T]:
         return UnionConverter(args)
     if base is t.Literal:
         return LiteralConverter(args)
+
     if not isinstance(base, type):
         raise TypeError(f"Unsupported special type '{base}'")
 
