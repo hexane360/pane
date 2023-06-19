@@ -11,7 +11,7 @@ from .convert import DataType, IntoData, FromData, from_data, into_data, convert
 from .convert import Converter, make_converter, ConvertError
 from .convert import ParseInterrupt, WrongTypeError, ProductErrorNode, DuplicateKeyError
 from .field import Field, FieldSpec, field, RenameStyle, _MISSING
-from .util import FileOrPath, open_file, get_type_hints
+from .util import FileOrPath, open_file, get_type_hints, list_phrase
 
 
 ClassLayout = t.Literal['tuple', 'struct']
@@ -126,9 +126,9 @@ class PaneBase:
     def into_data(self) -> t.Any:
         opts: PaneOptions = getattr(self, PANE_OPTS)
         if opts.out_format == 'tuple':
-            return tuple(getattr(self, field.name) for field in getattr(self, PANE_FIELDS))
+            return tuple(into_data(getattr(self, field.name)) for field in getattr(self, PANE_FIELDS))
         elif opts.out_format == 'struct':
-            return { field.out_name: getattr(self, field.name) for field in getattr(self, PANE_FIELDS) }
+            return { field.out_name: into_data(getattr(self, field.name)) for field in getattr(self, PANE_FIELDS) }
         raise ValueError(f"Unknown 'out_format' '{opts.out_format}'")
 
     @classmethod
@@ -330,6 +330,9 @@ class PaneConverter(Converter[PaneBase]):
             self.field_map[field.name] = i
             for alias in field.in_names:
                 self.field_map[alias] = i
+
+    def expected(self, plural: bool = False) -> str:
+        return f"{list_phrase(self.opts.in_format)} {self.name}"
 
     def try_convert(self, val: t.Any) -> PaneBase:
         if isinstance(val, (list, tuple, t.Sequence)):

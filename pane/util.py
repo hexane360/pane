@@ -47,6 +47,12 @@ def open_file(f: FileOrPath,
     return nullcontext(f)  # don't close a f we didn't open
 
 
+def list_phrase(words: t.Sequence[str], conj: str = 'or') -> str:
+    if len(words) <= 2:
+        return f" {conj} ".join(words)
+    return ", ".join(words[:-1]) + f", {conj} {words[-1]}"
+
+
 def _collect_typevars(d, ty):
     if isinstance(ty, type):
         pass
@@ -75,7 +81,6 @@ def _union_args(ty: t.Type) -> t.Sequence[t.Type]:
         return args
 
     return (ty,)
-
 
 
 def replace_typevars(ty: t.Type, replacements: t.Mapping[t.Union[t.TypeVar, t.ParamSpec], t.Type]) -> t.Type:

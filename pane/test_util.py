@@ -3,7 +3,7 @@ import typing as t
 
 import pytest
 
-from .util import replace_typevars, collect_typevars
+from .util import replace_typevars, collect_typevars, list_phrase
 
 
 T = t.TypeVar('T')
@@ -34,5 +34,18 @@ def test_replace_typevars(input, output):
     ((T, t.Callable[P, T]), (T, P)),
     (t.Tuple[int, float, T], (T,))
 ])
-def tset_collect_typevars(input, output):
+def test_collect_typevars(input, output):
     assert collect_typevars(input) == output
+
+
+@pytest.mark.parametrize(('input', 'conj', 'output'), [
+    (('word',), None, 'word'),
+    (('a', 'b'), 'xor', 'a xor b'),
+    (('foo', 'bar', 'baz'), None, 'foo, bar, or baz'),
+    (('foo', 'bar', 'baz'), 'and', 'foo, bar, and baz'),
+])
+def test_list_phrase(input, conj, output):
+    if conj is not None:
+        assert list_phrase(input, conj) == output
+    else:
+        assert list_phrase(input) == output
