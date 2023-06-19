@@ -90,7 +90,7 @@ class TestClass3(pane.PaneBase, kw_only=True, allow_extra=True):
     z: int = pane.field(default=3, kw_only=True)
     y: int = 2
     _: pane.KW_ONLY
-    w: int = 4
+    w: int
 
     __test__ = False
 
@@ -98,7 +98,7 @@ class TestClass3(pane.PaneBase, kw_only=True, allow_extra=True):
 @pytest.mark.parametrize(('cls', 'sig'), [
     (TestClass, '(x: int = 3, y: float = 5.0) -> None'),
     (TestClass2, '(x: int = 1, y: int = 2, *, z: int = 3, w: int = 4) -> None'),
-    (TestClass3, '(*, x: int = 1, z: int = 3, y: int = 2, w: int = 4) -> None'),
+    (TestClass3, '(*, x: int = 1, z: int = 3, y: int = 2, w: int) -> None'),
     (TestClassInherit, '(x: int = 3, y: float = 5.0, *, z: float = 3.0) -> None'),
     (TestClassInherit2, '(x: int = 3, y: float = 5.0, w: int = 4, *, z: float = 3.0) -> None'),
 ])
@@ -110,7 +110,7 @@ def test_init_signature(cls, sig):
 @pytest.mark.parametrize(('cls', 'sig'), [
     (TestClass, '(x: int = 3, y: float = 5.0) -> test_pane.TestClass'),
     (TestClass2, '(x: int = 1, y: int = 2, *, z: int = 3, w: int = 4) -> test_pane.TestClass2'),
-    (TestClass3, '(*, x: int = 1, z: int = 3, y: int = 2, w: int = 4) -> test_pane.TestClass3'),
+    (TestClass3, '(*, x: int = 1, z: int = 3, y: int = 2, w: int) -> test_pane.TestClass3'),
 ])
 def test_make_unchecked_signature(cls, sig):
     assert str(inspect.signature(cls.make_unchecked)) == sig
@@ -118,8 +118,14 @@ def test_make_unchecked_signature(cls, sig):
 
 @pytest.mark.parametrize(('cls', 'val', 'result'), [
     (TestClass, {'x': 3, 'y': 5.}, TestClass(3, 5.)),
+    # extra fields
+    (TestClass, {'x': 3, 'y': 5., 'zz': 5}, ProductErrorNode('TestClass', {}, {'x': 3, 'y': 5., 'zz': 5}, extra={'zz'})),
+    # duplicate keys
     (TestClass2, {'x': 3, 'w': 3, 'W': 4}, ProductErrorNode('TestClass2', {'W': DuplicateKeyError('W', ('w', 'W', 'P'))}, {'x': 3, 'w': 3, 'W': 4})),
-    (TestClass3, {'x': 2, 'y': 3, 'zz': 5}, TestClass3(x=2, y=3))
+    # extra fields, allow_extra=True
+    (TestClass3, {'x': 2, 'y': 3, 'w': 4, 'zz': 5}, TestClass3(x=2, y=3, w=4)),
+    # missing fields
+    (TestClass3, {}, ProductErrorNode('TestClass3', {}, {}, missing={'w'}))
 ])
 def test_pane_convert(cls, val, result):
     if isinstance(result, ErrorNode):

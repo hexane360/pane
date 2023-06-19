@@ -257,6 +257,8 @@ def _process(cls, opts: PaneOptions):
         kw_only = getattr(base, PANE_OPTS).kw_only
 
         specs: t.Dict[str, FieldSpec]
+        # grab existing specs from parent classes, or make our own by processing this class
+        # TODO this can probably be simplified
         if base is cls:
             specs = {}
         else:
@@ -288,11 +290,13 @@ def _process(cls, opts: PaneOptions):
         bound_vars = getattr(base, PANE_BOUNDVARS, {})
         fields = [field.replace_typevars(bound_vars) for field in fields]
 
+        # save specs for the class we're making (so we can handle field renaming correctly in descendants)
         if base is cls:
             setattr(cls, PANE_SPECS, specs)
 
     # reorder kw-only fields to end
     fields = [*filter(lambda f: not f.kw_only, fields), *filter(lambda f: f.kw_only, fields)]
+    # TODO error on default positional arg before non-default arg
 
     setattr(cls, PANE_FIELDS, fields)
     setattr(cls, '_converter', classmethod(PaneConverter))
@@ -358,7 +362,7 @@ class PaneConverter(Converter[PaneBase]):
                 values[field.name] = conv.try_convert(v)
 
             for field in self.fields:
-                if field.name not in values and not field.is_optional:
+                if field.name not in values and not field.is_optional():
                     raise ParseInterrupt()  # missing field
 
             return self.cls.make_unchecked(**values)
