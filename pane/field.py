@@ -5,6 +5,8 @@ import itertools
 import re
 import typing as t
 
+from typing_extensions import Self
+
 from .util import replace_typevars
 
 
@@ -71,12 +73,19 @@ class Field:
     default: t.Union[t.Any, _Missing] = _MISSING
     default_factory: t.Optional[t.Callable[[], t.Any]] = None
     kw_only: bool = False
-    flatten: bool = False
+
+    @classmethod
+    def make(cls, name: str, ty: type,
+             in_rename: t.Optional[t.Sequence[RenameStyle]] = None,
+             out_rename: t.Optional[RenameStyle] = None) -> Field:
+        in_names = tuple(rename_field(name, style) for style in in_rename) if in_rename is not None else (name,)
+        out_name = rename_field(name, out_rename) if out_rename is not None else name
+        return cls(name=name, type=ty, in_names=in_names, out_name=out_name)
 
     def is_optional(self) -> bool:
         return self.default is not _MISSING or self.default_factory is not None
 
-    def replace_typevars(self, replacements: t.Mapping[t.TypeVar, t.Type]) -> t.Self:
+    def replace_typevars(self, replacements: t.Mapping[t.Union[t.TypeVar, t.ParamSpec], t.Type]) -> Self:
         return replace(self, type=replace_typevars(self.type, replacements))
 
 
@@ -90,23 +99,21 @@ class FieldSpec:
     default: t.Union[t.Any, _Missing] = _MISSING
     default_factory: t.Optional[t.Callable[[], t.Any]] = None
     kw_only: bool = False
-    flatten: bool = False
 
     def __post_init__(self):
         if isinstance(self.aliases, str):
             self.aliases = [self.aliases]
 
-        if self.flatten:
-            raise NotImplementedError()
-
-    def make_field(self, name: str, ty: t.Union[type, _Missing] = _MISSING) -> Field:
+    def make_field(self, name: str, ty: t.Union[type, _Missing] = _MISSING,
+                   in_rename: t.Optional[t.Sequence[RenameStyle]] = None,
+                   out_rename: t.Optional[RenameStyle] = None) -> Field:
         # out_name
         if self.out_name is not None:
             out_name = self.out_name
         elif self.rename is not None:
             out_name = self.rename
         else:
-            out_name = name
+            out_name = rename_field(name, out_rename) if out_rename is not None else name
 
         if sum(p is not None for p in (self.rename, self.aliases, self.in_names)) > 1:
             raise TypeError("Can only specify one of 'rename', 'aliases', and 'in_names'")
@@ -118,12 +125,12 @@ class FieldSpec:
         elif self.in_names is not None:
             in_names = self.in_names
         else:
-            in_names = (name,)
+            in_names = tuple(rename_field(name, style) for style in in_rename) if in_rename is not None else (name,)
 
         ty = t.cast(type, t.Any if ty is _MISSING else ty)
         return Field(name=name, type=ty, out_name=out_name, in_names=in_names,
                      init=self.init, default=self.default, default_factory=self.default_factory,
-                     kw_only=self.kw_only, flatten=self.flatten)
+                     kw_only=self.kw_only)
 
 
 # TODO overloads here

@@ -19,6 +19,7 @@ T = t.TypeVar('T')
 
 
 PANE_FIELDS = '__pane_fields__'
+PANE_SPECS = '__pane_specs__'
 PANE_BOUNDVARS = '__pane_boundvars__'
 PANE_OPTS = '__pane_opts__'
 POST_INIT = '__post_init__'
@@ -33,9 +34,10 @@ class PaneOptions:
     frozen: bool = True
     init: bool = True
     kw_only: bool = False
-    ser_format: ClassLayout = 'struct'
-    de_format: t.Sequence[ClassLayout] = ('struct',)
-    rename: t.Optional[RenameStyle] = None
+    out_format: ClassLayout = 'struct'
+    in_format: t.Sequence[ClassLayout] = ('struct',)
+    in_rename: t.Optional[t.Sequence[RenameStyle]] = None
+    out_rename: t.Optional[RenameStyle] = None
 
     def replace(self, **changes):
         changes['name'] = changes.get('name', None)
@@ -52,6 +54,7 @@ class PaneOptions:
 class PaneBase:
     __pane_opts__: PaneOptions
     __pane_fields__: t.Sequence[Field]
+    __pane_specs__: t.Dict[str, FieldSpec]
 
     def __init_subclass__(
         cls,
@@ -65,18 +68,28 @@ class PaneBase:
         init: t.Optional[bool] = None,
         kw_only: t.Optional[bool] = None,
         rename: t.Optional[RenameStyle] = None,
+        in_rename: t.Optional[t.Union[RenameStyle, t.Sequence[RenameStyle]]] = None,
+        out_rename: t.Optional[RenameStyle] = None,
         **kwargs,
     ):
         old_params = getattr(cls, '__parameters__', ())
         super().__init_subclass__(*args, **kwargs)
         setattr(cls, '__parameters__', old_params + getattr(cls, '__parameters__', ()))
 
+        if rename is not None:
+            if in_rename is not None or out_rename is not None:
+                print("'rename' cannot be specified with 'in_rename' or 'out_rename'")
+            in_rename = t.cast(t.Tuple[RenameStyle, ...], (rename,))
+            out_rename = rename
+        elif in_rename is not None and isinstance(in_rename, str):
+            in_rename = t.cast(t.Tuple[RenameStyle, ...], (in_rename,))
+
         # handle option inheritance
         opts = getattr(cls, '__pane_opts__', PaneOptions())
         opts = opts.replace(
             name=name, ser_format=ser_format, de_format=de_format,
             eq=eq, order=order, frozen=frozen, init=init,
-            kw_only=kw_only, rename=rename,
+            kw_only=kw_only, in_rename=in_rename, out_rename=out_rename,
         )
         setattr(cls, PANE_OPTS, opts)
 
@@ -104,16 +117,24 @@ class PaneBase:
         return f"{self.__class__.__name__}({inside})"
 
     @classmethod
-    def make(cls, obj: t.Any) -> Self:
+    def from_data(cls, data: t.Any) -> Self:
         conv: Converter = getattr(cls, '_converter')()
-        return conv.convert(obj)
+        return conv.convert(data)
+
+    def into_data(self) -> t.Any:
+        opts: PaneOptions = getattr(self, PANE_OPTS)
+        if opts.out_format == 'tuple':
+            return tuple(getattr(self, field.name) for field in getattr(self, PANE_FIELDS))
+        elif opts.out_format == 'struct':
+            return { field.out_name: getattr(self, field.name) for field in getattr(self, PANE_FIELDS) }
+        raise ValueError(f"Unknown 'out_format' '{opts.out_format}'")
 
     @classmethod
     def from_json(cls, f: FileOrPath) -> Self:
         import json
         with open_file(f) as f:
             obj = json.load(f)
-        return cls.make(obj)
+        return cls.from_data(obj)
 
     @classmethod
     def from_yaml(cls, f: FileOrPath) -> Self:
@@ -125,7 +146,7 @@ class PaneBase:
 
         with open_file(f) as f:
             obj = yaml.load(f, Loader)
-        return cls.make(obj)
+        return cls.from_data(obj)
 
     # TODO can we give this proper types?
     @classmethod
@@ -133,8 +154,7 @@ class PaneBase:
         ...
 
 
-def _make_init(cls, opts: PaneOptions, fields: t.Sequence[Field]):
-
+def _make_init(cls, fields: t.Sequence[Field]):
     params = []
     for field in fields:
         kind = Parameter.KEYWORD_ONLY if field.kw_only else Parameter.POSITIONAL_OR_KEYWORD
@@ -225,66 +245,58 @@ def _make_ord(cls, fields: t.Sequence[Field]):
 
 def _process(cls, opts: PaneOptions):
     # TODO handle overriding a field
-    cls_fields: t.List[Field] = []
-    kw_only_fields: t.List[Field] = []
+    fields: t.List[Field] = []
 
-    for base in cls.__bases__:
+    for base in reversed(cls.__mro__):
         if not hasattr(base, PANE_OPTS):
             continue
-        for field in getattr(base, PANE_FIELDS, ()):
-            if field.kw_only:
-                kw_only_fields.append(field)
-            else:
-                cls_fields.append(field)
 
-    annotations = get_type_hints(cls)
+        annotations = get_type_hints(base)
+        kw_only = getattr(base, PANE_OPTS).kw_only
 
-    kw_only = opts.kw_only
-    if kw_only:
-        cls_fields.extend(kw_only_fields)
-
-    for name, ty in annotations.items():
-        if ty == KW_ONLY:
-            kw_only = True
-            cls_fields.extend(kw_only_fields)
-            continue
-
-        if isinstance(getattr(cls, name, None), FieldSpec):
-            # process existing Field
-            spec: FieldSpec = getattr(cls, name)
-            field = spec.make_field(name, ty)
-            # delete Field and set default value
-            if field.default is _MISSING:
-                delattr(cls, name)
-            else:
-                setattr(cls, name, field.default)
+        specs: t.Dict[str, FieldSpec]
+        if base is cls:
+            specs = {}
         else:
-            # otherwise make new Field
-            field = Field(name=name, type=ty, in_names=[name], out_name=name)
-            if hasattr(cls, name):
-                field.default = getattr(cls, name)
+            specs = getattr(base, PANE_SPECS)
 
-        if field.kw_only and not kw_only:
-            # delay keyword-only fields
-            kw_only_fields.append(field)
-            continue
+        for name, ty in annotations.items():
+            if ty == KW_ONLY:
+                kw_only = True
+                continue
 
-        field.kw_only |= kw_only
-        cls_fields.append(field)
+            if name in specs:
+                spec: FieldSpec = specs[name]
+                field = spec.make_field(name, ty, opts.in_rename, opts.out_rename)
+            elif isinstance(getattr(base, name, None), FieldSpec):
+                # process existing Field
+                spec: FieldSpec = getattr(base, name)
+                field = spec.make_field(name, ty, opts.in_rename, opts.out_rename)
+                if base is cls:
+                    specs[name] = spec
+            else:
+                # otherwise make new Field
+                field = Field.make(name, ty, opts.in_rename, opts.out_rename)
+                field.default = getattr(base, name, _MISSING)
 
-    # put keyword-only fields at end
-    if not kw_only:
-        cls_fields.extend(kw_only_fields)
+            field.kw_only |= kw_only
+            fields.append(field)
 
-    bound_vars = getattr(cls, PANE_BOUNDVARS, {})
-    cls_fields = [field.replace_typevars(bound_vars) for field in cls_fields]
+        # apply typevar replacements
+        bound_vars = getattr(base, PANE_BOUNDVARS, {})
+        fields = [field.replace_typevars(bound_vars) for field in fields]
 
-    setattr(cls, PANE_FIELDS, cls_fields)
+        if base is cls:
+            setattr(cls, PANE_SPECS, specs)
+
+    # reorder kw-only fields to end
+    fields = [*filter(lambda f: not f.kw_only, fields), *filter(lambda f: f.kw_only, fields)]
+
+    setattr(cls, PANE_FIELDS, fields)
     setattr(cls, '_converter', classmethod(PaneConverter))
 
-    for field in cls_fields:
+    for field in fields:
         name = str(field.name)
-        field.default = getattr(cls, name, _MISSING)
         # remove Fields from class
         if field.default is _MISSING:
             if isinstance(getattr(cls, name, None), Field):
@@ -293,11 +305,11 @@ def _process(cls, opts: PaneOptions):
             setattr(cls, name, field.default)
 
     if opts.init:
-        _make_init(cls, opts, cls_fields)
+        _make_init(cls, fields)
     if opts.eq:
-        _make_eq(cls, cls_fields)
+        _make_eq(cls, fields)
     if opts.order:
-        _make_ord(cls, cls_fields)
+        _make_ord(cls, fields)
 
     return cls
 
@@ -317,18 +329,14 @@ class PaneConverter(Converter[PaneBase]):
             for alias in field.in_names:
                 self.field_map[alias] = i
 
-    @property
-    def de_format(self) -> t.Sequence[ClassLayout]:
-        return self.opts.de_format or ('struct', 'tuple')
-
     def try_convert(self, val: t.Any) -> PaneBase:
         if isinstance(val, (list, tuple, t.Sequence)):
-            if 'tuple' not in self.de_format:
+            if 'tuple' not in self.opts.in_format:
                 raise ParseInterrupt()
             raise NotImplementedError()
 
         elif isinstance(val, (dict, t.Mapping)):
-            if 'struct' not in self.de_format:
+            if 'struct' not in self.opts.in_format:
                 raise ParseInterrupt()
 
             values: t.Dict[str, t.Any] = {}
@@ -352,11 +360,11 @@ class PaneConverter(Converter[PaneBase]):
 
     def collect_errors(self, val: t.Any) -> t.Union[WrongTypeError, ProductErrorNode, None]:
         if isinstance(val, (list, tuple, t.Sequence)):
-            if 'tuple' not in self.de_format:
+            if 'tuple' not in self.opts.in_format:
                 return WrongTypeError(f'struct {self.name}', val)
-            return None
+            return WrongTypeError(f'tuple {self.name}', "Not implemented")
         elif isinstance(val, (dict, t.Mapping)):
-            if 'struct' not in self.de_format:
+            if 'struct' not in self.opts.out_format:
                 return WrongTypeError(f'tuple {self.name}', val)
 
             children = {}

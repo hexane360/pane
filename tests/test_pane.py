@@ -184,3 +184,19 @@ def test_generic_pane_init(cls, args, error):
             cls(*args, **kwargs)
     else:
         cls(*args, **kwargs)
+
+
+class PaneRename(pane.PaneBase):
+    snake_case: int
+    SCREAM_CASE: float
+    camelCase: int
+    PascalCase: float
+
+class PaneRenameKebab(PaneRename, rename='kebab'):
+    ...
+
+
+def test_pane_rename():
+    obj = {'snake-case': 1, 'scream-case': 2., 'camel-case': 3, 'pascal-case': 4.}
+    assert PaneRenameKebab.from_data(obj) == PaneRenameKebab(1, 2., 3, 4.)
+    assert PaneRenameKebab(1, 2., 3, 4.).into_data() == obj
