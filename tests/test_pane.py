@@ -85,7 +85,7 @@ class TestClass2(pane.PaneBase):
     __test__ = False
 
 
-class TestClass3(pane.PaneBase, kw_only=True):
+class TestClass3(pane.PaneBase, kw_only=True, allow_extra=True):
     x: int = 1
     z: int = pane.field(default=3, kw_only=True)
     y: int = 2
@@ -119,6 +119,7 @@ def test_make_unchecked_signature(cls, sig):
 @pytest.mark.parametrize(('cls', 'val', 'result'), [
     (TestClass, {'x': 3, 'y': 5.}, TestClass(3, 5.)),
     (TestClass2, {'x': 3, 'w': 3, 'W': 4}, ProductErrorNode('TestClass2', {'W': DuplicateKeyError('W', ('w', 'W', 'P'))}, {'x': 3, 'w': 3, 'W': 4})),
+    (TestClass3, {'x': 2, 'y': 3, 'zz': 5}, TestClass3(x=2, y=3))
 ])
 def test_pane_convert(cls, val, result):
     if isinstance(result, ErrorNode):

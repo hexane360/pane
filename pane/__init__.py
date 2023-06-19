@@ -38,6 +38,7 @@ class PaneOptions:
     in_format: t.Sequence[ClassLayout] = ('struct',)
     in_rename: t.Optional[t.Sequence[RenameStyle]] = None
     out_rename: t.Optional[RenameStyle] = None
+    allow_extra: bool = False
 
     def replace(self, **changes):
         changes['name'] = changes.get('name', None)
@@ -70,6 +71,7 @@ class PaneBase:
         rename: t.Optional[RenameStyle] = None,
         in_rename: t.Optional[t.Union[RenameStyle, t.Sequence[RenameStyle]]] = None,
         out_rename: t.Optional[RenameStyle] = None,
+        allow_extra: t.Optional[bool] = None,
         **kwargs,
     ):
         old_params = getattr(cls, '__parameters__', ())
@@ -88,7 +90,7 @@ class PaneBase:
         opts = getattr(cls, '__pane_opts__', PaneOptions())
         opts = opts.replace(
             name=name, ser_format=ser_format, de_format=de_format,
-            eq=eq, order=order, frozen=frozen, init=init,
+            eq=eq, order=order, frozen=frozen, init=init, allow_extra=allow_extra,
             kw_only=kw_only, in_rename=in_rename, out_rename=out_rename,
         )
         setattr(cls, PANE_OPTS, opts)
@@ -342,7 +344,9 @@ class PaneConverter(Converter[PaneBase]):
             values: t.Dict[str, t.Any] = {}
             for (k, v) in val.items():
                 if k not in self.field_map:
-                    raise ParseInterrupt()  # unknown key
+                    if not self.opts.allow_extra:
+                        raise ParseInterrupt()  # extra key
+                    continue
                 field = self.fields[self.field_map[k]]
                 conv = self.field_converters[self.field_map[k]]
 
@@ -352,7 +356,7 @@ class PaneConverter(Converter[PaneBase]):
 
             for field in self.fields:
                 if field.name not in values and not field.is_optional:
-                    raise ParseInterrupt()
+                    raise ParseInterrupt()  # missing field
 
             return self.cls.make_unchecked(**values)
 
@@ -372,7 +376,8 @@ class PaneConverter(Converter[PaneBase]):
             seen = set()
             for (k, v) in val.items():
                 if k not in self.field_map:
-                    extra.add(k)  # unknown key
+                    if not self.opts.allow_extra:
+                        extra.add(k)  # unknown key
                     continue
 
                 field = self.fields[self.field_map[k]]
