@@ -150,7 +150,6 @@ class PaneBase:
             obj = yaml.load(f, Loader)
         return cls.from_data(obj)
 
-    # TODO can we give this proper types?
     @classmethod
     def make_unchecked(cls, *args, **kwargs) -> Self:
         ...
@@ -246,54 +245,48 @@ def _make_ord(cls, fields: t.Sequence[Field]):
 
 
 def _process(cls, opts: PaneOptions):
-    # TODO handle overriding a field
     fields: t.List[Field] = []
 
-    for base in reversed(cls.__mro__):
-        if not hasattr(base, PANE_OPTS):
-            continue
+    specs: t.Dict[str, FieldSpec] = {}
 
-        annotations = get_type_hints(base)
-        kw_only = getattr(base, PANE_OPTS).kw_only
-
-        specs: t.Dict[str, FieldSpec]
-        # grab existing specs from parent classes, or make our own by processing this class
-        # TODO this can probably be simplified
-        if base is cls:
-            specs = {}
-        else:
-            specs = getattr(base, PANE_SPECS)
-
-        for name, ty in annotations.items():
-            if ty == KW_ONLY:
-                kw_only = True
-                continue
-
-            if name in specs:
-                spec: FieldSpec = specs[name]
-                field = spec.make_field(name, ty, opts.in_rename, opts.out_rename)
-            elif isinstance(getattr(base, name, None), FieldSpec):
-                # process existing Field
-                spec: FieldSpec = getattr(base, name)
-                field = spec.make_field(name, ty, opts.in_rename, opts.out_rename)
-                if base is cls:
-                    specs[name] = spec
-            else:
-                # otherwise make new Field
-                field = Field.make(name, ty, opts.in_rename, opts.out_rename)
-                field.default = getattr(base, name, _MISSING)
-
-            field.kw_only |= kw_only
-            fields.append(field)
+    # collect FieldSpecs from base classes
+    for base in reversed(cls.__mro__[1:]):
+        if not hasattr(base, PANE_SPECS):
+            continue  # not a pane dataclass
+        cls_specs = getattr(base, PANE_SPECS)
 
         # apply typevar replacements
         bound_vars = getattr(base, PANE_BOUNDVARS, {})
-        fields = [field.replace_typevars(bound_vars) for field in fields]
+        cls_specs = {k: spec.replace_typevars(bound_vars) for (k, spec) in cls_specs.items()}
+        specs.update(cls_specs)
 
-        # save specs for the class we're making (so we can handle field renaming correctly in descendants)
-        if base is cls:
-            setattr(cls, PANE_SPECS, specs)
+    annotations = get_type_hints(cls)
+    kw_only = opts.kw_only  # current kw_only state
+    cls_specs = {}
 
+    for name, ty in annotations.items():
+        if ty is KW_ONLY:
+            # all further params are kw_only
+            kw_only = True
+            continue
+
+        if isinstance(getattr(cls, name, None), FieldSpec):
+            # process existing FieldSpec
+            spec: FieldSpec = getattr(cls, name)
+            spec.ty = ty
+        else:
+            # make new spec
+            spec = FieldSpec(ty=ty, default=getattr(cls, name, _MISSING))
+
+        spec.kw_only |= kw_only
+        cls_specs[name] = spec
+
+    # save specs for subclasses
+    setattr(cls, PANE_SPECS, cls_specs)
+    specs.update(cls_specs)
+
+    # bake FieldSpecs into Fields
+    fields = [spec.make_field(name, opts.in_rename, opts.out_rename) for (name, spec) in specs.items()]
     # reorder kw-only fields to end
     fields = [*filter(lambda f: not f.kw_only, fields), *filter(lambda f: f.kw_only, fields)]
     # TODO error on default positional arg before non-default arg
@@ -303,7 +296,7 @@ def _process(cls, opts: PaneOptions):
 
     for field in fields:
         name = str(field.name)
-        # remove Fields from class
+        # remove Fields from class, and set defaults
         if field.default is _MISSING:
             if isinstance(getattr(cls, name, None), Field):
                 delattr(cls, name)

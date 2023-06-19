@@ -75,6 +75,10 @@ class TestClassInherit2(TestClassInherit):
     w: int = 4
 
 
+class TestClassModifyFields(TestClassInherit):
+    x: float = 9.
+
+
 class TestClass2(pane.PaneBase):
     x: int = 1
     z: int = pane.field(default=3, kw_only=True)
@@ -101,6 +105,7 @@ class TestClass3(pane.PaneBase, kw_only=True, allow_extra=True):
     (TestClass3, '(*, x: int = 1, z: int = 3, y: int = 2, w: int) -> None'),
     (TestClassInherit, '(x: int = 3, y: float = 5.0, *, z: float = 3.0) -> None'),
     (TestClassInherit2, '(x: int = 3, y: float = 5.0, w: int = 4, *, z: float = 3.0) -> None'),
+    (TestClassModifyFields, '(x: float = 9.0, y: float = 5.0, *, z: float = 3.0) -> None'),
 ])
 def test_init_signature(cls, sig):
     assert str(inspect.signature(cls.__init__)) == sig

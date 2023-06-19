@@ -512,8 +512,8 @@ def make_converter(ty: t.Type[T]) -> Converter[T]:
 def into_data(val: IntoData) -> DataType:
     if isinstance(val, (dict, t.Mapping)):
         return {into_data(k): into_data(v) for (k, v) in val.items()}
-    if isinstance(val, (tuple, list)):
-        return type(val)(map(into_data, val))
+    if isinstance(val, (tuple, list, t.Sequence)):
+        return type(val)(map(into_data, val))  # type: ignore
     if isinstance(val, t.Sequence) and not isinstance(val, str):
         return list(map(into_data, val))
     if isinstance(val, DataTypes):
@@ -521,7 +521,7 @@ def into_data(val: IntoData) -> DataType:
     if isinstance(val, IntoData):
         return val.into_data()
 
-    raise TypeError(f"Can't convert type '{type(val)}' to data.")
+    raise TypeError(f"Can't convert type '{type(val)}' into data.")
 
 
 def from_data(val: DataType, ty: t.Type[T]) -> T:

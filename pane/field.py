@@ -85,9 +85,6 @@ class Field:
     def is_optional(self) -> bool:
         return self.default is not _MISSING or self.default_factory is not None
 
-    def replace_typevars(self, replacements: t.Mapping[t.Union[t.TypeVar, t.ParamSpec], t.Type]) -> Self:
-        return replace(self, type=replace_typevars(self.type, replacements))
-
 
 @dataclass(kw_only=True)
 class FieldSpec:
@@ -99,12 +96,18 @@ class FieldSpec:
     default: t.Union[t.Any, _Missing] = _MISSING
     default_factory: t.Optional[t.Callable[[], t.Any]] = None
     kw_only: bool = False
+    ty: t.Union[type, _Missing] = _MISSING
 
     def __post_init__(self):
         if isinstance(self.aliases, str):
             self.aliases = [self.aliases]
 
-    def make_field(self, name: str, ty: t.Union[type, _Missing] = _MISSING,
+    def replace_typevars(self, replacements: t.Mapping[t.Union[t.TypeVar, t.ParamSpec], t.Type]) -> Self:
+        if self.ty is _MISSING:
+            return replace(self)
+        return replace(self, ty=replace_typevars(self.ty, replacements))
+
+    def make_field(self, name: str,
                    in_rename: t.Optional[t.Sequence[RenameStyle]] = None,
                    out_rename: t.Optional[RenameStyle] = None) -> Field:
         # out_name
@@ -127,7 +130,7 @@ class FieldSpec:
         else:
             in_names = tuple(rename_field(name, style) for style in in_rename) if in_rename is not None else (name,)
 
-        ty = t.cast(type, t.Any if ty is _MISSING else ty)
+        ty = t.cast(type, t.Any if self.ty is _MISSING else self.ty)
         return Field(name=name, type=ty, out_name=out_name, in_names=in_names,
                      init=self.init, default=self.default, default_factory=self.default_factory,
                      kw_only=self.kw_only)
