@@ -257,8 +257,8 @@ def _process(cls, opts: PaneOptions):
 
         # apply typevar replacements
         bound_vars = getattr(base, PANE_BOUNDVARS, {})
-        cls_specs = {k: spec.replace_typevars(bound_vars) for (k, spec) in cls_specs.items()}
         specs.update(cls_specs)
+        specs = {k: spec.replace_typevars(bound_vars) for (k, spec) in specs.items()}
 
     annotations = get_type_hints(cls)
     kw_only = opts.kw_only  # current kw_only state
@@ -284,6 +284,10 @@ def _process(cls, opts: PaneOptions):
     # save specs for subclasses
     setattr(cls, PANE_SPECS, cls_specs)
     specs.update(cls_specs)
+
+    # apply typevar replacements
+    bound_vars = getattr(cls, PANE_BOUNDVARS, {})
+    specs = {k: spec.replace_typevars(bound_vars) for (k, spec) in specs.items()}
 
     # bake FieldSpecs into Fields
     fields = [spec.make_field(name, opts.in_rename, opts.out_rename) for (name, spec) in specs.items()]

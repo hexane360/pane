@@ -88,13 +88,15 @@ class ProductErrorNode(ErrorNode):
     extra: t.AbstractSet[str] = dataclasses.field(default_factory=set)
 
     def print_error(self, indent="", inside_sum=False, file=sys.stdout):
-        #print(f"print_error {self.expected} {self.children} {self.actual} {self.missing} {self.extra}")
         # fuse together consecutive productnodes
         while len(self.children) == 1 and not len(self.missing) and not len(self.extra):
             field, child = next(iter(self.children.items()))
             if not isinstance(child, ProductErrorNode):
                 break
-            self = ProductErrorNode(self.expected, {f"{field}.{k}": v for (k, v) in child.children.items()}, self.actual)
+            children = {f"{field}.{k}": v for (k, v) in child.children.items()}
+            missing = set(f"{field}.{f}" for f in child.missing)
+            extra = set(f"{field}.{f}" for f in child.extra)
+            self = ProductErrorNode(self.expected, children, self.actual, missing, extra)
 
         print(f"{'' if inside_sum else 'Expected '}{self.expected}", file=file)
         for (field, child) in self.children.items():
@@ -518,8 +520,8 @@ def make_converter(ty: t.Type[T]) -> Converter[T]:
 def into_data(val: IntoData) -> DataType:
     if isinstance(val, (dict, t.Mapping)):
         return {into_data(k): into_data(v) for (k, v) in val.items()}
-    if isinstance(val, (tuple, list, t.Sequence)):
-        return type(val)(map(into_data, val))  # type: ignore
+    if isinstance(val, tuple):
+        return type(val)(map(into_data, val))
     if isinstance(val, t.Sequence) and not isinstance(val, str):
         return list(map(into_data, val))
     if isinstance(val, DataTypes):
