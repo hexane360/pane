@@ -4,6 +4,7 @@ import abc
 import sys
 from io import StringIO
 import warnings
+import traceback
 import dataclasses
 from itertools import chain
 import typing as t
@@ -56,12 +57,16 @@ class ErrorNode(abc.ABC):
 class WrongTypeError(ErrorNode):
     expected: str
     actual: t.Any
+    cause: t.Optional[traceback.TracebackException] = None
 
     def print_error(self, indent="", inside_sum=False, file=sys.stdout):
         if inside_sum:
             print(f"{self.expected}", file=file)
         else:
             print(f"Expected {self.expected}, instead got `{self.actual}` of type `{type(self.actual).__name__}`", file=file)
+        if self.cause is not None:
+            s = f"{indent}\n".join(self.cause.format())
+            print(f"Caused by exception:\n{indent}{s}", file=file)
 
 
 @dataclasses.dataclass
@@ -83,7 +88,7 @@ class ProductErrorNode(ErrorNode):
     extra: t.AbstractSet[str] = dataclasses.field(default_factory=set)
 
     def print_error(self, indent="", inside_sum=False, file=sys.stdout):
-        print(f"print_error {self.expected} {self.children} {self.actual} {self.missing} {self.extra}")
+        #print(f"print_error {self.expected} {self.children} {self.actual} {self.missing} {self.extra}")
         # fuse together consecutive productnodes
         while len(self.children) == 1 and not len(self.missing) and not len(self.extra):
             field, child = next(iter(self.children.items()))
@@ -421,12 +426,12 @@ class SequenceConverter(t.Generic[T], Converter[t.Sequence[T]]):
             return ProductErrorNode("sequence", nodes, val)
 
 
-@dataclasses.dataclass(init=False)
+@dataclasses.dataclass
 class DelegateConverter(t.Generic[T, U], Converter[T]):
     from_type: t.Type[U]
     constructor: t.Callable[[U], T]
-    expect: t.Optional[str]
-    expect_plural: t.Optional[str]
+    expect: t.Optional[str] = None
+    expect_plural: t.Optional[str] = None
     inner: Converter[U] = dataclasses.field(init=False)
 
     def __post_init__(self):
@@ -451,9 +456,10 @@ class DelegateConverter(t.Generic[T, U], Converter[T]):
             return self.inner.collect_errors(val)
         try:
             self.constructor(val)
-        except Exception :
-            # TODO record exception info here
-            return WrongTypeError(self.expected(), val)
+        except Exception as e:
+            tb = e.__traceback__.tb_next  # type: ignore
+            tb = traceback.TracebackException(type(e), e, tb)
+            return WrongTypeError(self.expected(), val, tb)
 
 
 _BASIC_CONVERTERS = {
