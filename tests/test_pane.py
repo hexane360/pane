@@ -36,17 +36,18 @@ class TestClass(pane.PaneBase):
 ])
 def test_pane_construction(args, result):
     (args, kwargs) = args
-    assert TestClass(*args, **kwargs).__dict__ == result
+    assert TestClass(*args, **kwargs).dict() == result
 
 
-@pytest.mark.parametrize(('args', 'result'), [
-    (f(), {'x': 3, 'y': 5.}),
-    (f('st'), {'x': 'st', 'y': 5.}),
-    (f(y=None), {'x': 3, 'y': None}),
+@pytest.mark.parametrize(('args', 'result', 'set_only_result'), [
+    (f(), {'x': 3, 'y': 5.}, {}),
+    (f('st'), {'x': 'st', 'y': 5.}, {'x': 'st'}),
+    (f(y=None), {'x': 3, 'y': None}, {'y': None}),
 ])
-def test_pane_unchecked(args, result):
+def test_pane_unchecked(args, result, set_only_result):
     (args, kwargs) = args
-    assert TestClass.make_unchecked(*args, **kwargs).__dict__ == result
+    assert TestClass.make_unchecked(*args, **kwargs).dict() == result
+    assert TestClass.make_unchecked(*args, **kwargs).dict(set_only=True) == set_only_result
 
 
 @pytest.mark.parametrize(('args', 'result'), [

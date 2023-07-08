@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from dataclasses import dataclass, KW_ONLY, replace
+from dataclasses import dataclass, KW_ONLY, replace, FrozenInstanceError
 from inspect import Signature, Parameter
 from types import NotImplementedType
 import typing as t
@@ -19,6 +19,7 @@ T = t.TypeVar('T')
 
 
 PANE_FIELDS = '__pane_fields__'
+PANE_SET_FIELDS = '__pane_set__'
 PANE_SPECS = '__pane_specs__'
 PANE_BOUNDVARS = '__pane_boundvars__'
 PANE_OPTS = '__pane_opts__'
@@ -56,6 +57,7 @@ class PaneBase:
     __pane_opts__: PaneOptions
     __pane_fields__: t.Sequence[Field]
     __pane_specs__: t.Dict[str, FieldSpec]
+    __pane_set__: t.Set[str]
 
     def __init_subclass__(
         cls,
@@ -118,6 +120,16 @@ class PaneBase:
         inside = ", ".join(f"{field.name}={getattr(self, field.name)!r}" for field in self.__pane_fields__)
         return f"{self.__class__.__name__}({inside})"
 
+    def __setattr__(self, name: str, value: t.Any) -> None:
+        opts: PaneOptions = getattr(self, PANE_OPTS)
+        if opts.frozen:
+            raise FrozenInstanceError(f"cannot assign to field {name!r}")
+        set_fields: t.Set[str] = getattr(self, PANE_SET_FIELDS)
+        set_fields.add(name)
+
+    def __delattr__(self, name: str, value: t.Any) -> None:
+        raise AttributeError(f"cannot delete field {name!r}")
+
     @classmethod
     def from_data(cls, data: t.Any) -> Self:
         conv: Converter = getattr(cls, '_converter')()
@@ -130,6 +142,16 @@ class PaneBase:
         elif opts.out_format == 'struct':
             return { field.out_name: into_data(getattr(self, field.name)) for field in getattr(self, PANE_FIELDS) }
         raise ValueError(f"Unknown 'out_format' '{opts.out_format}'")
+
+    def dict(self, set_only: bool = False) -> t.Dict[str, t.Any]:
+        """Return a dict of the fields in `self`."""
+        if set_only:
+            return {
+                k : getattr(self, k) for k in getattr(self, PANE_SET_FIELDS)
+            }
+        return {
+            field.name: getattr(self, field.name) for field in getattr(self, PANE_FIELDS)
+        }
 
     @classmethod
     def from_json(cls, f: FileOrPath) -> Self:
@@ -158,8 +180,13 @@ class PaneBase:
 def _make_init(cls, fields: t.Sequence[Field]):
     params = []
     for field in fields:
+        if field.default is not _MISSING:
+            default = field.default
+        elif field.default_factory is not None:
+            default = field.default_factory()
+        else:
+            default = Parameter.empty
         kind = Parameter.KEYWORD_ONLY if field.kw_only else Parameter.POSITIONAL_OR_KEYWORD
-        default = field.default if field.default is not _MISSING else Parameter.empty
         annotation = field.type if field.type is not _MISSING else Parameter.empty
         params.append(Parameter(field.name, kind, default=default, annotation=annotation))
 
@@ -172,11 +199,14 @@ def _make_init(cls, fields: t.Sequence[Field]):
         except TypeError as e:
             raise TypeError(*e.args) from None
 
+        set_fields = set()
+
         for field in t.cast(t.Sequence[Field], getattr(self, PANE_FIELDS)):
             if field.name in args:
                 val = args[field.name]
                 if checked:
                     val = convert(val, field.type)  # type: ignore
+                set_fields.add(field.name)
             elif field.default is not _MISSING:
                 val = field.default
             elif field.default_factory is not None:
@@ -184,6 +214,8 @@ def _make_init(cls, fields: t.Sequence[Field]):
             else:
                 raise RuntimeError()
             object.__setattr__(self, field.name, val)
+
+        object.__setattr__(self, PANE_SET_FIELDS, set_fields)
 
         if hasattr(self, POST_INIT):
             getattr(self, POST_INIT)()

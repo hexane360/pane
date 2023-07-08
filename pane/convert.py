@@ -445,7 +445,7 @@ class DelegateConverter(t.Generic[T, U], Converter[T]):
         return t.cast(str, self.expect_plural if plural else self.expect)
 
     def try_convert(self, val: t.Any) -> T:
-        val = self.inner.convert(val)
+        val = self.inner.try_convert(val)
         try:
             return self.constructor(val)
         except Exception:
@@ -453,7 +453,7 @@ class DelegateConverter(t.Generic[T, U], Converter[T]):
 
     def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
         try:
-            val = self.inner.convert(val)
+            val = self.inner.try_convert(val)
         except ParseInterrupt:
             return self.inner.collect_errors(val)
         try:
