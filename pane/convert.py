@@ -541,7 +541,7 @@ def from_data(val: DataType, ty: t.Type[T]) -> T:
     return converter.convert(val)
 
 
-def convert(val: t.Union[IntoData, DataType], ty: t.Type[T]) -> T:
+def convert(val: IntoData, ty: t.Type[T]) -> T:
     data = into_data(val)
     return from_data(data, ty)
 

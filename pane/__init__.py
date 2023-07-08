@@ -131,11 +131,15 @@ class PaneBase:
         raise AttributeError(f"cannot delete field {name!r}")
 
     @classmethod
-    def from_data(cls, data: t.Any) -> Self:
-        conv: Converter = getattr(cls, '_converter')()
-        return conv.convert(data)
+    def _converter(cls: t.Type[T], *args: t.Type[FromData],
+                   annotations: t.Optional[t.Tuple[t.Any, ...]] = None) -> Converter[T]:
+        return t.cast(Converter[T], PaneConverter(cls, annotations))
 
-    def into_data(self) -> t.Any:
+    @classmethod
+    def from_data(cls, data: t.Any) -> Self:
+        return from_data(data, cls)
+
+    def into_data(self) -> DataType:
         opts: PaneOptions = getattr(self, PANE_OPTS)
         if opts.out_format == 'tuple':
             return tuple(into_data(getattr(self, field.name)) for field in getattr(self, PANE_FIELDS))
