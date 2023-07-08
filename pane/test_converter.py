@@ -17,16 +17,22 @@ class TestConvertible():
                    annotations: t.Optional[t.Tuple[t.Any, ...]] = None) -> Converter[TestConvertible]:
         return TestConverter()  # type: ignore
 
+    def __hash__(self):
+        return hash(self.__class__)
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__
+
 
 class TestConverter(Converter[TestConvertible]):
-    def try_convert(self, val: t.Any) -> t.NoReturn:
-        raise NotImplementedError()
+    def try_convert(self, val: t.Any):
+        return TestConvertible()
 
-    def expected(self, plural: bool = False) -> t.NoReturn:
-        raise NotImplementedError()
+    def expected(self, plural: bool = False) -> str:
+        return "TestConvertible"
 
-    def collect_errors(self, val: t.Any) -> t.NoReturn:
-        raise NotImplementedError()
+    def collect_errors(self, val: t.Any) -> None:
+        return None
 
     def __hash__(self):
         return hash(self.__class__)
@@ -75,7 +81,8 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
                1: WrongTypeError('an int', 's'),
          },  (0., 's')),
      }, {'x': 5., 'y': (0., 's')})
-     )
+     ),
+     (TestConvertible, 's', TestConvertible())
 ])
 def test_convert(ty, val, result):
     if isinstance(result, ErrorNode):

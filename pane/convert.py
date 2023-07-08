@@ -12,11 +12,25 @@ import typing as t
 from .util import list_phrase
 
 
-DataType = t.Union[str, int, bool, float, complex, None, t.Mapping, t.Sequence]
-FromData = t.Union[DataType, 'HasFromData']
-IntoData = t.Union[DataType, 'HasIntoData']
+@t.runtime_checkable
+class HasFromData(t.Protocol):
+    @classmethod
+    def _converter(cls: t.Type[HasFromDataT], *args: t.Type[FromData],
+                   annotations: t.Optional[t.Tuple[t.Any, ...]] = None) -> Converter[HasFromDataT]:
+        ...
 
-HasFromDataT = t.TypeVar('HasFromDataT', bound='HasFromData')
+
+@t.runtime_checkable
+class HasIntoData(t.Protocol):
+    def into_data(self) -> DataType:
+        ...
+
+
+DataType = t.Union[str, int, bool, float, complex, None, t.Mapping, t.Sequence]
+FromData = t.Union[DataType, HasFromData]
+IntoData = t.Union[DataType, HasIntoData]
+
+HasFromDataT = t.TypeVar('HasFromDataT', bound=HasFromData)
 T_co = t.TypeVar('T_co', covariant=True)
 TupleT = t.TypeVar('TupleT', bound=tuple)
 T = t.TypeVar('T', bound=FromData)
@@ -88,12 +102,12 @@ class ProductErrorNode(ErrorNode):
     extra: t.AbstractSet[str] = dataclasses.field(default_factory=set)
 
     def print_error(self, indent="", inside_sum=False, file=sys.stdout):
-        # fuse together consecutive productnodes
+        # fuse together non-branching productnodes
         while len(self.children) == 1 and not len(self.missing) and not len(self.extra):
             field, child = next(iter(self.children.items()))
             if not isinstance(child, ProductErrorNode):
                 break
-            children = {f"{field}.{k}": v for (k, v) in child.children.items()}
+            children: t.Dict[t.Union[str, int], ErrorNode] = {f"{field}.{k}": v for (k, v) in child.children.items()}
             missing = set(f"{field}.{f}" for f in child.missing)
             extra = set(f"{field}.{f}" for f in child.extra)
             self = ProductErrorNode(self.expected, children, self.actual, missing, extra)
@@ -159,20 +173,6 @@ class Converter(abc.ABC, t.Generic[T_co]):
         Return an error tree caused by converting ``val`` to ``T``.
         ``collect_errors`` should return ``None`` iff ``convert`` doesn't raise.
         """
-        ...
-
-
-@t.runtime_checkable
-class HasFromData(t.Protocol):
-    @classmethod
-    def _converter(cls: t.Type[HasFromDataT], *args: t.Type[FromData],
-                   annotations: t.Optional[t.Tuple[t.Any, ...]] = None) -> Converter[HasFromDataT]:
-        ...
-
-
-@t.runtime_checkable
-class HasIntoData(t.Protocol):
-    def into_data(self) -> DataType:
         ...
 
 
@@ -516,6 +516,7 @@ def make_converter(ty: t.Type[T]) -> Converter[T]:
                              args[1] if len(args) > 1 else t.Any)  # type: ignore
 
     raise TypeError(f"Can't convert data into type '{ty}'")
+
 
 def into_data(val: IntoData) -> DataType:
     if isinstance(val, (dict, t.Mapping)):
