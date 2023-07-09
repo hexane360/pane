@@ -124,6 +124,7 @@ class PaneBase:
         opts: PaneOptions = getattr(self, PANE_OPTS)
         if opts.frozen:
             raise FrozenInstanceError(f"cannot assign to field {name!r}")
+        super().__setattr__(name, value)
         set_fields: t.Set[str] = getattr(self, PANE_SET_FIELDS)
         set_fields.add(name)
 
