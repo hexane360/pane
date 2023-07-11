@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 from io import TextIOBase, IOBase, TextIOWrapper, BufferedIOBase
 from contextlib import AbstractContextManager, nullcontext
+from collections import OrderedDict
 from itertools import chain
 import typing as t
 
@@ -56,21 +57,21 @@ def list_phrase(words: t.Sequence[str], conj: str = 'or') -> str:
 def _collect_typevars(d, ty):
     if isinstance(ty, type):
         pass
-    elif isinstance(ty, t.Sequence):
+    elif isinstance(ty, (tuple, t.Sequence)):
         for arg in ty:
             _collect_typevars(d, arg)
-    elif hasattr(ty, '__typing_subst__'):
-        d[ty] = None
+    elif hasattr(ty, '__typing_subst__') or isinstance(ty, (t.TypeVar, t.ParamSpec)):
+        d.setdefault(ty)
     else:
         for ty in getattr(ty, '__parameters__', ()):
-            d[ty] = None
+            d.setdefault(ty)
 
 
 def collect_typevars(args) -> tuple[t.Union[t.TypeVar, t.ParamSpec]]:
     # loosely based on typing._collect_parameters
-    d = {}
+    d = {}  # relies on dicts preserving insertion order
     _collect_typevars(d, args)
-    return tuple(d.keys())
+    return tuple(d)
 
 
 def _union_args(ty: t.Type) -> t.Sequence[t.Type]:
