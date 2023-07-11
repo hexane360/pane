@@ -28,6 +28,11 @@ dependencies = [
   'typing_extensions ~= 4.5'  # frozen_default
 ]
 
+[project.optional-dependencies]
+dev = [
+  'pytest >= 6.2.4',
+]
+
 [project.urls]
 Repository = "https://github.com/hexane360/pane.git"
 
