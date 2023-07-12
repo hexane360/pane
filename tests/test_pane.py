@@ -6,7 +6,7 @@ import typing as t
 import pytest
 
 import pane
-from pane.convert import ErrorNode, ProductErrorNode, DuplicateKeyError, WrongTypeError
+from pane.errors import ErrorNode, ProductErrorNode, DuplicateKeyError, WrongTypeError
 
 
 def check_ord(obj, other, ordering: t.Literal[-1, 0, 1]):

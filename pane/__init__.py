@@ -8,8 +8,8 @@ import typing as t
 from typing_extensions import dataclass_transform, Self
 
 from .convert import DataType, IntoData, FromData, from_data, into_data, convert
-from .convert import Converter, make_converter, ConvertError
-from .convert import ParseInterrupt, WrongTypeError, ProductErrorNode, DuplicateKeyError
+from .converters import Converter, make_converter
+from .errors import ConvertError, ParseInterrupt, WrongTypeError, ProductErrorNode, DuplicateKeyError
 from .field import Field, FieldSpec, field, RenameStyle, _MISSING
 from .util import FileOrPath, open_file, get_type_hints, list_phrase
 

@@ -4,11 +4,10 @@ import typing as t
 
 import pytest
 
+from .errors import ErrorNode, SumErrorNode, ProductErrorNode, WrongTypeError
 from .convert import convert, make_converter, ConvertError
-from .convert import ScalarConverter, StructConverter, TupleConverter, SequenceConverter
-from .convert import UnionConverter, LiteralConverter, Converter
-from .convert import ErrorNode, SumErrorNode, ProductErrorNode, WrongTypeError
-from .convert import ErrorNode
+from .converters import Converter, ScalarConverter, TupleConverter, SequenceConverter
+from .converters import StructConverter, UnionConverter, LiteralConverter
 
 
 class TestConvertible():
