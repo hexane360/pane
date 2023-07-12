@@ -7,8 +7,8 @@ import typing as t
 from pane.errors import ErrorNode
 
 from .convert import FromData, IntoConverter, make_converter
-from .util import list_phrase
-from .errors import ConvertError, ParseInterrupt, WrongTypeError
+from .util import list_phrase, pluralize
+from .errors import ConvertError, ParseInterrupt, WrongTypeError, ConditionFailedError
 from .errors import ErrorNode, SumErrorNode, ProductErrorNode
 
 
@@ -67,7 +67,7 @@ class AnyConverter(Converter[t.Any]):
         return val
 
     def expected(self, plural: bool = False) -> str:
-        return "any value" + ("s" if plural else "")
+        return pluralize("any value", plural)
 
     def collect_errors(self, val: t.Any) -> None:
         return None
@@ -119,7 +119,7 @@ class NoneConverter(Converter[None]):
         raise ParseInterrupt()
 
     def expected(self, plural: bool = False) -> str:
-        return "null value" + ("s" if plural else "")
+        return pluralize("null value", plural)
 
     def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
         if val is None:
@@ -214,9 +214,8 @@ class StructConverter(Converter[T]):
         self.field_converters = {k: make_converter(v) for (k, v) in self.fields.items()}
 
     def expected(self, plural: bool = False) -> str:
-        p = "s" if plural else ""
         name = f" {self.name}" if self.name is not None else ""
-        return f"struct{p}{name}"
+        return f"{pluralize('struct', plural)}{name}"
 
     def try_convert(self, val: t.Any) -> T:
         if not isinstance(val, (dict, t.Mapping)):
@@ -273,8 +272,7 @@ class TupleConverter(t.Generic[T], Converter[T]):
         return self.ty(conv.try_convert(v) for (conv, v) in zip(self.converters, val))
 
     def expected(self, plural: bool = False) -> str:
-        s = "s" if plural else ""
-        return f"tuple{s} of length {len(self.converters)}"
+        return f"{pluralize('tuple', plural)} of length {len(self.converters)}"
 
     def collect_errors(self, val: t.Any) -> t.Union[None, ProductErrorNode, WrongTypeError]:
         if not isinstance(val, t.Sequence) or len(val) != len(self.converters):  # type: ignore
@@ -306,8 +304,7 @@ class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDat
         self.v_conv = make_converter(v)
 
     def expected(self, plural: bool = False) -> str:
-        s = "s" if plural else ""
-        return f"mapping{s} of {self.k_conv.expected(True)} => {self.v_conv.expected(True)}"
+        return f"{pluralize('mapping', plural)} of {self.k_conv.expected(True)} => {self.v_conv.expected(True)}"
 
     def try_convert(self, val: t.Any) -> t.Mapping[FromDataK, FromDataV]:
         if not isinstance(val, t.Mapping):
@@ -343,8 +340,7 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
         self.v_conv = make_converter(v)
 
     def expected(self, plural: bool = False) -> str:
-        s = "s" if plural else ""
-        return f"sequence{s} of {self.v_conv.expected(True)}"
+        return f"{pluralize('sequence', plural)} of {self.v_conv.expected(True)}"
 
     def try_convert(self, val: t.Any) -> t.Sequence[FromDataT]:
         if not isinstance(val, t.Sequence) or isinstance(val, str):
@@ -366,19 +362,23 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
 @dataclasses.dataclass
 class ConditionalConverter(t.Generic[FromDataT], Converter[FromDataT]):
     """
-    Converter which applies an arbitrary pre-condition to the parsed value
+    Converter which applies an arbitrary pre-condition to the converted value.
     """
-    inner_type: t.Type[FromDataT]
+    inner_type: t.Union[t.Type[FromDataT], Converter[FromDataT]]
     """Inner type to apply condition to"""
     condition: t.Callable[[FromDataT], bool]
     """Function to evaluate condition"""
+    condition_name: str
     make_expected: t.Callable[[str, bool], str]
-    """Function which takes ``(inner_expected, plural)`` and makes a compound ``expected``."""
+    """Function which takes ``(expected, plural)`` and makes a compound ``expected``."""
     inner: Converter[FromDataT] = dataclasses.field(init=False)
     """Inner sub-converter"""
 
     def __post_init__(self):
-        self.inner = make_converter(self.inner_type)
+        if isinstance(self.inner_type, Converter):
+            self.inner = self.inner_type
+        else:
+            self.inner = make_converter(t.cast(t.Type[FromDataT], self.inner_type))
 
     def expected(self, plural: bool = False) -> str:
         return self.make_expected(self.inner.expected(plural), plural)
@@ -394,18 +394,18 @@ class ConditionalConverter(t.Generic[FromDataT], Converter[FromDataT]):
 
     def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
         try:
-            val = self.inner.try_convert(val)
+            conv_val = self.inner.try_convert(val)
         except ParseInterrupt:
             # TODO with_expected() here
             return self.inner.collect_errors(val)
         try:
             # condition failed
-            if not self.condition(val):
-                return WrongTypeError(self.expected(), val)
+            if not self.condition(conv_val):
+                return ConditionFailedError(self.expected(), val, self.condition_name)
         except Exception as e:
             tb = e.__traceback__.tb_next  # type: ignore
             tb = traceback.TracebackException(type(e), e, tb)
-            return WrongTypeError(self.expected(), val, tb)
+            return ConditionFailedError(self.expected(), val, self.condition_name, tb)
         return None
 
 
@@ -443,12 +443,12 @@ class DelegateConverter(t.Generic[T, U], Converter[T]):
 
     def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
         try:
-            val = self.inner.try_convert(val)
+            conv_val = self.inner.try_convert(val)
         except ParseInterrupt:
             # TODO with_expected() here
             return self.inner.collect_errors(val)
         try:
-            self.constructor(val)
+            self.constructor(conv_val)
         except Exception as e:
             tb = e.__traceback__.tb_next  # type: ignore
             tb = traceback.TracebackException(type(e), e, tb)

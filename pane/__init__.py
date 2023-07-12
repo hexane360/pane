@@ -10,6 +10,7 @@ from .convert import DataType, IntoData, FromData, from_data, into_data, convert
 from .converters import Converter, make_converter
 from .errors import ConvertError, ParseInterrupt
 from .errors import ErrorNode, WrongTypeError, ProductErrorNode, DuplicateKeyError
+from .annotations import Condition, range, len_range
 from .field import Field, FieldSpec, field, RenameStyle, _MISSING
 from .util import FileOrPath, open_file, get_type_hints, list_phrase
 
@@ -447,5 +448,6 @@ class PaneConverter(Converter[PaneBase]):
 
 __all__ = [
     'DataType', 'IntoData', 'FromData', 'from_data', 'into_data', 'convert',
-    'Field', 'PaneOptions', 'PaneBase', 'ConvertError'
+    'Field', 'PaneOptions', 'PaneBase', 'ConvertError',
+    'Condition', 'range', 'len_range',
 ]

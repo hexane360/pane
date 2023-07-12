@@ -51,6 +51,25 @@ class WrongTypeError(ErrorNode):
 
 
 @dataclasses.dataclass
+class ConditionFailedError(ErrorNode):
+    expected: str
+    actual: t.Any
+    condition: str
+    cause: t.Optional[traceback.TracebackException] = None
+
+    def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):
+        if inside_sum:
+            print(self.expected, end="", file=file)
+        else:
+            print(f"Expected {self.expected}, instead got `{self.actual}`", end="", file=file)
+        if self.cause is not None:
+            s = f"{indent}\n".join(self.cause.format())
+            print(f"\nFailed to call condition '{self.condition}':\n{indent}{s}", file=file)
+        else:
+            print(f" (failed condition '{self.condition}')", file=file)
+
+
+@dataclasses.dataclass
 class DuplicateKeyError(ErrorNode):
     key: str
     aliases: t.Sequence[str]

@@ -4,10 +4,11 @@ import typing as t
 
 import pytest
 
-from .errors import ErrorNode, SumErrorNode, ProductErrorNode, WrongTypeError
+from .errors import ErrorNode, SumErrorNode, ProductErrorNode, WrongTypeError, ConditionFailedError
 from .convert import convert, make_converter, ConvertError
 from .converters import Converter, ScalarConverter, TupleConverter, SequenceConverter
-from .converters import StructConverter, UnionConverter, LiteralConverter
+from .converters import StructConverter, UnionConverter, LiteralConverter, ConditionalConverter
+from .annotations import Condition, range, len_range
 
 
 class TestConvertible():
@@ -48,10 +49,33 @@ class TestConverter(Converter[TestConvertible]):
     (t.Tuple[int, str], TupleConverter(tuple, (int, str))),
     (TestConvertible, TestConverter()),
     (t.Union[str, int], UnionConverter((str, int))),
-    (t.Literal['a', 'b', 'c'], LiteralConverter(('a', 'b', 'c')))
+    (t.Literal['a', 'b', 'c'], LiteralConverter(('a', 'b', 'c'))),
+    (t.Literal['a'], LiteralConverter(('a',))),
 ])
 def test_make_converter(input, conv: Converter):
     assert make_converter(input) == conv
+
+
+cond1 = Condition(lambda v: True, 'true', lambda exp, plural: exp)
+cond2 = Condition(lambda v: v > 0, 'v > 0', lambda exp, plural: f"{exp} > 0")
+
+
+def test_make_converter_annotated():
+    inner = int
+    inner_conv = ScalarConverter(int, int, 'an int', 'ints')
+
+    assert make_converter(t.Annotated[int, cond1]) == ConditionalConverter(
+        inner_conv, cond1.f, 'true', cond1.make_expected
+    )
+
+    assert make_converter(t.Annotated[int, cond2]) == ConditionalConverter(
+        inner_conv, cond2.f, 'v > 0', cond2.make_expected
+    )
+
+    compound = make_converter(t.Annotated[int, cond1, cond2])
+    assert isinstance(compound, ConditionalConverter)
+    assert compound.condition_name == 'true and v > 0'
+
 
 
 @pytest.mark.parametrize(('conv', 'plural', 'expected'), [
@@ -60,6 +84,8 @@ def test_make_converter(input, conv: Converter):
     (t.Sequence[str], True, 'sequences of strings'),
     (t.Dict[str, int], False, 'mapping of strings => ints'),
     (t.Literal['a', 'b', 'c'], False, "'a', 'b', or 'c'"),
+    (t.Annotated[int, cond2], False, "an int > 0"),
+    (t.Annotated[int, cond2], True, "ints > 0"),
 ])
 def test_converter_expected(conv: Converter, plural: bool, expected: str):
     if not isinstance(conv, Converter):
@@ -68,10 +94,20 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
 
 
 @pytest.mark.parametrize(('ty', 'val', 'result'), [
+    # scalar converter
     (int, 's', WrongTypeError('an int', 's')),
-    ({'x': int, 'y': float}, {'x': 5, 'y': 4}, {'x': 5, 'y': 4.}),
+    # sequence converters
+    (t.Tuple[int, ...], [1, 2], (1, 2)),
+    (t.Sequence[int], [1, 2], (1, 2)),  # same as tuple
+    (t.List[int], (1, 2), [1, 2]),
+    # tuple converters
+    (t.Tuple[str], ['int'], ('int',)),
+    (t.Tuple[str], ('s1', 's2'), WrongTypeError('tuple of length 1', ('s1', 's2'))),
+    # union converters (left to right)
     (t.Union[int, float, str], 5., 5.),
     (t.Union[str, float, int], 5, 5.),
+    # struct converter
+    ({'x': int, 'y': float}, {'x': 5, 'y': 4}, {'x': 5, 'y': 4.}),
     ({'x': t.Union[str, int], 'y': t.Tuple[t.Union[str, int], int]}, {'x': 5., 'y': (0., 's')},
      ProductErrorNode('struct', {
          'x': SumErrorNode([WrongTypeError('a string', 5.), WrongTypeError('an int', 5.)]),
@@ -81,7 +117,17 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
          },  (0., 's')),
      }, {'x': 5., 'y': (0., 's')})
      ),
-     (TestConvertible, 's', TestConvertible())
+     # custom convertible type
+     (TestConvertible, 's', TestConvertible()),
+     # conditions
+     (t.Annotated[int, cond2], 1, 1),
+     (t.Annotated[int, cond2], 0, ConditionFailedError('an int > 0', 0., 'v > 0')),
+     (t.Annotated[int, cond1, cond2], 0, ConditionFailedError('an int satisfying true and v > 0', 0., 'true and v > 0')),
+     (t.Annotated[int, range(min=0)], 0, 0),
+     (t.Annotated[int, range(min=0)], -1, ConditionFailedError('an int satisfying v >= 0', -1., 'v >= 0')),
+     (t.Annotated[float, range(min=0, max=5)], 5, 5.),
+     (t.Annotated[float, range(min=0, max=5)], 5.05, ConditionFailedError('a float satisfying v >= 0 and v <= 5', 5.05, 'v >= 0 and v <= 5')),
+     (t.Annotated[t.Sequence[int], len_range(min=1)], [], ConditionFailedError('sequence of ints with at least 1 elem', [], 'at least 1 elem')),
 ])
 def test_convert(ty, val, result):
     if isinstance(result, ErrorNode):

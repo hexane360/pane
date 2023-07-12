@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import warnings
+import collections.abc
 import typing as t
 
 from .errors import ConvertError
+from .util import partition
 
 if t.TYPE_CHECKING:
     from .converters import Converter
@@ -76,6 +78,8 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
 
     Supports types, mappings of types, and sequences of types.
     """
+
+    from .annotations import ConvertAnnotation, Condition
     from .converters import AnyConverter, StructConverter, SequenceConverter, UnionConverter
     from .converters import LiteralConverter, DictConverter, TupleConverter
     from .converters import _BASIC_CONVERTERS
@@ -95,28 +99,67 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
     base = t.get_origin(ty) or ty
     args = t.get_args(ty)
 
-    # TODO eat annotation
-
     # special types
+
+    if base is t.Annotated:
+        base = args[0]
+        annotations = args[1:]  # TODO what order to extend in
+        # if annotated, we first split into annotations handled by us and those handled by the subtype
+        known, unknown = partition(lambda a: isinstance(a, ConvertAnnotation), annotations)
+        known = t.cast(t.Tuple[ConvertAnnotation, ...], known)
+
+        # unknown annotations are passed to the subtype
+        if len(unknown):
+            if not issubclass(base, HasFromData):
+                raise TypeError(f"Unsupported annotation(s) '{annotations}'")
+            inner = base._converter(*args, annotations=unknown)
+        else:
+            inner = make_converter(base)
+
+        # and then we surround with known annotations
+        if len(known) == 0:
+            return inner
+        if len(known) == 1:
+            return known[0]._converter(inner)
+        if all(isinstance(cond, Condition) for cond in known):  # special case for and conditions
+            return Condition.all(*(cond for cond in t.cast(t.Sequence[Condition], known)))._converter(inner)
+        # otherwise just nest conditions
+        for cond in known:
+            inner = cond._converter(inner)
+        return inner
+
+    # union converter
     if base is t.Union:
         return UnionConverter(args)
+    # literal converter
     if base is t.Literal:
         return LiteralConverter(args)
 
     if not isinstance(base, type):
         raise TypeError(f"Unsupported special type '{base}'")
 
+    # custom converter
     if issubclass(base, HasFromData):
-        return base._converter(*args, annotations=None)
+        return base._converter(*args)
 
+    # simple/scalar converters
     if ty in _BASIC_CONVERTERS:
         return _BASIC_CONVERTERS[ty]
 
+    # tuple converter
     if issubclass(base, (tuple, t.Tuple)) and len(args) > 0 and args[-1] != Ellipsis:
         return TupleConverter(base, args)
+    # homogenous sequence converter
     if issubclass(base, (list, t.Sequence)):
+        if base is t.Sequence or base is collections.abc.Sequence:
+            # t.Sequence => tuple
+            base = tuple
         return SequenceConverter(base, args[0] if len(args) > 0 else t.Any)  # type: ignore
+    # homogenous mapping converter
     if issubclass(base, (dict, t.Mapping)):
+        if base is t.Mapping or base is collections.abc.Mapping:
+            # t.Mapping => dict
+            base = dict
         return DictConverter(base,  # type: ignore
                              args[0] if len(args) > 0 else t.Any,
                              args[1] if len(args) > 1 else t.Any)  # type: ignore

@@ -7,6 +7,7 @@ from itertools import chain
 import typing as t
 
 
+T = t.TypeVar('T')
 FileOrPath = t.Union[str, Path, TextIOBase, t.TextIO]
 
 
@@ -47,10 +48,37 @@ def open_file(f: FileOrPath,
     return nullcontext(f)  # don't close a f we didn't open
 
 
+def partition(f: t.Callable[[T], bool], iter: t.Iterable[T]) -> t.Tuple[t.Tuple[T, ...], t.Tuple[T, ...]]:
+    """Partition ``iter`` into values that satisfy ``f`` and those which don't."""
+    true: t.List[T] = []
+    false: t.List[T] = []
+    for val in iter:
+        if f(val):
+            true.append(val)
+        else:
+            false.append(val)
+    return (tuple(true), tuple(false))
+
+
+def pluralize(word: str, plural: t.Union[bool, int], suffix: str = 's'):
+    """Pluralize ``word`` based on the value of ``plural``."""
+    if not isinstance(plural, bool):
+        plural = plural != 1
+    return (word + suffix) if plural else word
+
+
 def list_phrase(words: t.Sequence[str], conj: str = 'or') -> str:
+    """
+    Form an english list phrase from ``words``, using the conjunction ``conj``.
+    """
     if len(words) <= 2:
         return f" {conj} ".join(words)
     return ", ".join(words[:-1]) + f", {conj} {words[-1]}"
+
+
+def remove_article(s: str) -> str:
+    """Remove an article from ``s``, if present."""
+    return s.removeprefix('a ').removeprefix('an ').removeprefix('the ')
 
 
 def _collect_typevars(d: t.Dict[t.Union[t.TypeVar, t.ParamSpec], None], ty: t.Any):
@@ -131,6 +159,6 @@ def get_type_hints(cls: type) -> t.Dict[str, t.Any]:
 
 
 __all__ = [
-    'open_file', 'list_phrase',
+    'open_file', 'list_phrase', 'pluralize',
     'collect_typevars', 'replace_typevars', 'get_type_hints'
 ]
