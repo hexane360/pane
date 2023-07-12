@@ -442,7 +442,7 @@ class PaneConverter(Converter[PaneBase]):
         return WrongTypeError(self.name, val)
 
 
-__ALL__ = [
-    DataType, IntoData, FromData, from_data, into_data, convert,
-    Field, PaneOptions, PaneBase, ConvertError
+__all__ = [
+    'DataType', 'IntoData', 'FromData', 'from_data', 'into_data', 'convert',
+    'Field', 'PaneOptions', 'PaneBase', 'ConvertError'
 ]

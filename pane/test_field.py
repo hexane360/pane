@@ -1,7 +1,7 @@
 
 import pytest
 
-from .field import split_field_name, rename_field
+from .field import _split_field_name, rename_field
 
 
 @pytest.mark.parametrize(('field', 'out'), [
@@ -17,9 +17,9 @@ from .field import split_field_name, rename_field
 def test_split_field(field, out):
     if isinstance(out, ValueError):
         with pytest.raises(ValueError, match=out.args[0]):
-            split_field_name(field)
+            _split_field_name(field)
     else:
-        assert split_field_name(field) == out
+        assert _split_field_name(field) == out
 
 
 @pytest.mark.parametrize(('field', 'style', 'out'), [

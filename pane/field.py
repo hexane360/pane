@@ -30,7 +30,7 @@ CONVERT_FNS: t.Dict[RenameStyle, t.Callable[[t.Sequence[str]], str]] = {
 }
 
 
-def pairwise(it: t.Iterable[T]) -> t.Iterator[t.Tuple[T, T]]:
+def _pairwise(it: t.Iterable[T]) -> t.Iterator[t.Tuple[T, T]]:
     it = iter(it)
     while True:
         try:
@@ -41,7 +41,7 @@ def pairwise(it: t.Iterable[T]) -> t.Iterator[t.Tuple[T, T]]:
         yield (a, b)
 
 
-def split_field_name(field: str) -> t.Sequence[str]:
+def _split_field_name(field: str) -> t.Sequence[str]:
     parts = re.split(r'[_-]', field)
     if not all(parts):
         raise ValueError(f"Unable to interpret field '{field}' for automatic rename")
@@ -53,14 +53,14 @@ def split_field_name(field: str) -> t.Sequence[str]:
         seps = re.split(r'([A-Z])', field)
         if seps[0] != '':
             yield seps[0]
-        for (s1, s2) in pairwise(seps[1:]):
+        for (s1, s2) in _pairwise(seps[1:]):
             yield s1 + s2
 
     return tuple(itertools.chain.from_iterable(map(split_case, parts)))
 
 
 def rename_field(field: str, style: RenameStyle) -> str:
-    return CONVERT_FNS[style](split_field_name(field))
+    return CONVERT_FNS[style](_split_field_name(field))
 
 
 @dataclass(kw_only=True)
@@ -151,3 +151,9 @@ def field(*,
         rename=rename, in_names=in_names, aliases=aliases, out_name=out_name,
         init=init, default=default, default_factory=default_factory, kw_only=kw_only
     )
+
+
+__all__ = [
+    'Field', 'FieldSpec', 'field',
+    'rename_field',
+]
