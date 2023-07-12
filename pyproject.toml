@@ -40,5 +40,21 @@ Repository = "https://github.com/hexane360/pane.git"
 
 [tool.pyright]
 pythonVersion = "3.10"
-typeCheckingMode = "basic"
+include = ['pane']
+ignore = ['**/test_*.py']  # ddon't type check tests
 
+typeCheckingMode = "strict"
+#reportUnknownLambdaType = "none"
+#reportUnknownVariableType = "none"
+#reportMissingTypeArgument = "none"
+#reportMissingParameterType = "none"
+reportMissingTypeStubs = "information"
+reportUnusedImport = "warning"
+reportImportCycles = "none"  # convert -> converters -> convert (typechecking only)
+reportUnusedVariable = "warning"
+reportPrivateUsage = "none"
+reportUnnecessaryIsInstance = "none"
+reportUnnecessaryComparison = "information"
+reportUnnecessaryCast = "warning"
+reportUntypedBaseClass = "information"
+reportConstantRedefinition = "none"

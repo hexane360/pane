@@ -43,8 +43,10 @@ class HasIntoData(t.Protocol):
         ...
 
 
-DataType = t.Union[str, int, bool, float, complex, None, t.Mapping, t.Sequence]
+DataType = t.Union[str, int, bool, float, complex, None, t.Mapping['DataType', 'DataType'], t.Sequence['DataType']]
 """Common data interchange type. ``IntoData`` converts to this, and ``FromData`` converts from this."""
+_DataType: type = t.Union[str, int, bool, float, complex, None, t.Mapping, t.Sequence]  # type: ignore
+"""``DataType`` for use in ``isinstance``."""
 FromData = t.Union[DataType, HasFromData]
 """Types supported by ``from_data``."""
 IntoData = t.Union[DataType, HasIntoData]
@@ -129,16 +131,16 @@ def into_data(val: IntoData) -> DataType:
         return type(val)(map(into_data, val))
     if isinstance(val, t.Sequence) and not isinstance(val, str):
         return list(map(into_data, val))
-    if isinstance(val, DataType):
+    if isinstance(val, _DataType):
         return val
-    if isinstance(val, IntoData):
+    if isinstance(val, HasIntoData):
         return val.into_data()
 
     raise TypeError(f"Can't convert type '{type(val)}' into data.")
 
 
 def from_data(val: DataType, ty: t.Type[T]) -> T:
-    if not isinstance(val, DataType):
+    if not isinstance(val, _DataType):
         raise TypeError(f"Type {type(val)} is not a valid data interchange type.")
 
     converter = make_converter(ty)

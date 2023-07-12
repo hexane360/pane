@@ -1,6 +1,5 @@
 
 import inspect
-from dataclasses import field, dataclass
 import typing as t
 
 import pytest
@@ -77,7 +76,7 @@ class TestClassInherit2(TestClassInherit):
 
 
 class TestClassModifyFields(TestClassInherit):
-    x: float = 9.
+    x: float = 9.  # type: ignore
 
 
 class TestClass2(pane.PaneBase):

@@ -25,7 +25,7 @@ class ConvertError(Exception):
 
 class ErrorNode(abc.ABC):
     @abc.abstractmethod
-    def print_error(self, indent="", inside_sum=False, file=sys.stdout):
+    def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):
         ...
 
     def __str__(self) -> str:
@@ -40,7 +40,7 @@ class WrongTypeError(ErrorNode):
     actual: t.Any
     cause: t.Optional[traceback.TracebackException] = None
 
-    def print_error(self, indent="", inside_sum=False, file=sys.stdout):
+    def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):
         if inside_sum:
             print(f"{self.expected}", file=file)
         else:
@@ -55,7 +55,7 @@ class DuplicateKeyError(ErrorNode):
     key: str
     aliases: t.Sequence[str]
 
-    def print_error(self, indent="", inside_sum=False, file=sys.stdout):
+    def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):
         assert not inside_sum
         print(f"Duplicate key {self.key} (same as {'/'.join(self.aliases)})", file=file)
 
@@ -68,7 +68,7 @@ class ProductErrorNode(ErrorNode):
     missing: t.AbstractSet[t.Union[t.Sequence[str], str]] = dataclasses.field(default_factory=set)
     extra: t.AbstractSet[str] = dataclasses.field(default_factory=set)
 
-    def print_error(self, indent="", inside_sum=False, file=sys.stdout):
+    def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):
         # fuse together non-branching productnodes
         while len(self.children) == 1 and not len(self.missing) and not len(self.extra):
             field, child = next(iter(self.children.items()))
@@ -98,7 +98,7 @@ class SumErrorNode(ErrorNode):
     # sumnodes shouldn't contain sumnodes
     children: t.List[t.Union[ProductErrorNode, WrongTypeError]]
 
-    def print_error(self, indent="", inside_sum=False, file=sys.stdout):
+    def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):
         print(f"Expected one of:", file=file)
         assert len(self.children)
         actual = None

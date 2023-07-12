@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass, KW_ONLY, replace, FrozenInstanceError
 from inspect import Signature, Parameter
 from types import NotImplementedType
@@ -9,7 +8,8 @@ from typing_extensions import dataclass_transform, Self
 
 from .convert import DataType, IntoData, FromData, from_data, into_data, convert
 from .converters import Converter, make_converter
-from .errors import ConvertError, ParseInterrupt, WrongTypeError, ProductErrorNode, DuplicateKeyError
+from .errors import ConvertError, ParseInterrupt
+from .errors import ErrorNode, WrongTypeError, ProductErrorNode, DuplicateKeyError
 from .field import Field, FieldSpec, field, RenameStyle, _MISSING
 from .util import FileOrPath, open_file, get_type_hints, list_phrase
 
@@ -41,7 +41,7 @@ class PaneOptions:
     out_rename: t.Optional[RenameStyle] = None
     allow_extra: bool = False
 
-    def replace(self, **changes):
+    def replace(self, **changes: t.Any):
         changes['name'] = changes.get('name', None)
         return replace(self, **{k: v for (k, v) in changes.items() if v is not None})
 
@@ -61,7 +61,7 @@ class PaneBase:
 
     def __init_subclass__(
         cls,
-        *args,
+        *args: t.Any,
         name: t.Optional[str] = None,
         ser_format: t.Optional[ClassLayout] = None,
         de_format: t.Optional[t.Sequence[ClassLayout]] = None,
@@ -74,7 +74,7 @@ class PaneBase:
         in_rename: t.Optional[t.Union[RenameStyle, t.Sequence[RenameStyle]]] = None,
         out_rename: t.Optional[RenameStyle] = None,
         allow_extra: t.Optional[bool] = None,
-        **kwargs,
+        **kwargs: t.Any,
     ):
         old_params = getattr(cls, '__parameters__', ())
         super().__init_subclass__(*args, **kwargs)
@@ -99,7 +99,7 @@ class PaneBase:
 
         _process(cls, opts)
 
-    def __class_getitem__(cls, params):
+    def __class_getitem__(cls, params: t.Union[type, t.Tuple[type, ...]]):
         typevars = getattr(cls, '__parameters__', ())
         if not isinstance(params, tuple):
             params = (params,)
@@ -107,12 +107,13 @@ class PaneBase:
         if not hasattr(super(), '__class_getitem__'):
             raise TypeError(f"type '{cls}' is not subscriptable")
 
-        alias = super().__class_getitem__(params)  # type: ignore
+        alias: t.Type[PaneBase] = super().__class_getitem__(params)  # type: ignore
 
         # return subclass with bound type variables
         bound_vars = dict(zip(typevars, params))
         bound = type(cls.__name__, (cls,), {
-            PANE_BOUNDVARS: bound_vars, '__parameters__': alias.__parameters__,
+            PANE_BOUNDVARS: bound_vars,
+            '__parameters__': getattr(alias, '__parameters__'),  # type: ignore
         })
         return bound
 
@@ -128,7 +129,7 @@ class PaneBase:
         set_fields: t.Set[str] = getattr(self, PANE_SET_FIELDS)
         set_fields.add(name)
 
-    def __delattr__(self, name: str, value: t.Any) -> None:
+    def __delattr__(self, name: str) -> None:
         raise AttributeError(f"cannot delete field {name!r}")
 
     @classmethod
@@ -178,12 +179,12 @@ class PaneBase:
         return cls.from_data(obj)
 
     @classmethod
-    def make_unchecked(cls, *args, **kwargs) -> Self:
+    def make_unchecked(cls, *args: t.Any, **kwargs: t.Any) -> Self:
         ...
 
 
-def _make_init(cls, fields: t.Sequence[Field]):
-    params = []
+def _make_init(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
+    params: t.List[Parameter] = []
     for field in fields:
         if field.default is not _MISSING:
             default = field.default
@@ -197,18 +198,18 @@ def _make_init(cls, fields: t.Sequence[Field]):
 
     sig = Signature(params, return_annotation=None)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self: PaneBase, *args: t.Any, **kwargs: t.Any):
         checked = kwargs.pop('_pane_checked', True)
         try:
-            args = sig.bind(*args, **kwargs).arguments
+            bound_args = sig.bind(*args, **kwargs).arguments
         except TypeError as e:
             raise TypeError(*e.args) from None
 
-        set_fields = set()
+        set_fields: t.Set[str] = set()
 
         for field in t.cast(t.Sequence[Field], getattr(self, PANE_FIELDS)):
-            if field.name in args:
-                val = args[field.name]
+            if field.name in bound_args:
+                val = bound_args[field.name]
                 if checked:
                     val = convert(val, field.type)  # type: ignore
                 set_fields.add(field.name)
@@ -217,7 +218,7 @@ def _make_init(cls, fields: t.Sequence[Field]):
             elif field.default_factory is not None:
                 val = field.default_factory()
             else:
-                raise RuntimeError()
+                raise RuntimeError("Mismatch between fields and signature. This shouldn't happen")
             object.__setattr__(self, field.name, val)
 
         object.__setattr__(self, PANE_SET_FIELDS, set_fields)
@@ -225,22 +226,22 @@ def _make_init(cls, fields: t.Sequence[Field]):
         if hasattr(self, POST_INIT):
             getattr(self, POST_INIT)()
 
-    __init__.__signature__ = sig
+    setattr(__init__, '__signature__', sig)
     setattr(cls, '__init__', __init__)
     setattr(cls, '__signature__', sig)
 
     @classmethod
-    def make_unchecked(cls, *args, **kwargs):
-        return cls(*args, **kwargs, _pane_checked=False)
+    def make_unchecked(cls, *args, **kwargs):  # type: ignore
+        return cls(*args, **kwargs, _pane_checked=False)  # type: ignore
 
     sig2 = Signature([Parameter('cls', Parameter.POSITIONAL_OR_KEYWORD), *params], return_annotation=cls)
-    make_unchecked.__func__.__signature__ = sig2
+    make_unchecked.__func__.__signature__ = sig2  # type: ignore
     setattr(cls, 'make_unchecked', make_unchecked)
 
 
-def _make_eq(cls, fields: t.Sequence[Field]):
+def _make_eq(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
     #eq_fields = list(filter(lambda f: f.eq, fields))
-    def __eq__(self, other: t.Any) -> bool:
+    def __eq__(self: PaneBase, other: t.Any) -> bool:
         if self.__class__ != other.__class__:
             return False
         return all(
@@ -251,9 +252,9 @@ def _make_eq(cls, fields: t.Sequence[Field]):
     setattr(cls, '__eq__', __eq__)
 
 
-def _make_ord(cls, fields: t.Sequence[Field]):
+def _make_ord(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
     #ord_fields = list(filter(lambda f: f.ord, fields))
-    def _pane_ord(self, other: t.Any) -> t.Union[NotImplementedType, t.Literal[-1, 0, 1]]:
+    def _pane_ord(self: PaneBase, other: t.Any) -> t.Union[NotImplementedType, t.Literal[-1, 0, 1]]:
         if self.__class__ != other.__class__:
             return NotImplemented
         for field in fields:
@@ -262,17 +263,17 @@ def _make_ord(cls, fields: t.Sequence[Field]):
             return 1 if getattr(self, field.name) > getattr(other, field.name) else -1
         return 0
 
-    def __lt__(self, other: t.Any):
-        return NotImplemented if (o := _pane_ord(self, other)) is NotImplemented else o < 0
+    def __lt__(self: PaneBase, other: t.Any) -> t.Union[bool, NotImplementedType]:
+        return NotImplemented if (o := _pane_ord(self, other)) is NotImplemented else t.cast(int, o) < 0
 
-    def __le__(self, other: t.Any):
-        return NotImplemented if (o := _pane_ord(self, other)) is NotImplemented else o <= 0
+    def __le__(self: PaneBase, other: t.Any) -> t.Union[bool, NotImplementedType]:
+        return NotImplemented if (o := _pane_ord(self, other)) is NotImplemented else t.cast(int, o) <= 0
 
-    def __gt__(self, other: t.Any):
-        return NotImplemented if (o := _pane_ord(self, other)) is NotImplemented else o > 0
+    def __gt__(self: PaneBase, other: t.Any) -> t.Union[bool, NotImplementedType]:
+        return NotImplemented if (o := _pane_ord(self, other)) is NotImplemented else t.cast(int, o) > 0
 
-    def __ge__(self, other: t.Any):
-        return NotImplemented if (o := _pane_ord(self, other)) is NotImplemented else o >= 0
+    def __ge__(self: PaneBase, other: t.Any) -> t.Union[bool, NotImplementedType]:
+        return NotImplemented if (o := _pane_ord(self, other)) is NotImplemented else t.cast(int, o) >= 0
 
     setattr(cls, '_pane_ord', _pane_ord)
     setattr(cls, '__lt__', __lt__)
@@ -281,7 +282,7 @@ def _make_ord(cls, fields: t.Sequence[Field]):
     setattr(cls, '__ge__', __ge__)
 
 
-def _process(cls, opts: PaneOptions):
+def _process(cls: t.Type[PaneBase], opts: PaneOptions):
     fields: t.List[Field] = []
 
     specs: t.Dict[str, FieldSpec] = {}
@@ -293,7 +294,7 @@ def _process(cls, opts: PaneOptions):
         cls_specs = getattr(base, PANE_SPECS)
 
         # apply typevar replacements
-        bound_vars = getattr(base, PANE_BOUNDVARS, {})
+        bound_vars = t.cast(t.Mapping[t.Union[t.TypeVar, t.ParamSpec], type], getattr(base, PANE_BOUNDVARS, {}))
         specs.update(cls_specs)
         specs = {k: spec.replace_typevars(bound_vars) for (k, spec) in specs.items()}
 
@@ -361,7 +362,7 @@ class PaneConverter(Converter[PaneBase]):
         self.name = self.cls.__name__
         self.opts: PaneOptions = getattr(self.cls, PANE_OPTS)
         self.fields: t.Sequence[Field] = getattr(self.cls, PANE_FIELDS)
-        self.field_converters: t.Sequence[Converter] = [make_converter(field.type) for field in self.fields]
+        self.field_converters: t.Sequence[Converter[t.Any]] = [make_converter(field.type) for field in self.fields]
         self.field_map: t.Dict[str, int] = {}
 
         for (i, field) in enumerate(self.fields):
@@ -383,7 +384,7 @@ class PaneConverter(Converter[PaneBase]):
                 raise ParseInterrupt()
 
             values: t.Dict[str, t.Any] = {}
-            for (k, v) in val.items():
+            for (k, v) in t.cast(t.Dict[str, t.Any], val).items():
                 if k not in self.field_map:
                     if not self.opts.allow_extra:
                         raise ParseInterrupt()  # extra key
@@ -405,16 +406,18 @@ class PaneConverter(Converter[PaneBase]):
 
     def collect_errors(self, val: t.Any) -> t.Union[WrongTypeError, ProductErrorNode, None]:
         if isinstance(val, (list, tuple, t.Sequence)):
+            val = t.cast(t.Sequence[t.Any], val)
             if 'tuple' not in self.opts.in_format:
                 return WrongTypeError(f'struct {self.name}', val)
             return WrongTypeError(f'tuple {self.name}', "Not implemented")
         elif isinstance(val, (dict, t.Mapping)):
+            val = t.cast(t.Mapping[str, t.Any], val)
             if 'struct' not in self.opts.out_format:
                 return WrongTypeError(f'tuple {self.name}', val)
 
-            children = {}
-            extra = set()
-            seen = set()
+            children: t.Dict[t.Union[str, int], ErrorNode] = {}
+            extra: t.Set[str] = set()
+            seen: t.Set[str] = set()
             for (k, v) in val.items():
                 if k not in self.field_map:
                     if not self.opts.allow_extra:
@@ -431,7 +434,7 @@ class PaneConverter(Converter[PaneBase]):
                 if (node := conv.collect_errors(v)) is not None:
                     children[k] = node
 
-            missing = set()
+            missing: t.Set[str] = set()
             for field in self.fields:
                 if field.name not in seen and not field.is_optional():
                     missing.add(field.name)

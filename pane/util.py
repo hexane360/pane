@@ -3,7 +3,6 @@ import sys
 from pathlib import Path
 from io import TextIOBase, IOBase, TextIOWrapper, BufferedIOBase
 from contextlib import AbstractContextManager, nullcontext
-from collections import OrderedDict
 from itertools import chain
 import typing as t
 
@@ -11,7 +10,7 @@ import typing as t
 FileOrPath = t.Union[str, Path, TextIOBase, t.TextIO]
 
 
-def _validate_file(f: t.Union[t.IO, IOBase], mode: t.Union[t.Literal['r'], t.Literal['w']]):
+def _validate_file(f: t.Union[t.IO[t.AnyStr], IOBase], mode: t.Union[t.Literal['r'], t.Literal['w']]):
     if f.closed:
         raise IOError("Error: Provided file is closed.")
 
@@ -54,10 +53,11 @@ def list_phrase(words: t.Sequence[str], conj: str = 'or') -> str:
     return ", ".join(words[:-1]) + f", {conj} {words[-1]}"
 
 
-def _collect_typevars(d, ty):
+def _collect_typevars(d: t.Dict[t.Union[t.TypeVar, t.ParamSpec], None], ty: t.Any):
     if isinstance(ty, type):
         pass
     elif isinstance(ty, (tuple, t.Sequence)):
+        ty = t.cast(t.Sequence[t.Any], ty)
         for arg in ty:
             _collect_typevars(d, arg)
     elif hasattr(ty, '__typing_subst__') or isinstance(ty, (t.TypeVar, t.ParamSpec)):
@@ -67,14 +67,14 @@ def _collect_typevars(d, ty):
             d.setdefault(ty)
 
 
-def collect_typevars(args) -> tuple[t.Union[t.TypeVar, t.ParamSpec]]:
+def collect_typevars(args: t.Any) -> tuple[t.Union[t.TypeVar, t.ParamSpec]]:
     # loosely based on typing._collect_parameters
-    d = {}  # relies on dicts preserving insertion order
+    d: t.Dict[t.Union[t.TypeVar, t.ParamSpec], None] = {}  # relies on dicts preserving insertion order
     _collect_typevars(d, args)
     return tuple(d)
 
 
-def _union_args(ty: t.Type) -> t.Sequence[t.Type]:
+def _union_args(ty: type) -> t.Sequence[type]:
     base = t.get_origin(ty) or ty
     args = t.get_args(ty)
 
@@ -84,11 +84,12 @@ def _union_args(ty: t.Type) -> t.Sequence[t.Type]:
     return (ty,)
 
 
-def replace_typevars(ty: t.Type, replacements: t.Mapping[t.Union[t.TypeVar, t.ParamSpec], t.Type]) -> t.Type:
+def replace_typevars(ty: t.Any,
+                     replacements: t.Mapping[t.Union[t.TypeVar, t.ParamSpec], type]) -> t.Any:
     if isinstance(ty, (t.TypeVar, t.ParamSpec)):
         return replacements.get(ty, ty)
-    if isinstance(ty, (list, tuple)):
-        return type(ty)(replace_typevars(t, replacements) for t in ty)
+    if isinstance(ty, t.Sequence):
+        return type(ty)(replace_typevars(t, replacements) for t in ty)  # type: ignore
 
     base = t.get_origin(ty) or ty
     args = t.get_args(ty)
@@ -107,7 +108,7 @@ def replace_typevars(ty: t.Type, replacements: t.Mapping[t.Union[t.TypeVar, t.Pa
             # single-element union, return as value
             return next(iter(args))
 
-    return base[tuple(args)]
+    return base[tuple(args)]  # type: ignore
 
 
 def get_type_hints(cls: type) -> t.Dict[str, t.Any]:
@@ -116,7 +117,7 @@ def get_type_hints(cls: type) -> t.Dict[str, t.Any]:
     globalns = getattr(sys.modules.get(cls.__module__, None), '__dict__', {})
     localns = dict(vars(cls))
 
-    d = {}
+    d: t.Dict[str, t.Any] = {}
     for name, value in cls.__dict__.get('__annotations__', {}).items():
         if value is None:
             value = type(None)

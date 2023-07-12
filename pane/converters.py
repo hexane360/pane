@@ -96,15 +96,15 @@ class ScalarConverter(Converter[T]):
     def expected(self, plural: bool = False) -> str:
         return t.cast(str, self.expect_plural if plural else self.expect)
 
-    def try_convert(self, val) -> T:
+    def try_convert(self, val: t.Any) -> T:
         if isinstance(val, self.allowed):
             return self.ty(val)  # type: ignore
         raise ParseInterrupt()
 
-    def collect_errors(self, actual) -> t.Optional[WrongTypeError]:
-        if isinstance(actual, self.allowed):
+    def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
+        if isinstance(val, self.allowed):
             return None
-        return WrongTypeError(f'{self.expected()}', actual)
+        return WrongTypeError(f'{self.expected()}', val)
 
 
 @dataclasses.dataclass
@@ -121,21 +121,21 @@ class NoneConverter(Converter[None]):
     def expected(self, plural: bool = False) -> str:
         return "null value" + ("s" if plural else "")
 
-    def collect_errors(self, val) -> t.Optional[WrongTypeError]:
+    def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
         if val is None:
             return None
         return WrongTypeError(self.expected(), val)
 
 
 @dataclasses.dataclass
-class LiteralConverter(Converter):
+class LiteralConverter(Converter[T_co]):
     """
     Converter which accepts any of a list of literal values.
     """
 
-    vals: t.Sequence[t.Any]
+    vals: t.Sequence[T_co]
 
-    def try_convert(self, val: t.Any) -> t.Any:
+    def try_convert(self, val: t.Any) -> T_co:
         if val in self.vals:
             return val
         raise ParseInterrupt()
@@ -144,7 +144,7 @@ class LiteralConverter(Converter):
         l = list_phrase(tuple(map(repr, self.vals)))
         return f"({l})" if plural else l
 
-    def collect_errors(self, val) -> t.Optional[WrongTypeError]:
+    def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
         if val in self.vals:
             return None
         return WrongTypeError(self.expected(), val)
@@ -158,7 +158,7 @@ class UnionConverter(Converter[t.Any]):
     """
     types: t.Tuple[IntoConverter, ...]
     """List of potential types"""
-    converters: t.Tuple[Converter, ...]
+    converters: t.Tuple[Converter[t.Any], ...]
     """List of type converters"""
 
     def __init__(self, types: t.Sequence[t.Any]):
@@ -174,7 +174,7 @@ class UnionConverter(Converter[t.Any]):
     def expected(self, plural: bool = False) -> str:
         return list_phrase(tuple(conv.expected(plural) for conv in self.converters))
 
-    def try_convert(self, val) -> t.Any:
+    def try_convert(self, val: t.Any) -> t.Any:
         for conv in self.converters:
             try:
                 return conv.try_convert(val)
@@ -182,14 +182,14 @@ class UnionConverter(Converter[t.Any]):
                 pass
         raise ParseInterrupt
 
-    def collect_errors(self, actual) -> t.Optional[SumErrorNode]:
-        failed_children = []
-        for (ty, conv) in zip(self.types, self.converters):
-            node = conv.collect_errors(actual)
+    def collect_errors(self, val: t.Any) -> t.Optional[SumErrorNode]:
+        failed_children: t.List[t.Union[ProductErrorNode, WrongTypeError]] = []
+        for (_, conv) in zip(self.types, self.converters):
+            node = conv.collect_errors(val)
             # if one branch is successful, the whole type is successful
             if node is None:
                 return None
-            failed_children.append(node)
+            failed_children.append(t.cast(t.Union[ProductErrorNode, WrongTypeError], node))
         return SumErrorNode(failed_children)
 
 
@@ -207,7 +207,7 @@ class StructConverter(Converter[T]):
     """Optional name of struct"""
     opt_fields: t.Set[str] = dataclasses.field(default_factory=set, kw_only=True)
     """Set of fields which are optional"""
-    field_converters: t.Dict[str, Converter] = dataclasses.field(init=False)
+    field_converters: t.Dict[str, Converter[t.Any]] = dataclasses.field(init=False)
     """Dict of sub-converters for each field"""
 
     def __post_init__(self):
@@ -218,10 +218,11 @@ class StructConverter(Converter[T]):
         name = f" {self.name}" if self.name is not None else ""
         return f"struct{p}{name}"
 
-    def try_convert(self, val) -> T:
+    def try_convert(self, val: t.Any) -> T:
         if not isinstance(val, (dict, t.Mapping)):
             raise ParseInterrupt()
-        d = {}
+        val = t.cast(t.Dict[str, t.Any], val)
+        d: t.Dict[str, t.Any] = {}
         for (k, v) in val.items():
             if k not in self.fields:
                 raise ParseInterrupt()  # unknown field
@@ -231,21 +232,22 @@ class StructConverter(Converter[T]):
             raise ParseInterrupt()
         return self.ty(d)  # type: ignore
 
-    def collect_errors(self, actual) -> t.Union[WrongTypeError, ProductErrorNode, None]:
-        if not isinstance(actual, (dict, t.Mapping)):
-            return WrongTypeError(self.expected(), actual)
+    def collect_errors(self, val: t.Any) -> t.Union[WrongTypeError, ProductErrorNode, None]:
+        if not isinstance(val, (dict, t.Mapping)):
+            return WrongTypeError(self.expected(), val)
+        val = t.cast(t.Dict[str, t.Any], val)
 
-        children = {}
-        extra = set()
-        for (k, v) in actual.items():
+        children: t.Dict[t.Union[str, int], t.Any] = {}
+        extra: t.Set[str] = set()
+        for (k, v) in val.items():
             if k not in self.fields:
                 extra.add(k)
                 continue
             if (node := self.field_converters[k].collect_errors(v)) is not None:
                 children[k] = node
-        missing = set(self.fields.keys()) - set(actual.keys()) - self.opt_fields
+        missing = set(self.fields.keys()) - set(val.keys()) - self.opt_fields
         if len(children) or len(missing) or len(extra):
-            return ProductErrorNode(self.expected(), children, actual, missing, extra)
+            return ProductErrorNode(self.expected(), children, val, missing, extra)
         return None
 
 
@@ -254,16 +256,17 @@ class TupleConverter(t.Generic[T], Converter[T]):
     """Converter for a simple, heterogeneous tuple-like type"""
     ty: t.Type[T]
     """Type to convert into. Must be constructible from a sequence/tuple"""
-    converters: t.Tuple[Converter, ...]
+    converters: t.Tuple[Converter[t.Any], ...]
     """List of sub-converters for each field"""
 
-    def __init__(self, ty: t.Type[T], types: t.Sequence[t.Type]):
+    def __init__(self, ty: t.Type[T], types: t.Sequence[IntoConverter]):
         self.ty = ty
         self.converters = tuple(map(make_converter, types))
 
     def try_convert(self, val: t.Any) -> T:
         if not isinstance(val, t.Sequence):
             raise ParseInterrupt
+        val = t.cast(t.Sequence[t.Any], val)
         if len(val) != len(self.converters):
             raise ParseInterrupt
 
@@ -274,8 +277,9 @@ class TupleConverter(t.Generic[T], Converter[T]):
         return f"tuple{s} of length {len(self.converters)}"
 
     def collect_errors(self, val: t.Any) -> t.Union[None, ProductErrorNode, WrongTypeError]:
-        if not isinstance(val, t.Sequence) or len(val) != len(self.converters):
+        if not isinstance(val, t.Sequence) or len(val) != len(self.converters):  # type: ignore
             return WrongTypeError(self.expected(), val)
+        val = t.cast(t.Sequence[t.Any], val)
         children = {}
         for (i, (conv, v)) in enumerate(zip(self.converters, val)):
             node = conv.collect_errors(v)
@@ -291,12 +295,12 @@ class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDat
     """Converter for a homogenous dict-like type."""
     ty: t.Type[t.Mapping[FromDataK, FromDataV]]
     """Type to convert into. Must be constructible from a dict"""
-    k_conv: Converter
+    k_conv: Converter[FromDataK]
     """Sub-converter for keys"""
-    v_conv: Converter
+    v_conv: Converter[FromDataV]
     """Sub-converter for values"""
 
-    def __init__(self, ty: t.Type[t.Dict], k: t.Type[FromDataK] = t.Any, v: t.Type[FromDataV] = t.Any):
+    def __init__(self, ty: t.Type[t.Dict[t.Any, t.Any]], k: t.Type[FromDataK] = t.Any, v: t.Type[FromDataV] = t.Any):
         self.ty = ty
         self.k_conv = make_converter(k)
         self.v_conv = make_converter(v)
@@ -308,18 +312,20 @@ class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDat
     def try_convert(self, val: t.Any) -> t.Mapping[FromDataK, FromDataV]:
         if not isinstance(val, t.Mapping):
             raise ParseInterrupt()
+        val = t.cast(t.Mapping[t.Any, t.Any], val)
         d = {self.k_conv.try_convert(k): self.v_conv.try_convert(v) for (k, v) in val.items()}
         return self.ty(d)  # type: ignore
 
     def collect_errors(self, val: t.Any) -> t.Union[None, WrongTypeError, ProductErrorNode]:
         if not isinstance(val, t.Mapping):
             return WrongTypeError(self.expected(), val)
-        nodes = {}
+        val = t.cast(t.Mapping[t.Any, t.Any], val)
+        nodes: t.Dict[t.Union[str, int], ErrorNode] = {}
         for (k, v) in val.items():
             if (node := self.k_conv.collect_errors(k)) is not None:
-                nodes[k] = node  # TODO split bad fields from bad values
+                nodes[str(k)] = node  # TODO split bad fields from bad values
             if (node := self.v_conv.collect_errors(v)) is not None:
-                nodes[k] = node
+                nodes[str(k)] = node
         if len(nodes):
             return ProductErrorNode(self.expected(), nodes, val)
 
@@ -327,12 +333,12 @@ class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDat
 @dataclasses.dataclass(init=False)
 class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
     """Converter for a homogenous sequence-like type"""
-    ty: t.Type[t.Sequence]
+    ty: type
     """Type to convert into. Must be constructible from a tuple/sequence."""
     v_conv: Converter[FromDataT]
     """Sub-converter for values"""
 
-    def __init__(self, ty: t.Type[t.Sequence], v: t.Type[FromDataT] = t.Any):
+    def __init__(self, ty: t.Type[t.Sequence[t.Any]], v: t.Type[FromDataT] = t.Any):
         self.ty = ty
         self.v_conv = make_converter(v)
 
@@ -348,6 +354,7 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
     def collect_errors(self, val: t.Any) -> t.Union[None, WrongTypeError, ProductErrorNode]:
         if not isinstance(val, t.Sequence) or isinstance(val, str):
             return WrongTypeError("sequence", val)
+        val = t.cast(t.Sequence[t.Any], val)
         nodes = {}
         for (i, v) in enumerate(val):
             if (node := self.v_conv.collect_errors(v)) is not None:

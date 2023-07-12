@@ -102,10 +102,10 @@ class FieldSpec:
         if isinstance(self.aliases, str):
             self.aliases = [self.aliases]
 
-    def replace_typevars(self, replacements: t.Mapping[t.Union[t.TypeVar, t.ParamSpec], t.Type]) -> Self:
+    def replace_typevars(self, replacements: t.Mapping[t.Union[t.TypeVar, t.ParamSpec], t.Type[t.Any]]) -> Self:
         if self.ty is _MISSING:
             return replace(self)
-        return replace(self, ty=replace_typevars(self.ty, replacements))
+        return replace(self, ty=replace_typevars(t.cast(type, self.ty), replacements))
 
     def make_field(self, name: str,
                    in_rename: t.Optional[t.Sequence[RenameStyle]] = None,
