@@ -1,3 +1,5 @@
+"""Helper types for use with ``pane.convert`` and dataclasses."""
+
 import typing as t
 
 from pane.annotations import *

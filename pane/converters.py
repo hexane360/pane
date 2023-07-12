@@ -1,3 +1,7 @@
+"""
+Converter types, which do the hard work of recursive validation.
+"""
+
 import abc
 import dataclasses
 import traceback

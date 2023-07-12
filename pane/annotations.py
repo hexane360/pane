@@ -1,3 +1,7 @@
+"""
+Annotations supported by ``pane.convert()`` and dataclasses.
+"""
+
 from __future__ import annotations
 
 import abc

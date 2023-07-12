@@ -1,3 +1,5 @@
+"""Error types for ``pane`` library."""
+
 from __future__ import annotations
 
 import abc
