@@ -3,7 +3,6 @@ import sys
 from pathlib import Path
 from io import TextIOBase, IOBase, TextIOWrapper, BufferedIOBase
 from contextlib import AbstractContextManager, nullcontext
-from itertools import chain
 import typing as t
 
 
@@ -103,14 +102,13 @@ def collect_typevars(args: t.Any) -> tuple[t.Union[t.TypeVar, t.ParamSpec]]:
     return tuple(d)
 
 
-def _union_args(ty: type) -> t.Sequence[type]:
-    base = t.get_origin(ty) or ty
-    args = t.get_args(ty)
-
-    if base is t.Union:
-        return args
-
-    return (ty,)
+def flatten_union_args(types: t.Iterable[T]) -> t.Iterator[T]:
+    """Flatten nested unions, returning a single sequence of possible union types."""
+    for ty in types:
+        if t.get_origin(ty) is t.Union:
+            yield from flatten_union_args(t.get_args(ty))
+        else:
+            yield ty
 
 
 def replace_typevars(ty: t.Any,
@@ -129,8 +127,8 @@ def replace_typevars(ty: t.Any,
     args = (replace_typevars(ty, replacements) for ty in args)
 
     if base is t.Union:
+        args = tuple(flatten_union_args(args))
         # deduplicate union
-        args = tuple(chain.from_iterable(map(_union_args, args)))
         args = dict.fromkeys(args).keys()
 
         if len(args) == 1:

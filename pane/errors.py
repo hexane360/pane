@@ -14,12 +14,23 @@ class ParseInterrupt(Exception):
     ...
 
 
+class UnsupportedAnnotation(Exception):
+    def __init__(self, obj: t.Any):
+        self.obj: t.Any = obj
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.obj!r})"
+
+    def __str__(self) -> str:
+        return f"Unsupported annotation: {self.obj!r}"
+
+
 class ConvertError(Exception):
     def __init__(self, tree: ErrorNode):
         self.tree: ErrorNode = tree
 
     def __repr__(self) -> str:
-        return f"ConvertError({self.tree!r})"
+        return f"{self.__class__.__name__}({self.tree!r})"
 
     def __str__(self) -> str:
         return str(self.tree)

@@ -5,13 +5,12 @@ Converter types, which do the hard work of recursive validation.
 import abc
 import dataclasses
 import traceback
-from itertools import chain
 import typing as t
 
 from pane.errors import ErrorNode
 
 from .convert import DataType, Convertible, IntoConverter, make_converter, into_data
-from .util import list_phrase, pluralize
+from .util import list_phrase, pluralize, flatten_union_args
 from .errors import ConvertError, ParseInterrupt, WrongTypeError, ConditionFailedError
 from .errors import ErrorNode, SumErrorNode, ProductErrorNode
 
@@ -170,13 +169,7 @@ class UnionConverter(Converter[t.Any]):
     """List of type converters"""
 
     def __init__(self, types: t.Sequence[IntoConverter]):
-        def _flatten_unions(ty: IntoConverter) -> t.Sequence[IntoConverter]:
-            if t.get_origin(ty) is t.Union:
-                return t.get_args(ty)
-            return (ty,)
-
-        types = tuple(chain.from_iterable(map(_flatten_unions, types)))
-        self.types = types
+        self.types = tuple(flatten_union_args(types))
         self.converters = tuple(map(make_converter, types))
 
     def expected(self, plural: bool = False) -> str:
@@ -244,8 +237,6 @@ class TaggedUnionConverter(UnionConverter):
 
     def __init__(self, types: t.Sequence[t.Any], tag: str,
                  external: t.Union[bool, t.Tuple[str, str]] = False):
-        #from pane.classes import PaneBase, PANE_FIELDS, Field
-
         super().__init__(types)
         self.tag = tag
         self.external = external if isinstance(external, t.Sequence) else bool(external)
@@ -254,23 +245,7 @@ class TaggedUnionConverter(UnionConverter):
         self.tag_map = {}
         for (i, ty) in enumerate(self.types):
             try:
-                # TODO this is a mess. Extract Literal types from PaneBase
-                """
-                if isinstance(ty, type) and issubclass(ty, PaneBase):
-                    for field in t.cast(t.Sequence[Field], getattr(ty, PANE_FIELDS)):
-                        if tag in field.in_names:
-                            ty = field.type
-                            if t.get_origin(ty) is not t.Literal:
-                                raise TypeError(f"Tag '{self.tag}' has no fixed value for variant '{ty}'.")
-                            for val in t.get_args(ty):
-                                if val in self.tag_map:
-                                    raise TypeError(f"Tag value '{val}' matches multiple types")
-                                self.tag_map[val] = i
-                            break
-                    else:
-                        raise AttributeError()
-                else:
-                """
+                # TODO error if used on non-literal
                 val = getattr(ty, self.tag)
                 if val in self.tag_map:
                     raise TypeError(f"Tag value '{val}' matches multiple types")

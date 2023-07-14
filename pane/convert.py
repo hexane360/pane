@@ -8,8 +8,7 @@ import warnings
 import collections.abc
 import typing as t
 
-from .errors import ConvertError
-from .util import partition
+from .errors import ConvertError, UnsupportedAnnotation
 
 if t.TYPE_CHECKING:
     from .converters import Converter
@@ -70,7 +69,6 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
     Supports types, mappings of types, and sequences of types.
     """
 
-    from .annotations import ConvertAnnotation, Condition
     from .converters import AnyConverter, StructConverter, SequenceConverter, UnionConverter
     from .converters import LiteralConverter, DictConverter, TupleConverter
     from .converters import _BASIC_CONVERTERS
@@ -92,33 +90,9 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
 
     # special types
 
-    # TODO rewrite this
+    # handle annotations
     if base is t.Annotated:
-        base = args[0]
-        annotations = args[1:]  # TODO what order to extend in
-        # if annotated, we first split into annotations handled by us and those handled by the subtype
-        known, unknown = partition(lambda a: isinstance(a, ConvertAnnotation), annotations)
-        known = t.cast(t.Tuple[ConvertAnnotation, ...], known)
-
-        # unknown annotations are passed to the subtype
-        if len(unknown):
-            if not issubclass(base, HasConverter):
-                raise TypeError(f"Unsupported annotation(s) '{annotations}'")
-            inner = base._converter(*args, annotations=unknown)
-        else:
-            inner = make_converter(base)
-
-        # and then we surround with known annotations
-        if len(known) == 0:
-            return inner
-        if len(known) == 1:
-            return known[0]._converter(inner)
-        if all(isinstance(cond, Condition) for cond in known):  # special case for and conditions
-            return Condition.all(*(cond for cond in t.cast(t.Sequence[Condition], known)))._converter(inner)
-        # otherwise just nest conditions
-        for cond in known:
-            inner = cond._converter(inner)
-        return inner
+        return _annotated_converter(args[0], args[1:])
 
     # union converter
     if base is t.Union:
@@ -162,6 +136,62 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
             return conv
 
     raise TypeError(f"No converter for type '{ty}'")
+
+
+def _annotated_converter(ty: IntoConverter, args: t.Sequence[t.Any]) -> Converter[t.Any]:
+    """
+    Make an annotated converter.
+
+    Handles a few cases:
+    - first, unknown converter types are passed to ``_converter`` argument for ``ty``.
+    - other converter types are wrapped around ``ty`` left to right.
+    - but Condition types are buffered together and anded.
+    """
+    from .converters import Converter
+    from .annotations import Condition, ConvertAnnotation
+
+    conv: t.Union[IntoConverter, Converter[t.Any]] = ty
+    unknown: t.List[t.Any] = []
+
+    # first, look for unknown annotations, which will be passed to a custom converter
+    i = 0
+    for (i, arg) in enumerate(args):
+        if isinstance(arg, ConvertAnnotation):
+            break
+        unknown.append(arg)
+
+    if len(unknown):
+        ty, type_args = t.get_args(ty)
+        if not isinstance(ty, HasConverter):
+            raise UnsupportedAnnotation(unknown[0])
+        conv = ty._converter(*type_args, annotations=tuple(unknown))
+
+    conditions: t.List[Condition] = []  # buffer of conditions to combine
+    for arg in args[i:]:
+        if isinstance(arg, Condition):
+            conditions.append(arg)
+            continue
+
+        if not isinstance(arg, ConvertAnnotation):
+            raise UnsupportedAnnotation(arg)
+
+        # dump list of conditions
+        if len(conditions):
+            if len(conditions) > 1:
+                conv = Condition.all(*conditions)._converter(conv)
+            else:
+                conv = conditions[0]._converter(conv)
+
+        conv = arg._converter(conv)
+
+    # dump list of conditions
+    if len(conditions):
+        if len(conditions) > 1:
+            conv = Condition.all(*conditions)._converter(conv)
+        else:
+            conv = conditions[0]._converter(conv)
+
+    return conv if isinstance(conv, Converter) else make_converter(conv)
 
 
 def into_data(val: Convertible, ty: t.Optional[IntoConverter] = None) -> DataType:

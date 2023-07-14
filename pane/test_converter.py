@@ -64,13 +64,17 @@ def test_make_converter_annotated():
     inner = int
     inner_conv = ScalarConverter(int, int, 'an int', 'ints')
 
-    assert make_converter(t.Annotated[int, cond1]) == ConditionalConverter(
-        inner_conv, cond1.f, 'true', cond1.make_expected
+    conv = make_converter(t.Annotated[int, cond1])
+    assert conv == ConditionalConverter(
+        int, cond1.f, 'true', cond1.make_expected
     )
+    assert conv.inner == inner_conv
 
-    assert make_converter(t.Annotated[int, cond2]) == ConditionalConverter(
-        inner_conv, cond2.f, 'v > 0', cond2.make_expected
+    conv = make_converter(t.Annotated[int, cond2])
+    assert conv == ConditionalConverter(
+        int, cond2.f, 'v > 0', cond2.make_expected
     )
+    assert conv.inner == inner_conv
 
     compound = make_converter(t.Annotated[int, cond1, cond2])
     assert isinstance(compound, ConditionalConverter)

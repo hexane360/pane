@@ -9,17 +9,32 @@ from dataclasses import dataclass
 import math
 import typing as t
 
+from .util import flatten_union_args
 from .util import list_phrase, pluralize, remove_article
 
 if t.TYPE_CHECKING:
-    from .convert import Convertible
+    from .convert import IntoConverter
     from .converters import Converter, ConditionalConverter
 
 
 class ConvertAnnotation(abc.ABC):
     @abc.abstractmethod
-    def _converter(self, inner_type: t.Union[Converter[t.Any], t.Type[Convertible]]) -> Converter[t.Any]:
+    def _converter(self, inner_type: t.Union[Converter[t.Any], IntoConverter]) -> Converter[t.Any]:
         ...
+
+
+@dataclass
+class Tagged(ConvertAnnotation):
+    tag: str
+    external: t.Union[bool, t.Tuple[str, str]]
+
+    def _converter(self, inner_type: t.Union[Converter[t.Any], IntoConverter]) -> Converter[t.Any]:
+        from .converters import TaggedUnionConverter
+        origin = t.get_origin(inner_type)
+        if origin is not t.Union:
+            raise TypeError(f"'Tagged' must surround a 'Union' type.")
+        types = tuple(flatten_union_args(t.get_args(inner_type)))
+        return TaggedUnionConverter(types, tag=self.tag, external=self.external)
 
 
 @dataclass
@@ -57,7 +72,7 @@ class Condition(ConvertAnnotation):
     def cond_name(self) -> str:
         return self.name or self.f.__name__
 
-    def _converter(self, inner_type: t.Union[Converter[t.Any], t.Type[Convertible]]) -> ConditionalConverter[t.Any]:
+    def _converter(self, inner_type: t.Union[Converter[t.Any], IntoConverter]) -> ConditionalConverter[t.Any]:
         from .converters import ConditionalConverter
         return ConditionalConverter(
             inner_type, self.f, self.cond_name(),
@@ -104,7 +119,7 @@ NonEmpty = adjective_condition(lambda v: len(v) != 0, 'non-empty')
 
 
 __all__ = [
-    'ConvertAnnotation', 'Condition', 'range', 'len_range',
+    'ConvertAnnotation', 'Tagged', 'Condition', 'range', 'len_range',
     'Positive', 'Negative', 'NonPositive', 'NonNegative',
     'Finite', 'Empty', 'NonEmpty',
 ]
