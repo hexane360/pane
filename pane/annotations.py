@@ -12,13 +12,13 @@ import typing as t
 from .util import list_phrase, pluralize, remove_article
 
 if t.TYPE_CHECKING:
-    from .convert import FromData
+    from .convert import Convertible
     from .converters import Converter, ConditionalConverter
 
 
 class ConvertAnnotation(abc.ABC):
     @abc.abstractmethod
-    def _converter(self, inner_type: t.Union[Converter[t.Any], t.Type[FromData]]) -> Converter[t.Any]:
+    def _converter(self, inner_type: t.Union[Converter[t.Any], t.Type[Convertible]]) -> Converter[t.Any]:
         ...
 
 
@@ -57,7 +57,7 @@ class Condition(ConvertAnnotation):
     def cond_name(self) -> str:
         return self.name or self.f.__name__
 
-    def _converter(self, inner_type: t.Union[Converter[t.Any], t.Type[FromData]]) -> ConditionalConverter[t.Any]:
+    def _converter(self, inner_type: t.Union[Converter[t.Any], t.Type[Convertible]]) -> ConditionalConverter[t.Any]:
         from .converters import ConditionalConverter
         return ConditionalConverter(
             inner_type, self.f, self.cond_name(),

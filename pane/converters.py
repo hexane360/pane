@@ -10,7 +10,7 @@ import typing as t
 
 from pane.errors import ErrorNode
 
-from .convert import FromData, IntoConverter, make_converter
+from .convert import DataType, Convertible, IntoConverter, make_converter, into_data
 from .util import list_phrase, pluralize
 from .errors import ConvertError, ParseInterrupt, WrongTypeError, ConditionFailedError
 from .errors import ErrorNode, SumErrorNode, ProductErrorNode
@@ -18,10 +18,10 @@ from .errors import ErrorNode, SumErrorNode, ProductErrorNode
 
 T_co = t.TypeVar('T_co', covariant=True)
 T = t.TypeVar('T')
-U = t.TypeVar('U', bound=FromData)
-FromDataT = t.TypeVar('FromDataT', bound=FromData)
-FromDataK = t.TypeVar('FromDataK', bound=FromData)
-FromDataV = t.TypeVar('FromDataV', bound=FromData)
+U = t.TypeVar('U', bound=Convertible)
+FromDataT = t.TypeVar('FromDataT', bound=Convertible)
+FromDataK = t.TypeVar('FromDataK', bound=Convertible)
+FromDataV = t.TypeVar('FromDataV', bound=Convertible)
 
 
 class Converter(abc.ABC, t.Generic[T_co]):
@@ -40,6 +40,10 @@ class Converter(abc.ABC, t.Generic[T_co]):
             raise RuntimeError("convert() raised but ``collect_errors`` returned ``None``."
                                " This is a bug of the ``Converter`` implementation.")
         raise ConvertError(node)
+
+    def into_data(self, val: t.Any) -> DataType:
+        """Convert ``val`` into data."""
+        return into_data(val, None)
 
     @abc.abstractmethod
     def expected(self, plural: bool = False) -> str:
@@ -157,7 +161,7 @@ class LiteralConverter(Converter[T_co]):
 @dataclasses.dataclass(init=False)
 class UnionConverter(Converter[t.Any]):
     """
-    Converter which accepts one of a union of subtypes.
+    Converter for an untagged union of subtypes.
     Unions are always evaluated left-to-right.
     """
     types: t.Tuple[IntoConverter, ...]
@@ -165,8 +169,8 @@ class UnionConverter(Converter[t.Any]):
     converters: t.Tuple[Converter[t.Any], ...]
     """List of type converters"""
 
-    def __init__(self, types: t.Sequence[t.Any]):
-        def _flatten_unions(ty: t.Any) -> t.Sequence[t.Any]:
+    def __init__(self, types: t.Sequence[IntoConverter]):
+        def _flatten_unions(ty: IntoConverter) -> t.Sequence[IntoConverter]:
             if t.get_origin(ty) is t.Union:
                 return t.get_args(ty)
             return (ty,)
@@ -186,7 +190,21 @@ class UnionConverter(Converter[t.Any]):
                 pass
         raise ParseInterrupt
 
-    def collect_errors(self, val: t.Any) -> t.Optional[SumErrorNode]:
+    def into_data(self, val: t.Any) -> DataType:
+        # this is tricky, because we have no type information about which variant ``val`` is.
+        # so we basically try_convert each until we find a match
+        # this works because try_convert should be idempotent
+        for conv in self.converters:
+            try:
+                conv.try_convert(val)
+            except ParseInterrupt:
+                pass
+            else:
+                return conv.into_data(val)
+        # default to regular conversion
+        return into_data(val)
+
+    def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
         failed_children: t.List[t.Union[ProductErrorNode, WrongTypeError]] = []
         for (_, conv) in zip(self.types, self.converters):
             node = conv.collect_errors(val)
@@ -195,6 +213,162 @@ class UnionConverter(Converter[t.Any]):
                 return None
             failed_children.append(t.cast(t.Union[ProductErrorNode, WrongTypeError], node))
         return SumErrorNode(failed_children)
+
+
+@dataclasses.dataclass(init=False)
+class TaggedUnionConverter(UnionConverter):
+    """
+    Converter for a tagged union of subtypes.
+
+    Tagged unions may be parsed in three ways. The default
+    is an 'internally tagged' union, where the tag is found
+    by looking for a given key in the given object. This is the
+    default.
+    An 'externally tagged' union is stored as a dict with a key
+    and a single value ``{tag: content}``. This may be specified
+    using ``external=True``.
+    Finally, a 'adjacently tagged' union may be specified using
+    two keys ``external=(t, c)``. The union is stored as
+    ``{t: tag, c: content}``
+    """
+    tag: str
+    tag_map: t.Dict[t.Any, int]
+    """Map from tags to indices into self.types/self.converters"""
+    external: t.Union[bool, t.Tuple[str, str]] = False
+    """
+    Tagged union representation.
+    False: internal representation
+    True: external representation
+    (t, c): adjacent representation
+    """
+
+    def __init__(self, types: t.Sequence[t.Any], tag: str,
+                 external: t.Union[bool, t.Tuple[str, str]] = False):
+        #from pane.classes import PaneBase, PANE_FIELDS, Field
+
+        super().__init__(types)
+        self.tag = tag
+        self.external = external if isinstance(external, t.Sequence) else bool(external)
+
+        # look for tag in each of self.types
+        self.tag_map = {}
+        for (i, ty) in enumerate(self.types):
+            try:
+                # TODO this is a mess. Extract Literal types from PaneBase
+                """
+                if isinstance(ty, type) and issubclass(ty, PaneBase):
+                    for field in t.cast(t.Sequence[Field], getattr(ty, PANE_FIELDS)):
+                        if tag in field.in_names:
+                            ty = field.type
+                            if t.get_origin(ty) is not t.Literal:
+                                raise TypeError(f"Tag '{self.tag}' has no fixed value for variant '{ty}'.")
+                            for val in t.get_args(ty):
+                                if val in self.tag_map:
+                                    raise TypeError(f"Tag value '{val}' matches multiple types")
+                                self.tag_map[val] = i
+                            break
+                    else:
+                        raise AttributeError()
+                else:
+                """
+                val = getattr(ty, self.tag)
+                if val in self.tag_map:
+                    raise TypeError(f"Tag value '{val}' matches multiple types")
+                self.tag_map[val] = i
+            except AttributeError:
+                raise AttributeError(f"Tag '{self.tag}' not found inside type '{ty}'")
+
+    def tag_expected(self) -> str:
+        return list_phrase(tuple(map(repr, self.tag_map.keys())))
+
+    def obj_expected(self, plural: bool = False) -> str:
+        return list_phrase(tuple(conv.expected(plural) for conv in self.converters))
+
+    def expected(self, plural: bool = False) -> str:
+        if self.external is False:
+            # internally tagged
+            return self.obj_expected(plural)
+        obj = self.obj_expected(False)
+        mapping = pluralize('mapping', plural, article='a')
+        tag = list_phrase(tuple(map(repr, self.tag_map.keys())))
+        if self.external is True:
+            # externally tagged
+            return f"{mapping} '{tag}' => '{obj}'"
+        else:
+            # adjacently tagged
+            (t, c) = self.external 
+            return f"{mapping} {repr(t)} => {tag}, {repr(c)} => {obj}"
+
+    def into_data(self, val: t.Any) -> DataType:
+        tag = getattr(val, self.tag)
+        inner_conv = self.converters[self.tag_map[tag]]
+        if self.external is False:
+            # internally tagged
+            return inner_conv.into_data(val)
+        if self.external is True:
+            # externally tagged
+            return {tag: inner_conv.into_data(val)}
+        # adjacently tagged
+        (t_r, c_r) = self.external
+        return {t_r: tag, c_r: inner_conv.into_data(val)}
+
+    def try_convert(self, val: t.Any) -> t.Any:
+        if not isinstance(val, (dict, t.Mapping)):
+            raise ParseInterrupt()
+        val = t.cast(t.Dict[str, t.Any], val)
+        tag: t.Any
+
+        if self.external is False:
+            try:
+                tag = val[self.tag]
+            except KeyError:
+                raise ParseInterrupt()
+        elif self.external is True:
+            if len(val) != 1:
+                raise ParseInterrupt()
+            (tag, val) = next(iter(val.items()))
+        else:
+            (t_r, c_r) = self.external
+            try:
+                if len(val) != 2:
+                    raise ParseInterrupt()
+                tag, val = val[t_r], val[c_r]
+            except KeyError:
+                raise ParseInterrupt()
+        try:
+            i = self.tag_map[tag]
+        except KeyError:
+            raise ParseInterrupt()
+        return self.converters[i].try_convert(val)
+
+    def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
+        if not isinstance(val, (dict, t.Mapping)):
+            return WrongTypeError(self.expected(), val)
+        val = t.cast(t.Dict[str, t.Any], val)
+        tag: t.Any
+
+        if self.external is False:
+            try:
+                tag = val[self.tag]
+            except KeyError:
+                return WrongTypeError(f"mapping with key '{self.tag}' => {self.tag_expected()}", val)
+        elif self.external is True:
+            if len(val) != 1:
+                return WrongTypeError(self.expected(), val)
+            (tag, val) = next(iter(val.items()))
+        else:
+            (t_r, c_r) = self.external
+            try:
+                if len(val) != 2:
+                    raise KeyError()
+                tag, val = val[t_r], val[c_r]
+            except KeyError:
+                return WrongTypeError(f"mapping with keys '{t_r}' and '{c_r}'", val)
+        try:
+            i = self.tag_map[tag]
+        except KeyError:
+            return WrongTypeError(f"tag '{self.tag}' one of {self.tag_expected()}", tag)
+        return self.converters[i].collect_errors(val)
 
 
 @dataclasses.dataclass
@@ -220,6 +394,16 @@ class StructConverter(Converter[T]):
     def expected(self, plural: bool = False) -> str:
         name = f" {self.name}" if self.name is not None else ""
         return f"{pluralize('struct', plural)}{name}"
+
+    def into_data(self, val: t.Any) -> DataType:
+        assert isinstance(val, t.Mapping)
+        d: t.Dict[DataType, DataType] = {}
+        for (k, v) in t.cast(t.Mapping[str, t.Any], val).items():
+            if (conv := self.field_converters.get(k)) is not None:
+                d[k] = conv.into_data(v)
+            else:
+                d[k] = into_data(v)
+        return d
 
     def try_convert(self, val: t.Any) -> T:
         if not isinstance(val, (dict, t.Mapping)):
@@ -266,6 +450,15 @@ class TupleConverter(t.Generic[T], Converter[T]):
         self.ty = ty
         self.converters = tuple(map(make_converter, types))
 
+    def into_data(self, val: t.Any) -> DataType:
+        return tuple(
+            conv.into_data(v)
+            for (v, conv) in zip(t.cast(t.Sequence[t.Any], val), self.converters)
+        )
+
+    def expected(self, plural: bool = False) -> str:
+        return f"{pluralize('tuple', plural)} of length {len(self.converters)}"
+
     def try_convert(self, val: t.Any) -> T:
         if not isinstance(val, t.Sequence):
             raise ParseInterrupt
@@ -274,9 +467,6 @@ class TupleConverter(t.Generic[T], Converter[T]):
             raise ParseInterrupt
 
         return self.ty(conv.try_convert(v) for (conv, v) in zip(self.converters, val))
-
-    def expected(self, plural: bool = False) -> str:
-        return f"{pluralize('tuple', plural)} of length {len(self.converters)}"
 
     def collect_errors(self, val: t.Any) -> t.Union[None, ProductErrorNode, WrongTypeError]:
         if not isinstance(val, t.Sequence) or len(val) != len(self.converters):  # type: ignore
@@ -306,6 +496,12 @@ class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDat
         self.ty = ty
         self.k_conv = make_converter(k)
         self.v_conv = make_converter(v)
+
+    def into_data(self, val: t.Any) -> DataType:
+        return {
+            self.k_conv.into_data(k): self.v_conv.into_data(v)
+            for (k, v) in t.cast(t.Mapping[FromDataK, FromDataV], val).items()
+        }
 
     def expected(self, plural: bool = False) -> str:
         return f"{pluralize('mapping', plural)} of {self.k_conv.expected(True)} => {self.v_conv.expected(True)}"
@@ -342,6 +538,12 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
     def __init__(self, ty: t.Type[t.Sequence[t.Any]], v: t.Type[FromDataT] = t.Any):
         self.ty = ty
         self.v_conv = make_converter(v)
+
+    def into_data(self, val: t.Any) -> DataType:
+        return [
+            self.v_conv.into_data(v)
+            for v in t.cast(t.Sequence[FromDataT], val)
+        ]
 
     def expected(self, plural: bool = False) -> str:
         return f"{pluralize('sequence', plural)} of {self.v_conv.expected(True)}"
@@ -383,6 +585,9 @@ class ConditionalConverter(t.Generic[FromDataT], Converter[FromDataT]):
             self.inner = self.inner_type
         else:
             self.inner = make_converter(t.cast(t.Type[FromDataT], self.inner_type))
+
+    def into_data(self, val: t.Any) -> DataType:
+        return self.inner.into_data(val)
 
     def expected(self, plural: bool = False) -> str:
         return self.make_expected(self.inner.expected(plural), plural)
@@ -435,6 +640,14 @@ class DelegateConverter(t.Generic[T, U], Converter[T]):
         self.expect = self.expect or self.from_type.__name__
         self.expect_plural = self.expect_plural or self.expect
 
+    def into_data(self, val: t.Any) -> DataType:
+        # TODO: this is a hack, because we can't easily convert T back to U
+        try:
+            return self.inner.into_data(val)
+        except Exception:
+            pass
+        return into_data(val)
+
     def expected(self, plural: bool = False) -> str:
         return t.cast(str, self.expect_plural if plural else self.expect)
 
@@ -460,11 +673,11 @@ class DelegateConverter(t.Generic[T, U], Converter[T]):
 
 
 # converters for scalar types
-_BASIC_CONVERTERS = {
-    str: ScalarConverter(str, str, 'a string', 'strings'),
-    int: ScalarConverter(int, int, 'an int', 'ints'),
-    float: ScalarConverter(float, (int, float), 'a float', 'floats'),
+_BASIC_CONVERTERS: t.Dict[type, Converter[t.Any]] = {
     complex: ScalarConverter(complex, (int, float, complex), 'a complex float', 'complex floats'),
+    float: ScalarConverter(float, (int, float), 'a float', 'floats'),
+    int: ScalarConverter(int, int, 'an int', 'ints'),
+    str: ScalarConverter(str, str, 'a string', 'strings'),
     type(None): NoneConverter(),
 }
 """Built-in scalar converters for some basic types"""

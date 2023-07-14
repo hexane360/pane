@@ -10,7 +10,7 @@ from types import NotImplementedType
 import typing as t
 from typing_extensions import dataclass_transform, Self
 
-from .convert import DataType, FromData, from_data, into_data, convert
+from .convert import DataType, Convertible, from_data, into_data, convert
 from .converters import Converter, make_converter
 from .errors import ParseInterrupt, ErrorNode, WrongTypeError, ProductErrorNode, DuplicateKeyError
 from .field import Field, FieldSpec, field, RenameStyle, _MISSING
@@ -66,8 +66,8 @@ class PaneBase:
         cls,
         *args: t.Any,
         name: t.Optional[str] = None,
-        ser_format: t.Optional[ClassLayout] = None,
-        de_format: t.Optional[t.Sequence[ClassLayout]] = None,
+        out_format: t.Optional[ClassLayout] = None,
+        in_format: t.Optional[t.Sequence[ClassLayout]] = None,
         eq: t.Optional[bool] = None,
         order: t.Optional[bool] = None,
         frozen: t.Optional[bool] = None,
@@ -94,7 +94,7 @@ class PaneBase:
         # handle option inheritance
         opts = getattr(cls, '__pane_opts__', PaneOptions())
         opts = opts.replace(
-            name=name, ser_format=ser_format, de_format=de_format,
+            name=name, out_format=out_format, in_format=in_format,
             eq=eq, order=order, frozen=frozen, init=init, allow_extra=allow_extra,
             kw_only=kw_only, in_rename=in_rename, out_rename=out_rename,
         )
@@ -136,7 +136,7 @@ class PaneBase:
         raise AttributeError(f"cannot delete field {name!r}")
 
     @classmethod
-    def _converter(cls: t.Type[T], *args: t.Type[FromData],
+    def _converter(cls: t.Type[T], *args: t.Type[Convertible],
                    annotations: t.Optional[t.Tuple[t.Any, ...]] = None) -> Converter[T]:
         return t.cast(Converter[T], PaneConverter(cls, annotations))
 
@@ -145,12 +145,7 @@ class PaneBase:
         return from_data(data, cls)
 
     def into_data(self) -> DataType:
-        opts: PaneOptions = getattr(self, PANE_OPTS)
-        if opts.out_format == 'tuple':
-            return tuple(into_data(getattr(self, field.name)) for field in getattr(self, PANE_FIELDS))
-        elif opts.out_format == 'struct':
-            return { field.out_name: into_data(getattr(self, field.name)) for field in getattr(self, PANE_FIELDS) }
-        raise ValueError(f"Unknown 'out_format' '{opts.out_format}'")
+        return into_data(self, self.__class__)
 
     def dict(self, set_only: bool = False) -> t.Dict[str, t.Any]:
         """Return a dict of the fields in `self`."""
@@ -373,6 +368,20 @@ class PaneConverter(Converter[PaneBase]):
             for alias in field.in_names:
                 self.field_map[alias] = i
 
+    def into_data(self, val: t.Any) -> DataType:
+        assert isinstance(val, PaneBase)
+        if self.opts.out_format == 'tuple':
+            return tuple(
+                conv.into_data(getattr(val, field.name))
+                for (field, conv) in zip(self.fields, self.field_converters)
+            )
+        elif self.opts.out_format == 'struct':
+            return {
+                field.out_name: conv.into_data(getattr(val, field.name))
+                for (field, conv) in zip(self.fields, self.field_converters)
+            }
+        raise ValueError(f"Unknown 'out_format' '{self.opts.out_format}'")
+
     def expected(self, plural: bool = False) -> str:
         return f"{list_phrase(self.opts.in_format)} {self.name}"
 
@@ -415,7 +424,7 @@ class PaneConverter(Converter[PaneBase]):
             return WrongTypeError(f'tuple {self.name}', "Not implemented")
         elif isinstance(val, (dict, t.Mapping)):
             val = t.cast(t.Mapping[str, t.Any], val)
-            if 'struct' not in self.opts.out_format:
+            if 'struct' not in self.opts.in_format:
                 return WrongTypeError(f'tuple {self.name}', val)
 
             children: t.Dict[t.Union[str, int], ErrorNode] = {}

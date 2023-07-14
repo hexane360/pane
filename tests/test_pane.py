@@ -21,7 +21,7 @@ def f(*args, **kwargs):
     return (args, kwargs)
 
 
-class TestClass(pane.PaneBase):
+class TestClass(pane.PaneBase, out_format='tuple'):
     x: int = 3
     y: float = 5.
 
@@ -67,7 +67,7 @@ def test_pane_ord():
         check_ord(TestClass(x=1, y=3.), 5, -1)
 
 
-class TestClassInherit(TestClass):
+class TestClassInherit(TestClass, out_format='struct'):
     z: float = pane.field(default=3., kw_only=True)
 
 
@@ -139,6 +139,16 @@ def test_pane_convert(cls, val, result):
         assert e.value.tree == result
     else:
         assert pane.convert(val, cls) == result
+
+
+@pytest.mark.parametrize(('val', 'result'), [
+    # out_format tuple
+    (TestClass(x=3, y=5.), (3, 5.)),
+    # out_format struct
+    (TestClass2(x=3, w=3), {'x': 3, 'y': 2, 'w': 3, 'z': 3}),
+])
+def test_pane_into_data(val: pane.PaneBase, result: pane.DataType):
+    assert val.into_data() == result
 
 
 T = t.TypeVar('T')

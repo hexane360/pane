@@ -60,11 +60,12 @@ def partition(f: t.Callable[[T], bool], iter: t.Iterable[T]) -> t.Tuple[t.Tuple[
     return (tuple(true), tuple(false))
 
 
-def pluralize(word: str, plural: t.Union[bool, int], suffix: str = 's'):
+def pluralize(word: str, plural: t.Union[bool, int], suffix: str = 's', article: t.Optional[str] = None) -> str:
     """Pluralize ``word`` based on the value of ``plural``."""
     if not isinstance(plural, bool):
         plural = plural != 1
-    return (word + suffix) if plural else word
+    article = article + " " if article is not None and len(article) else ""
+    return (word + suffix) if plural else (article + word)
 
 
 def list_phrase(words: t.Sequence[str], conj: str = 'or') -> str:

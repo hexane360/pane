@@ -14,17 +14,17 @@ from .util import partition
 if t.TYPE_CHECKING:
     from .converters import Converter
 
-T = t.TypeVar('T', bound='FromData')
+T = t.TypeVar('T', bound='Convertible')
 
 
 @t.runtime_checkable
-class HasFromData(t.Protocol):
+class HasConverter(t.Protocol):
     """
     Protocol to add ``convert`` functionality into an arbitrary type from data.
     """
 
     @classmethod
-    def _converter(cls: t.Type[T], *args: t.Type[FromData],
+    def _converter(cls: t.Type[T], *args: t.Type[Convertible],
                    annotations: t.Optional[t.Tuple[t.Any, ...]] = None) -> Converter[T]:
         """
         Return a ``Converter`` capable of constructing ``cls``.
@@ -38,27 +38,14 @@ class HasFromData(t.Protocol):
         ...
 
 
-@t.runtime_checkable
-class HasIntoData(t.Protocol):
-    """
-    Protocol to add ``convert`` functionality from an arbitrary type into data.
-    """
-
-    def into_data(self) -> DataType:
-        """Convert ``self`` into ``DataType``"""
-        ...
-
-
 DataType = t.Union[str, int, bool, float, complex, None, t.Mapping['DataType', 'DataType'], t.Sequence['DataType']]
 """Common data interchange type. ``IntoData`` converts to this, and ``FromData`` converts from this."""
-_DataType: type = t.Union[str, int, bool, float, complex, None, t.Mapping, t.Sequence]  # type: ignore
+_DataType = t.Union[str, int, bool, float, complex, None, t.Mapping, t.Sequence]  # type: ignore
 """``DataType`` for use in ``isinstance``."""
-FromData = t.Union[DataType, HasFromData]
+Convertible = t.Union[DataType, HasConverter]
 """Types supported by ``from_data``."""
-IntoData = t.Union[DataType, HasIntoData]
-"""Types supported by ``into_data``."""
 IntoConverter = t.Union[
-    t.Type[FromData],
+    t.Type[DataType], t.Type[HasConverter],
     t.Mapping[str, 'IntoConverter'],
     t.Sequence['IntoConverter']
 ]
@@ -105,6 +92,7 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
 
     # special types
 
+    # TODO rewrite this
     if base is t.Annotated:
         base = args[0]
         annotations = args[1:]  # TODO what order to extend in
@@ -114,7 +102,7 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
 
         # unknown annotations are passed to the subtype
         if len(unknown):
-            if not issubclass(base, HasFromData):
+            if not issubclass(base, HasConverter):
                 raise TypeError(f"Unsupported annotation(s) '{annotations}'")
             inner = base._converter(*args, annotations=unknown)
         else:
@@ -143,12 +131,12 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
         raise TypeError(f"Unsupported special type '{base}'")
 
     # custom converter
-    if issubclass(base, HasFromData):
+    if issubclass(base, HasConverter):
         return base._converter(*args)
 
     # simple/scalar converters
-    if ty in _BASIC_CONVERTERS:
-        return _BASIC_CONVERTERS[ty]
+    if base in _BASIC_CONVERTERS:
+        return _BASIC_CONVERTERS[base]
 
     # tuple converter
     if issubclass(base, (tuple, t.Tuple)) and len(args) > 0 and args[-1] != Ellipsis:
@@ -168,10 +156,24 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
                              args[0] if len(args) > 0 else t.Any,
                              args[1] if len(args) > 1 else t.Any)  # type: ignore
 
-    raise TypeError(f"Can't convert data into type '{ty}'")
+    # after we've handled common cases, look for subclasses of basic types
+    for (ty, conv) in _BASIC_CONVERTERS.items():
+        if issubclass(base, ty):
+            return conv
+
+    raise TypeError(f"No converter for type '{ty}'")
 
 
-def into_data(val: IntoData) -> DataType:
+def into_data(val: Convertible, ty: t.Optional[IntoConverter] = None) -> DataType:
+    """
+    Convert ``val`` of ``pane`` type ``ty`` into a data interchange format.
+    """
+    if ty is not None:
+        # use specialized implementation
+        converter = make_converter(ty)
+        return converter.into_data(val)
+
+    # without type information, convert as best we can
     if isinstance(val, (dict, t.Mapping)):
         return {into_data(k): into_data(v) for (k, v) in val.items()}
     if isinstance(val, tuple):
@@ -180,8 +182,6 @@ def into_data(val: IntoData) -> DataType:
         return list(map(into_data, val))
     if isinstance(val, _DataType):
         return val
-    if isinstance(val, HasIntoData):
-        return val.into_data()
 
     raise TypeError(f"Can't convert type '{type(val)}' into data.")
 
@@ -194,13 +194,13 @@ def from_data(val: DataType, ty: t.Type[T]) -> T:
     return converter.convert(val)
 
 
-def convert(val: IntoData, ty: t.Type[T]) -> T:
+def convert(val: Convertible, ty: t.Type[T]) -> T:
     data = into_data(val)
     return from_data(data, ty)
 
 
 __all__ = [
-    'HasFromData', 'HasIntoData', 'FromData', 'IntoData',
+    'Convertible', 'HasConverter', 'IntoConverter',
     'Converter', 'DataType', 'ConvertError',
     'from_data', 'into_data', 'make_converter', 'convert',
 ]
