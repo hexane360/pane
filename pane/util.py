@@ -158,6 +158,6 @@ def get_type_hints(cls: type) -> t.Dict[str, t.Any]:
 
 
 __all__ = [
-    'open_file', 'list_phrase', 'pluralize',
-    'collect_typevars', 'replace_typevars', 'get_type_hints'
+    'open_file', 'list_phrase', 'pluralize', 'remove_article',
+    'flatten_union_args', 'collect_typevars', 'replace_typevars', 'get_type_hints'
 ]

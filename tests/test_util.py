@@ -3,7 +3,8 @@ import typing as t
 
 import pytest
 
-from .util import replace_typevars, collect_typevars, list_phrase
+from pane.util import replace_typevars, collect_typevars, flatten_union_args
+from pane.util import pluralize, list_phrase, remove_article
 
 
 T = t.TypeVar('T')

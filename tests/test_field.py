@@ -1,7 +1,7 @@
 
 import pytest
 
-from .field import _split_field_name, rename_field
+from pane.field import _split_field_name, rename_field
 
 
 @pytest.mark.parametrize(('field', 'out'), [
