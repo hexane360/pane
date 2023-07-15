@@ -136,9 +136,10 @@ class PaneBase:
         raise AttributeError(f"cannot delete field {name!r}")
 
     @classmethod
-    def _converter(cls: t.Type[T], *args: t.Type[Convertible],
-                   annotations: t.Optional[t.Tuple[t.Any, ...]] = None) -> Converter[T]:
-        return t.cast(Converter[T], PaneConverter(cls, annotations))
+    def _converter(cls: t.Type[T], *args: t.Type[Convertible]) -> Converter[T]:
+        if len(args) > 0:
+            cls = t.cast(t.Type[T], cls[*args])  # type: ignore
+        return t.cast(Converter[T], PaneConverter(cls))
 
     @classmethod
     def from_data(cls, data: t.Any) -> Self:
@@ -332,7 +333,7 @@ def _process(cls: t.Type[PaneBase], opts: PaneOptions):
     # TODO error on default positional arg before non-default arg
 
     setattr(cls, PANE_FIELDS, fields)
-    setattr(cls, '_converter', classmethod(PaneConverter))
+    #setattr(cls, '_converter', classmethod(PaneConverter))
 
     for field in fields:
         name = str(field.name)
@@ -354,8 +355,7 @@ def _process(cls: t.Type[PaneBase], opts: PaneOptions):
 
 
 class PaneConverter(Converter[PaneBase]):
-    def __init__(self, cls: t.Type[PaneBase],
-                 annotations: t.Optional[t.Tuple[t.Any, ...]] = None):
+    def __init__(self, cls: t.Type[PaneBase]):
         self.cls = cls
         self.name = self.cls.__name__
         self.opts: PaneOptions = getattr(self.cls, PANE_OPTS)

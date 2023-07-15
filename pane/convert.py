@@ -23,16 +23,12 @@ class HasConverter(t.Protocol):
     """
 
     @classmethod
-    def _converter(cls: t.Type[T], *args: t.Type[Convertible],
-                   annotations: t.Optional[t.Tuple[t.Any, ...]] = None) -> Converter[T]:
+    def _converter(cls: t.Type[T], *args: t.Type[Convertible]) -> Converter[T]:
         """
         Return a ``Converter`` capable of constructing ``cls``.
 
-        Any given type arguments are passed as positional arguments,
-        as well as unsupported ``Annotation``s.
-
-        This function should error when passed unknown type arguments
-        or unknown annotations.
+        Any given type arguments are passed as positional arguments.
+        This function should error when passed unknown type arguments.
         """
         ...
 
@@ -142,32 +138,16 @@ def _annotated_converter(ty: IntoConverter, args: t.Sequence[t.Any]) -> Converte
     """
     Make an annotated converter.
 
-    Handles a few cases:
-    - first, unknown converter types are passed to ``_converter`` argument for ``ty``.
-    - other converter types are wrapped around ``ty`` left to right.
-    - but Condition types are buffered together and anded.
+    Wraps `ty` in `args` from left to right. However, `Condition` annotations
+    are handled separately (bundled together).
     """
     from .converters import Converter
     from .annotations import Condition, ConvertAnnotation
 
     conv: t.Union[IntoConverter, Converter[t.Any]] = ty
-    unknown: t.List[t.Any] = []
-
-    # first, look for unknown annotations, which will be passed to a custom converter
-    i = 0
-    for (i, arg) in enumerate(args):
-        if isinstance(arg, ConvertAnnotation):
-            break
-        unknown.append(arg)
-
-    if len(unknown):
-        ty, type_args = t.get_args(ty)
-        if not isinstance(ty, HasConverter):
-            raise UnsupportedAnnotation(unknown[0])
-        conv = ty._converter(*type_args, annotations=tuple(unknown))
 
     conditions: t.List[Condition] = []  # buffer of conditions to combine
-    for arg in args[i:]:
+    for arg in args:
         if isinstance(arg, Condition):
             conditions.append(arg)
             continue
