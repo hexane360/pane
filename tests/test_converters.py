@@ -6,15 +6,14 @@ import pytest
 
 from pane.errors import ErrorNode, SumErrorNode, ProductErrorNode, WrongTypeError, ConditionFailedError
 from pane.convert import convert, make_converter, ConvertError
-from pane.converters import Converter, ScalarConverter, TupleConverter, SequenceConverter
+from pane.converters import Converter, ScalarConverter, TupleConverter, SequenceConverter, TaggedUnionConverter
 from pane.converters import StructConverter, UnionConverter, LiteralConverter, ConditionalConverter
-from pane.annotations import Condition, range, len_range
+from pane.annotations import Condition, Tagged, range, len_range
 
 
 class TestConvertible():
     @classmethod
-    def _converter(cls, *args,
-                   annotations: t.Optional[t.Tuple[t.Any, ...]] = None) -> Converter[TestConvertible]:
+    def _converter(cls, *args) -> Converter[TestConvertible]:
         return TestConverter()  # type: ignore
 
     def __hash__(self):
@@ -60,6 +59,19 @@ cond1 = Condition(lambda v: True, 'true', lambda exp, plural: exp)
 cond2 = Condition(lambda v: v > 0, 'v > 0', lambda exp, plural: f"{exp} > 0")
 
 
+class Variant1(int):
+    tag: int = 3
+
+class Variant2(float):
+    tag: int = 4
+
+class Variant3(dict):
+    tag: int = 3
+
+class Variant4(dict):
+    tag: int = 4
+
+
 def test_make_converter_annotated():
     inner = int
     inner_conv = ScalarConverter(int, int, 'an int', 'ints')
@@ -80,7 +92,14 @@ def test_make_converter_annotated():
     assert isinstance(compound, ConditionalConverter)
     assert compound.condition_name == 'true and v > 0'
 
+    assert make_converter(t.Annotated[t.Union[Variant1, Variant2], Tagged('tag')]) \
+        == TaggedUnionConverter((Variant1, Variant2), 'tag', external=False)
 
+    assert make_converter(t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', ('t', 'c'))]) \
+        == TaggedUnionConverter((Variant1, Variant2), 'tag', external=('t', 'c'))
+
+    with pytest.raises(TypeError, match="Tag value '3' matches multiple types"):
+        make_converter(t.Annotated[t.Union[Variant1, Variant3], Tagged('tag')])
 
 @pytest.mark.parametrize(('conv', 'plural', 'expected'), [
     (int, False, 'an int'),
@@ -90,6 +109,9 @@ def test_make_converter_annotated():
     (t.Literal['a', 'b', 'c'], False, "'a', 'b', or 'c'"),
     (t.Annotated[int, cond2], False, "an int > 0"),
     (t.Annotated[int, cond2], True, "ints > 0"),
+    (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag')], False, "an int or a float"),
+    (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', external=True)], False, "a mapping '3 or 4' => an int or a float"),
+    (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', external=('t', 'c'))], False, "a mapping 't' => 3 or 4, 'c' => an int or a float"),
 ])
 def test_converter_expected(conv: Converter, plural: bool, expected: str):
     if not isinstance(conv, Converter):
@@ -132,6 +154,13 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
      (t.Annotated[float, range(min=0, max=5)], 5, 5.),
      (t.Annotated[float, range(min=0, max=5)], 5.05, ConditionFailedError('a float satisfying v >= 0 and v <= 5', 5.05, 'v >= 0 and v <= 5')),
      (t.Annotated[t.Sequence[int], len_range(min=1)], [], ConditionFailedError('sequence of ints with at least 1 elem', [], 'at least 1 elem')),
+     # tagged unions
+     (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', True)], {3: 4}, Variant1(4)),
+     (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', ('t', 'c'))], {'t': 4, 'c': 4.}, Variant2(4.)),
+     (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', ('t', 'c'))], {'t': 5, 'c': 4.}, WrongTypeError("tag 'tag' one of 3 or 4", 5)),
+     (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', ('t', 'c'))], {'c': 4.}, WrongTypeError("mapping with keys 't' and 'c'", {'c': 4.})),
+     (t.Annotated[t.Union[Variant3, Variant4], Tagged('tag')], {'tag': 3, 'val1': 4, 'val2': 3.}, Variant3({'tag': 3, 'val1': 4, 'val2': 3.})),
+     (t.Annotated[t.Union[Variant3, Variant4], Tagged('tag')], {'tag': 5, 'v': 4}, WrongTypeError("tag 'tag' one of 3 or 4", 5)),
 ])
 def test_convert(ty, val, result):
     if isinstance(result, ErrorNode):

@@ -268,7 +268,7 @@ class TaggedUnionConverter(UnionConverter):
         tag = list_phrase(tuple(map(repr, self.tag_map.keys())))
         if self.external is True:
             # externally tagged
-            return f"{mapping} '{tag}' => '{obj}'"
+            return f"{mapping} '{tag}' => {obj}"
         else:
             # adjacently tagged
             (t, c) = self.external 

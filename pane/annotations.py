@@ -26,7 +26,7 @@ class ConvertAnnotation(abc.ABC):
 @dataclass
 class Tagged(ConvertAnnotation):
     tag: str
-    external: t.Union[bool, t.Tuple[str, str]]
+    external: t.Union[bool, t.Tuple[str, str]] = False
 
     def _converter(self, inner_type: t.Union[Converter[t.Any], IntoConverter]) -> Converter[t.Any]:
         from .converters import TaggedUnionConverter
