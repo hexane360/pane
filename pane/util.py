@@ -78,7 +78,11 @@ def list_phrase(words: t.Sequence[str], conj: str = 'or') -> str:
 
 def remove_article(s: str) -> str:
     """Remove an article from ``s``, if present."""
-    return s.removeprefix('a ').removeprefix('an ').removeprefix('the ')
+    s = s.lstrip()
+    for article in ('a ', 'an ', 'the '):
+        if s.startswith(article):
+            return s[len(article):]
+    return s
 
 
 def _collect_typevars(d: t.Dict[t.Union[t.TypeVar, t.ParamSpec], None], ty: t.Any):

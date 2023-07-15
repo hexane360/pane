@@ -3,7 +3,7 @@ import typing as t
 
 import pytest
 
-from pane.util import replace_typevars, collect_typevars, flatten_union_args
+from pane.util import replace_typevars, collect_typevars, flatten_union_args, get_type_hints
 from pane.util import pluralize, list_phrase, remove_article
 
 
@@ -39,6 +39,28 @@ def test_collect_typevars(input, output):
     assert collect_typevars(input) == output
 
 
+class TestClass:
+    x: int = 5
+    y: float
+    z: 'str'
+    w: t.Annotated[int, ()]
+
+
+@pytest.mark.parametrize(('cls', 'types'), [
+    (TestClass, {'x': int, 'y': float, 'z': str, 'w': t.Annotated[int, ()]}),
+])
+def test_get_type_hints(cls, types):
+    assert types == get_type_hints(cls)
+
+
+@pytest.mark.parametrize(('input', 'output'), [
+    ((int, float, str), (int, float, str)),
+    ((t.Union[int, float], t.Union[float, str], T), (int, float, float, str, T)),
+])
+def test_flatten_union_args(input, output):
+    assert tuple(flatten_union_args(input)) == output
+
+
 @pytest.mark.parametrize(('input', 'conj', 'output'), [
     (('word',), None, 'word'),
     (('a', 'b'), 'xor', 'a xor b'),
@@ -50,3 +72,13 @@ def test_list_phrase(input, conj, output):
         assert list_phrase(input, conj) == output
     else:
         assert list_phrase(input) == output
+
+
+@pytest.mark.parametrize(('input', 'output'), [
+    ('the a word', 'a word'),
+    ('an article', 'article'),
+    ('  the break', 'break'),
+    ('article', 'article'),
+])
+def test_remove_article(input, output):
+    assert remove_article(input) == output

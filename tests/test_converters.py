@@ -174,6 +174,7 @@ def test_convert(ty, val, result):
 
 @pytest.mark.parametrize(('err', 's'), [
     (WrongTypeError('an int', 3.), "Expected an int, instead got `3.0` of type `float`"),
+    # TODO more
 ])
 def test_error_print(err, s):
     assert str(err) == s
