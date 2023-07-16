@@ -17,13 +17,13 @@ if t.TYPE_CHECKING:
     from .converters import Converter, ConditionalConverter
 
 
-class ConvertAnnotation(abc.ABC):
+class ConvertAnnotation(abc.ABC, t.Hashable):
     @abc.abstractmethod
     def _converter(self, inner_type: t.Union[Converter[t.Any], IntoConverter]) -> Converter[t.Any]:
         ...
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Tagged(ConvertAnnotation):
     tag: str
     external: t.Union[bool, t.Tuple[str, str]] = False
@@ -37,7 +37,7 @@ class Tagged(ConvertAnnotation):
         return TaggedUnionConverter(types, tag=self.tag, external=self.external)
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Condition(ConvertAnnotation):
     f: t.Callable[[t.Any], bool]
     name: t.Optional[str] = None
@@ -80,7 +80,7 @@ class Condition(ConvertAnnotation):
         )
 
 
-def range(*, min: t.Union[int, float, None] = None, max: t.Union[int, float, None] = None) -> Condition:
+def val_range(*, min: t.Union[int, float, None] = None, max: t.Union[int, float, None] = None) -> Condition:
     conds: t.List[Condition] = []
     if min is not None:
         conds.append(Condition(lambda v: v >= min, f"v >= {min}"))
@@ -119,7 +119,7 @@ NonEmpty = adjective_condition(lambda v: len(v) != 0, 'non-empty')
 
 
 __all__ = [
-    'ConvertAnnotation', 'Tagged', 'Condition', 'range', 'len_range',
+    'ConvertAnnotation', 'Tagged', 'Condition', 'val_range', 'len_range',
     'Positive', 'Negative', 'NonPositive', 'NonNegative',
     'Finite', 'Empty', 'NonEmpty',
 ]

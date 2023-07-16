@@ -167,21 +167,20 @@ class UnionConverter(Converter[t.Any]):
     """List of potential types"""
     converters: t.Tuple[Converter[t.Any], ...]
     """List of type converters"""
+    constructor: t.Optional[t.Callable[[t.Any, int], t.Any]]
+    """
+    Constructor to call with parsed value.
+    Called with ``(val, index of type in union)``
+    """
 
-    def __init__(self, types: t.Sequence[IntoConverter]):
+    def __init__(self, types: t.Sequence[IntoConverter],
+                 constructor: t.Optional[t.Callable[[t.Any, int], t.Any]] = None):
         self.types = tuple(flatten_union_args(types))
         self.converters = tuple(map(make_converter, types))
+        self.constructor = constructor
 
     def expected(self, plural: bool = False) -> str:
         return list_phrase(tuple(conv.expected(plural) for conv in self.converters))
-
-    def try_convert(self, val: t.Any) -> t.Any:
-        for conv in self.converters:
-            try:
-                return conv.try_convert(val)
-            except ParseInterrupt:
-                pass
-        raise ParseInterrupt
 
     def into_data(self, val: t.Any) -> DataType:
         # this is tricky, because we have no type information about which variant ``val`` is.
@@ -197,14 +196,39 @@ class UnionConverter(Converter[t.Any]):
         # default to regular conversion
         return into_data(val)
 
+    def construct(self, val: t.Any, i: int) -> t.Any:
+        if self.constructor is None:
+            return val
+        return self.constructor(val, i)
+
+    def try_convert(self, val: t.Any) -> t.Any:
+        for (i, conv) in enumerate(self.converters):
+            try:
+                val = conv.try_convert(val)
+                try:
+                    return self.construct(val, i)
+                except Exception:
+                    pass
+            except ParseInterrupt:
+                pass
+        raise ParseInterrupt
+
     def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
-        failed_children: t.List[t.Union[ProductErrorNode, WrongTypeError]] = []
-        for (_, conv) in zip(self.types, self.converters):
-            node = conv.collect_errors(val)
+        failed_children: t.List[ErrorNode] = []
+        for (i, conv) in enumerate(self.converters):
             # if one branch is successful, the whole type is successful
-            if node is None:
+            try:
+                conv_val = conv.try_convert(val)
+            except ParseInterrupt:
+                failed_children.append(t.cast(t.Union[ProductErrorNode, WrongTypeError], conv.collect_errors(val)))
+                continue
+            try:
+                self.construct(conv_val, i)
                 return None
-            failed_children.append(t.cast(t.Union[ProductErrorNode, WrongTypeError], node))
+            except Exception as e:
+                tb = e.__traceback__.tb_next  # type: ignore
+                tb = traceback.TracebackException(type(e), e, tb)
+                failed_children.append(WrongTypeError(self.expected(), val, tb))
         return SumErrorNode(failed_children)
 
 

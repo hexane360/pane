@@ -184,6 +184,9 @@ def into_data(val: Convertible, ty: t.Optional[IntoConverter] = None) -> DataTyp
         return converter.into_data(val)
 
     # without type information, convert as best we can
+    if isinstance(val, HasConverter):
+        converter = val._converter()
+        return converter.into_data(val)
     if isinstance(val, (dict, t.Mapping)):
         return {into_data(k): into_data(v) for (k, v) in val.items()}
     if isinstance(val, tuple):

@@ -8,7 +8,7 @@ from pane.errors import ErrorNode, SumErrorNode, ProductErrorNode, WrongTypeErro
 from pane.convert import convert, make_converter, ConvertError
 from pane.converters import Converter, ScalarConverter, TupleConverter, SequenceConverter, TaggedUnionConverter
 from pane.converters import StructConverter, UnionConverter, LiteralConverter, ConditionalConverter
-from pane.annotations import Condition, Tagged, range, len_range
+from pane.annotations import Condition, Tagged, val_range, len_range
 
 
 class TestConvertible():
@@ -149,10 +149,10 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
      (t.Annotated[int, cond2], 1, 1),
      (t.Annotated[int, cond2], 0, ConditionFailedError('an int > 0', 0., 'v > 0')),
      (t.Annotated[int, cond1, cond2], 0, ConditionFailedError('an int satisfying true and v > 0', 0., 'true and v > 0')),
-     (t.Annotated[int, range(min=0)], 0, 0),
-     (t.Annotated[int, range(min=0)], -1, ConditionFailedError('an int satisfying v >= 0', -1., 'v >= 0')),
-     (t.Annotated[float, range(min=0, max=5)], 5, 5.),
-     (t.Annotated[float, range(min=0, max=5)], 5.05, ConditionFailedError('a float satisfying v >= 0 and v <= 5', 5.05, 'v >= 0 and v <= 5')),
+     (t.Annotated[int, val_range(min=0)], 0, 0),
+     (t.Annotated[int, val_range(min=0)], -1, ConditionFailedError('an int satisfying v >= 0', -1., 'v >= 0')),
+     (t.Annotated[float, val_range(min=0, max=5)], 5, 5.),
+     (t.Annotated[float, val_range(min=0, max=5)], 5.05, ConditionFailedError('a float satisfying v >= 0 and v <= 5', 5.05, 'v >= 0 and v <= 5')),
      (t.Annotated[t.Sequence[int], len_range(min=1)], [], ConditionFailedError('sequence of ints with at least 1 elem', [], 'at least 1 elem')),
      # tagged unions
      (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', True)], {3: 4}, Variant1(4)),

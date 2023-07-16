@@ -127,17 +127,22 @@ class ProductErrorNode(ErrorNode):
 
 @dataclasses.dataclass
 class SumErrorNode(ErrorNode):
-    # sumnodes shouldn't contain sumnodes
-    children: t.List[t.Union[ProductErrorNode, WrongTypeError]]
+    children: t.List[ErrorNode]
 
     def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):
+        def _flatten_sum(children: t.Iterable[ErrorNode]) -> t.Iterator[ErrorNode]:
+            for child in children:
+                if isinstance(child, SumErrorNode):
+                    yield from child.children
+                else:
+                    yield child
+
         print(f"Expected one of:", file=file)
-        assert len(self.children)
         actual = None
-        for child in self.children:
+        for child in _flatten_sum(self.children):
             print(f"{indent}- ", end="", file=file)
             child.print_error(f"{indent}  ", inside_sum=True, file=file)
-            actual = child.actual
+            actual = getattr(child, 'actual', actual)
         print(f"{indent}Instead got `{actual}` of type `{type(actual).__name__}`", file=file)
 
 
