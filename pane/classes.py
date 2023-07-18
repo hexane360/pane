@@ -138,7 +138,7 @@ class PaneBase:
     @classmethod
     def _converter(cls: t.Type[T], *args: t.Type[Convertible]) -> Converter[T]:
         if len(args) > 0:
-            cls = t.cast(t.Type[T], cls[*args])  # type: ignore
+            cls = t.cast(t.Type[T], cls[tuple(args)])  # type: ignore
         return t.cast(Converter[T], PaneConverter(cls))
 
     @classmethod
