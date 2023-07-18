@@ -3,6 +3,8 @@
 `pane` is a modern Python library for dataclasses and data conversion, aiming
 for speed and expressiveness.
 
+[![][ci-badge]][ci-url] [![][commit-badge]][commit-url] [![][pypi-badge]][pypi-url]
+
 `pane` draws heavy inspiration from [Pydantic][pydantic] (among others), but its goals
 are quite different. For example, `pane` has first-class conversion to and from
 all JSON datatypes, not just mappings (and no '__root__' hacks necessary).
@@ -42,14 +44,21 @@ Instead got `fail` of type `str`
 | Feature                      | State   |
 | :--------------------------- | :----   |
 | Basic type conversions       | Done    |
+| Numeric array types (numpy)  | Planned |
 | Sum & product type support   | Done    |
-| Tagged unions                | Planned |
+| Tagged unions                | Partial |
 | 'Flattened' fields           | Planned |
 | Basic dataclasses            | Done    |
-| Dataclass helpers            | Partial (no `frozen`) |
+| Dataclass helpers            | Partial |
 | Generic & inherited dataclasses | Done |
-| Parameter aliases & renaming | Partial |
-| Arbitrary validation         | Planned |
+| Parameter aliases & renaming | Done    |
+| Arbitrary validation logic   | Done    |
 | Schema import/export         | Not planned |
 
 [pydantic]: https://github.com/pydantic/pydantic
+[ci-badge]: https://github.com/hexane360/pane/workflows/Tests/badge.svg
+[ci-url]: https://github.com/hexane360/pane/actions?query=workflow%3ATests
+[commit-badge]: https://img.shields.io/github/last-commit/hexane360/pane
+[commit-url]: https://github.com/hexane360/pane/commits
+[pypi-badge]: https://badge.fury.io/py/py-pane.svg
+[pypi-url]: https://pypi.org/project/py-pane/

@@ -41,7 +41,7 @@ Repository = "https://github.com/hexane360/pane.git"
 [tool.pyright]
 pythonVersion = "3.10"
 include = ['pane']
-ignore = ['**/test_*.py']  # ddon't type check tests
+ignore = ['**/test_*.py']  # don't type check tests
 
 typeCheckingMode = "strict"
 #reportUnknownLambdaType = "none"
