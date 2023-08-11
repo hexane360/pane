@@ -44,7 +44,7 @@ Instead got `fail` of type `str`
 | Feature                      | State   |
 | :--------------------------- | :----   |
 | Basic type conversions       | Done    |
-| Numeric array types (numpy)  | Planned |
+| Numeric array types (numpy)  | Done    |
 | Sum & product type support   | Done    |
 | Tagged unions                | Partial |
 | 'Flattened' fields           | Planned |
