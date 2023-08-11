@@ -5,10 +5,21 @@ from io import TextIOBase, IOBase, TextIOWrapper, BufferedIOBase
 from contextlib import AbstractContextManager, nullcontext
 from itertools import zip_longest
 import typing as t
+from typing_extensions import ParamSpec
 
 
 T = t.TypeVar('T')
 FileOrPath = t.Union[str, Path, TextIOBase, t.TextIO]
+
+
+# mock KW_ONLY on python <3.10
+try:
+    from dataclasses import KW_ONLY
+    KW_ONLY_VAL = ()
+except ImportError:
+    from dataclasses import field
+    KW_ONLY = object()
+    KW_ONLY_VAL = field(init=False, repr=False, compare=False, hash=False)
 
 
 def _validate_file(f: t.Union[t.IO[t.AnyStr], IOBase], mode: t.Union[t.Literal['r'], t.Literal['w']]):
@@ -86,23 +97,23 @@ def remove_article(s: str) -> str:
     return s
 
 
-def _collect_typevars(d: t.Dict[t.Union[t.TypeVar, t.ParamSpec], None], ty: t.Any):
+def _collect_typevars(d: t.Dict[t.Union[t.TypeVar, ParamSpec], None], ty: t.Any):
     if isinstance(ty, type):
         pass
     elif isinstance(ty, (tuple, t.Sequence)):
         ty = t.cast(t.Sequence[t.Any], ty)
         for arg in ty:
             _collect_typevars(d, arg)
-    elif hasattr(ty, '__typing_subst__') or isinstance(ty, (t.TypeVar, t.ParamSpec)):
+    elif hasattr(ty, '__typing_subst__') or isinstance(ty, (t.TypeVar, ParamSpec)):
         d.setdefault(ty)
     else:
         for ty in getattr(ty, '__parameters__', ()):
             d.setdefault(ty)
 
 
-def collect_typevars(args: t.Any) -> tuple[t.Union[t.TypeVar, t.ParamSpec]]:
+def collect_typevars(args: t.Any) -> tuple[t.Union[t.TypeVar, ParamSpec]]:
     # loosely based on typing._collect_parameters
-    d: t.Dict[t.Union[t.TypeVar, t.ParamSpec], None] = {}  # relies on dicts preserving insertion order
+    d: t.Dict[t.Union[t.TypeVar, ParamSpec], None] = {}  # relies on dicts preserving insertion order
     _collect_typevars(d, args)
     return tuple(d)
 
@@ -117,8 +128,8 @@ def flatten_union_args(types: t.Iterable[T]) -> t.Iterator[T]:
 
 
 def replace_typevars(ty: t.Any,
-                     replacements: t.Mapping[t.Union[t.TypeVar, t.ParamSpec], type]) -> t.Any:
-    if isinstance(ty, (t.TypeVar, t.ParamSpec)):
+                     replacements: t.Mapping[t.Union[t.TypeVar, ParamSpec], type]) -> t.Any:
+    if isinstance(ty, (t.TypeVar, ParamSpec)):
         return replacements.get(ty, ty)
     if isinstance(ty, t.Sequence):
         return type(ty)(replace_typevars(t, replacements) for t in ty)  # type: ignore
@@ -190,5 +201,6 @@ def is_broadcastable(*args: t.Sequence[int]) -> bool:
 
 __all__ = [
     'open_file', 'list_phrase', 'pluralize', 'remove_article',
-    'flatten_union_args', 'collect_typevars', 'replace_typevars', 'get_type_hints'
+    'flatten_union_args', 'collect_typevars', 'replace_typevars', 'get_type_hints',
+    'KW_ONLY',
 ]

@@ -4,19 +4,19 @@ Pane dataclasses.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, KW_ONLY, replace, FrozenInstanceError
+from dataclasses import dataclass, replace, FrozenInstanceError
 import functools
 from inspect import Signature, Parameter
 import traceback
-from types import NotImplementedType
 import typing as t
-from typing_extensions import dataclass_transform, Self
+
+from typing_extensions import dataclass_transform, ParamSpec, Self
 
 from .convert import DataType, Convertible, from_data, into_data, convert
 from .converters import Converter, make_converter
 from .errors import ParseInterrupt, ErrorNode, WrongTypeError, ProductErrorNode, DuplicateKeyError
 from .field import Field, FieldSpec, field, RenameStyle, _MISSING
-from .util import FileOrPath, open_file, get_type_hints, list_phrase
+from .util import FileOrPath, open_file, get_type_hints, list_phrase, KW_ONLY
 
 
 ClassLayout = t.Literal['tuple', 'struct']
@@ -34,7 +34,7 @@ POST_INIT = '__post_init__'
 @dataclass
 class PaneOptions:
     name: t.Optional[str] = None
-    _: KW_ONLY
+    _: KW_ONLY = ()
     eq: bool = True
     order: bool = True
     frozen: bool = True
@@ -260,7 +260,7 @@ def _make_eq(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
 
 def _make_ord(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
     #ord_fields = list(filter(lambda f: f.ord, fields))
-    def _pane_ord(self: PaneBase, other: t.Any) -> t.Union[NotImplementedType, t.Literal[-1, 0, 1]]:
+    def _pane_ord(self: PaneBase, other: t.Any) -> t.Literal[-1, 0, 1]:
         if self.__class__ != other.__class__:
             return NotImplemented
         for field in fields:
@@ -269,16 +269,16 @@ def _make_ord(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
             return 1 if getattr(self, field.name) > getattr(other, field.name) else -1
         return 0
 
-    def __lt__(self: PaneBase, other: t.Any) -> t.Union[bool, NotImplementedType]:
+    def __lt__(self: PaneBase, other: t.Any) -> bool:
         return NotImplemented if (o := _pane_ord(self, other)) is NotImplemented else t.cast(int, o) < 0
 
-    def __le__(self: PaneBase, other: t.Any) -> t.Union[bool, NotImplementedType]:
+    def __le__(self: PaneBase, other: t.Any) -> bool:
         return NotImplemented if (o := _pane_ord(self, other)) is NotImplemented else t.cast(int, o) <= 0
 
-    def __gt__(self: PaneBase, other: t.Any) -> t.Union[bool, NotImplementedType]:
+    def __gt__(self: PaneBase, other: t.Any) -> bool:
         return NotImplemented if (o := _pane_ord(self, other)) is NotImplemented else t.cast(int, o) > 0
 
-    def __ge__(self: PaneBase, other: t.Any) -> t.Union[bool, NotImplementedType]:
+    def __ge__(self: PaneBase, other: t.Any) -> bool:
         return NotImplemented if (o := _pane_ord(self, other)) is NotImplemented else t.cast(int, o) >= 0
 
     setattr(cls, '_pane_ord', _pane_ord)
@@ -300,7 +300,7 @@ def _process(cls: t.Type[PaneBase], opts: PaneOptions):
         cls_specs = getattr(base, PANE_SPECS)
 
         # apply typevar replacements
-        bound_vars = t.cast(t.Mapping[t.Union[t.TypeVar, t.ParamSpec], type], getattr(base, PANE_BOUNDVARS, {}))
+        bound_vars = t.cast(t.Mapping[t.Union[t.TypeVar, ParamSpec], type], getattr(base, PANE_BOUNDVARS, {}))
         specs.update(cls_specs)
         specs = {k: spec.replace_typevars(bound_vars) for (k, spec) in specs.items()}
 

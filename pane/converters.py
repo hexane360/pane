@@ -10,7 +10,7 @@ import typing as t
 from pane.errors import ErrorNode
 
 from .convert import DataType, Convertible, IntoConverter, make_converter, into_data
-from .util import list_phrase, pluralize, flatten_union_args
+from .util import list_phrase, pluralize, flatten_union_args, KW_ONLY, KW_ONLY_VAL
 from .errors import ConvertError, ParseInterrupt, WrongTypeError, ConditionFailedError
 from .errors import ErrorNode, SumErrorNode, ProductErrorNode
 
@@ -383,7 +383,9 @@ class StructConverter(Converter[T]):
     """List of fields and their types"""
     name: t.Optional[str] = None
     """Optional name of struct"""
-    opt_fields: t.Set[str] = dataclasses.field(default_factory=set, kw_only=True)
+
+    _: KW_ONLY = KW_ONLY_VAL
+    opt_fields: t.Set[str] = dataclasses.field(default_factory=set)
     """Set of fields which are optional"""
     field_converters: t.Dict[str, Converter[t.Any]] = dataclasses.field(init=False)
     """Dict of sub-converters for each field"""

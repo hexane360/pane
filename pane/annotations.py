@@ -23,10 +23,14 @@ class ConvertAnnotation(abc.ABC, t.Hashable):
         ...
 
 
-@dataclass(unsafe_hash=True)
+@dataclass(frozen=True)
 class Tagged(ConvertAnnotation):
     tag: str
     external: t.Union[bool, t.Tuple[str, str]] = False
+
+    # for some reason this isn't auto-generated on python 3.9
+    def __hash__(self):
+        return hash((self.__class__.__name__, self.tag, self.external))
 
     def _converter(self, inner_type: t.Union[Converter[t.Any], IntoConverter]) -> Converter[t.Any]:
         from .converters import TaggedUnionConverter
@@ -37,11 +41,17 @@ class Tagged(ConvertAnnotation):
         return TaggedUnionConverter(types, tag=self.tag, external=self.external)
 
 
-@dataclass(unsafe_hash=True)
+@dataclass(frozen=True)
 class Condition(ConvertAnnotation):
     f: t.Callable[[t.Any], bool]
     name: t.Optional[str] = None
     make_expected: t.Optional[t.Callable[[str, bool], str]] = None
+
+    # for some reason this isn't auto-generated on python 3.9
+    def __hash__(self):
+        return hash((
+            self.__class__.__name__, self.f, self.name,
+        ))
 
     def __and__(self, other: Condition) -> Condition:
         return Condition.all(self, other)
@@ -56,17 +66,19 @@ class Condition(ConvertAnnotation):
         )
 
     @staticmethod
-    def all(*conditions: Condition) -> Condition:
+    def all(*conditions: Condition, make_expected: t.Optional[t.Callable[[str, bool], str]] = None) -> Condition:
         return Condition(
             lambda val: all(cond.f(val) for cond in conditions),
             list_phrase(tuple(cond.cond_name() for cond in conditions), 'and'),
+            make_expected
         )
 
     @staticmethod
-    def any(*conditions: Condition) -> Condition:
+    def any(*conditions: Condition, make_expected: t.Optional[t.Callable[[str, bool], str]] = None) -> Condition:
         return Condition(
             lambda val: any(cond.f(val) for cond in conditions),
             list_phrase(tuple(cond.cond_name() for cond in conditions), 'or'),
+            make_expected
         )
 
     def cond_name(self) -> str:
@@ -95,8 +107,7 @@ def len_range(*, min: t.Optional[int] = None, max: t.Optional[int] = None) -> Co
         conds.append(Condition(lambda v: len(v) >= min, f"at least {min} {pluralize('elem', min)}"))
     if max is not None:
         conds.append(Condition(lambda v: len(v) <= max, f"at most {max} {pluralize('elem', max)}"))
-    cond = Condition.all(*conds)
-    cond.make_expected = lambda exp, plural: f"{exp} with {cond.cond_name()}"
+    cond = Condition.all(*conds, make_expected=lambda exp, plural: f"{exp} with {cond.cond_name()}")
     return cond
 
 

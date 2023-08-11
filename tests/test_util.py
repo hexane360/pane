@@ -1,6 +1,7 @@
 import collections.abc
 import typing as t
 
+from typing_extensions import ParamSpec
 import pytest
 
 from pane.util import replace_typevars, collect_typevars, flatten_union_args, get_type_hints
@@ -11,7 +12,7 @@ T = t.TypeVar('T')
 U = t.TypeVar('U')
 K = t.TypeVar('K')
 V = t.TypeVar('V')
-P = t.ParamSpec('P')
+P = ParamSpec('P')
 
 
 @pytest.mark.parametrize(('input', 'output'), [
