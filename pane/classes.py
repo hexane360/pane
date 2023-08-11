@@ -5,6 +5,7 @@ Pane dataclasses.
 from __future__ import annotations
 
 from dataclasses import dataclass, KW_ONLY, replace, FrozenInstanceError
+import functools
 from inspect import Signature, Parameter
 from types import NotImplementedType
 import typing as t
@@ -47,6 +48,22 @@ class PaneOptions:
     def replace(self, **changes: t.Any):
         changes['name'] = changes.get('name', None)
         return replace(self, **{k: v for (k, v) in changes.items() if v is not None})
+
+
+@functools.lru_cache(maxsize=256)
+def _make_subclass(cls: t.Any, params: t.Tuple[t.Any, ...]) -> type:
+    sup: t.Any = super(PaneBase, cls)
+    if not hasattr(sup, '__class_getitem__'):
+        raise TypeError(f"type '{cls}' is not subscriptable")
+    alias: t.Type[PaneBase] = sup.__class_getitem__(params)  # type: ignore
+    typevars = getattr(cls, '__parameters__', ())
+
+    # return subclass with bound type variables
+    bound_vars = dict(zip(typevars, params))
+    return type(cls.__name__, (cls,), {
+        PANE_BOUNDVARS: bound_vars,
+        '__parameters__': getattr(alias, '__parameters__'),  # type: ignore
+    })
 
 
 @dataclass_transform(
@@ -103,22 +120,9 @@ class PaneBase:
         _process(cls, opts)
 
     def __class_getitem__(cls, params: t.Union[type, t.Tuple[type, ...]]):
-        typevars = getattr(cls, '__parameters__', ())
         if not isinstance(params, tuple):
             params = (params,)
-
-        if not hasattr(super(), '__class_getitem__'):
-            raise TypeError(f"type '{cls}' is not subscriptable")
-
-        alias: t.Type[PaneBase] = super().__class_getitem__(params)  # type: ignore
-
-        # return subclass with bound type variables
-        bound_vars = dict(zip(typevars, params))
-        bound = type(cls.__name__, (cls,), {
-            PANE_BOUNDVARS: bound_vars,
-            '__parameters__': getattr(alias, '__parameters__'),  # type: ignore
-        })
-        return bound
+        return _make_subclass(cls, params)
 
     def __repr__(self) -> str:
         inside = ", ".join(f"{field.name}={getattr(self, field.name)!r}" for field in self.__pane_fields__)
