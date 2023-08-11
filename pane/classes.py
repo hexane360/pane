@@ -7,6 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass, KW_ONLY, replace, FrozenInstanceError
 import functools
 from inspect import Signature, Parameter
+import traceback
 from types import NotImplementedType
 import typing as t
 from typing_extensions import dataclass_transform, Self
@@ -396,7 +397,6 @@ class PaneConverter(Converter[PaneBase]):
             if 'tuple' not in self.opts.in_format:
                 raise ParseInterrupt()
             raise NotImplementedError()
-
         elif isinstance(val, (dict, t.Mapping)):
             if 'struct' not in self.opts.in_format:
                 raise ParseInterrupt()
@@ -418,7 +418,10 @@ class PaneConverter(Converter[PaneBase]):
                 if field.name not in values and not field.is_optional():
                     raise ParseInterrupt()  # missing field
 
-            return self.cls.make_unchecked(**values)
+            try:
+                return self.cls.make_unchecked(**values)
+            except Exception:  # error in __post_init__
+                raise ParseInterrupt()
 
         raise ParseInterrupt()
 
@@ -433,6 +436,7 @@ class PaneConverter(Converter[PaneBase]):
             if 'struct' not in self.opts.in_format:
                 return WrongTypeError(f'tuple {self.name}', val)
 
+            values: t.Dict[str, t.Any] = {}
             children: t.Dict[t.Union[str, int], ErrorNode] = {}
             extra: t.Set[str] = set()
             seen: t.Set[str] = set()
@@ -449,7 +453,11 @@ class PaneConverter(Converter[PaneBase]):
                     continue
                 seen.add(field.name)
 
-                if (node := conv.collect_errors(v)) is not None:
+                try:
+                    values[field.name] = conv.try_convert(v)
+                except ParseInterrupt:
+                    node = conv.collect_errors(v)
+                    assert node is not None
                     children[k] = node
 
             missing: t.Set[str] = set()
@@ -459,7 +467,14 @@ class PaneConverter(Converter[PaneBase]):
 
             if len(missing) or len(children) or len(extra):
                 return ProductErrorNode(self.name, children, val, missing, extra)
-            return None
+            try:
+                self.cls.make_unchecked(**values)
+                return None
+            except Exception as e:  # error in __post_init__
+                tb = e.__traceback__.tb_next  # type: ignore
+                tb = traceback.TracebackException(type(e), e, tb)
+                return WrongTypeError(self.expected(), val, tb)
+
         return WrongTypeError(self.name, val)
 
 

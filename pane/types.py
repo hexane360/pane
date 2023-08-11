@@ -40,9 +40,9 @@ class Range(PaneBase, t.Generic[Num],
     def __post_init__(self):
         s = sum((self.step is None, self.n is None))
         if s == 0:
-            raise TypeError("Either 'n' or 'step' must be specified")
-        if s == 2:
             raise TypeError("Either 'n' or 'step' may be specified, but not both")
+        if s == 2:
+            raise TypeError("Either 'n' or 'step' must be specified")
         span = self.end - self.start
         if self.step is not None:
             if math.isclose(self.step, 0.):
@@ -53,7 +53,7 @@ class Range(PaneBase, t.Generic[Num],
             assert self.n is not None
             if not isinstance(self.start, float) and span % (self.n - 1):
                 raise ValueError("Range must be evenly divisible by 'n'")
-            step = type(self.start)(span / (self.n - 1))
+            step = type(self.start)(span / (self.n - 1)) if self.n > 1 else None
             object.__setattr__(self, 'step', step)
 
     def __len__(self) -> int:
@@ -74,15 +74,28 @@ class ValueOrList(t.Generic[T]):
     _inner: t.Union[T, t.List[T]]
     _is_val: bool
 
-    def __init__(self, val: t.Union[T, t.List[T]], is_val: bool):
+    def __init__(self, val: t.Union[T, t.List[T]], _is_val: bool):
         self._inner = val
-        self._is_val = is_val
+        self._is_val = _is_val
+
+    @classmethod
+    def from_val(cls, val: T) -> ValueOrList[T]:
+        return cls(val, True)
+
+    @classmethod
+    def from_list(cls, l: t.List[T]) -> ValueOrList[T]:
+        return cls(l, False)
 
     def __repr__(self) -> str:
         return f"ValueOrList({self._inner!r})"
 
     def __str__(self) -> str:
         return str(self._inner)
+
+    def __eq__(self, other: t.Any) -> bool:
+        if not self.__class__ == other.__class__:
+            return False
+        return self._is_val == other._is_val and self._inner == other._inner
 
     @classmethod
     def _converter(cls: t.Type[T], *args: t.Type[Convertible]) -> ValueOrListConverter:

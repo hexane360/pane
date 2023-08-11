@@ -551,6 +551,7 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
     def try_convert(self, val: t.Any) -> t.Sequence[FromDataT]:
         if not isinstance(val, t.Sequence) or isinstance(val, str):
             raise ParseInterrupt
+        # TODO handle exception in constructor
         return self.ty(self.v_conv.try_convert(v) for v in val)  # type: ignore
 
     def collect_errors(self, val: t.Any) -> t.Union[None, WrongTypeError, ProductErrorNode]:

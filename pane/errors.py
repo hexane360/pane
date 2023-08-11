@@ -65,6 +65,27 @@ class WrongTypeError(ErrorNode):
             s = f"{indent}\n".join(self.cause.format())
             print(f"Caused by exception:\n{indent}{s}", file=file)
 
+    def _get_cause(self) -> str:
+        if self.cause is None:
+            return 'None'
+        if isinstance(self.cause, traceback.TracebackException):
+            return "\n".join(self.cause.format_exception_only())
+        return "\n".join(traceback.format_exception(self.cause))
+
+    def __repr__(self) -> str:
+        return f"WrongTypeError(expected={self.expected!r}, actual={self.actual!r}, cause={self._get_cause()!r}, info={self.info!r})"
+
+    def __eq__(self, other: t.Any) -> bool:
+        if not self.__class__ == other.__class__:
+            return False
+
+        return (
+            self.expected == other.expected and
+            self.actual == other.actual and
+            self.info == other.info and
+            self._get_cause() == other._get_cause()
+        )
+
 
 @dataclasses.dataclass
 class ConditionFailedError(ErrorNode):
