@@ -70,7 +70,7 @@ class WrongTypeError(ErrorNode):
             return 'None'
         if isinstance(self.cause, traceback.TracebackException):
             return "\n".join(self.cause.format_exception_only())
-        return "\n".join(traceback.format_exception(self.cause))
+        return "\n".join(traceback.format_exception(type(self.cause), self.cause, None))
 
     def __repr__(self) -> str:
         return f"WrongTypeError(expected={self.expected!r}, actual={self.actual!r}, cause={self._get_cause()!r}, info={self.info!r})"
