@@ -62,7 +62,8 @@ def _make_subclass(cls: t.Any, params: t.Tuple[t.Any, ...]) -> type:
     bound_vars = dict(zip(typevars, params))
     return type(cls.__name__, (cls,), {
         PANE_BOUNDVARS: bound_vars,
-        '__parameters__': getattr(alias, '__parameters__'),  # type: ignore
+        '__origin__': cls,
+        '__parameters__': getattr(alias, '__parameters__'),
     })
 
 
@@ -245,7 +246,8 @@ def _make_init(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
 def _make_eq(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
     #eq_fields = list(filter(lambda f: f.eq, fields))
     def __eq__(self: PaneBase, other: t.Any) -> bool:
-        if self.__class__ != other.__class__:
+        # check if classes are the same (modulo type variables)
+        if self.__class__.__dict__.get('__origin__', self.__class__) != other.__class__.__dict__.get('__origin__', other.__class__):
             return False
         return all(
             getattr(self, field.name) == getattr(other, field.name)

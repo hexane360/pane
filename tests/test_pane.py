@@ -171,6 +171,18 @@ class GenericConcreteInherit(GenericInherit[int], t.Generic[T]):
     z: T
 
 
+@pytest.mark.parametrize(('lhs', 'rhs', 'result'), [
+    (GenericPane[int](5), GenericPane[t.Any](5), True),
+    (TestClass3(x=1, z=3, w=3), TestClass3(w=3), True),
+    (TestClass(), TestClass2(), False),
+])
+def test_pane_eq(lhs, rhs, result):
+    if result:
+        assert lhs == rhs
+    else:
+        assert lhs != rhs
+
+
 @pytest.mark.parametrize(('cls', 'sig'), [
     (GenericPane, '(x: ~T) -> None'),
     (GenericPane[int], '(x: int) -> None'),
