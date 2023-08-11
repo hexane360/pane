@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+import dataclasses
 import itertools
 import re
 import typing as t
 
 from typing_extensions import ParamSpec, Self
 
-from .util import replace_typevars, KW_ONLY, KW_ONLY_VAL
+from .util import replace_typevars, KW_ONLY
 
 
 class _Missing:
@@ -63,9 +63,9 @@ def rename_field(field: str, style: RenameStyle) -> str:
     return CONVERT_FNS[style](_split_field_name(field))
 
 
-@dataclass
+@dataclasses.dataclass
 class Field:
-    _: KW_ONLY = KW_ONLY_VAL
+    _: KW_ONLY = dataclasses.field(init=False, repr=False, compare=False)
     name: str
     type: type
     in_names: t.Sequence[str]
@@ -87,9 +87,9 @@ class Field:
         return self.default is not _MISSING or self.default_factory is not None
 
 
-@dataclass
+@dataclasses.dataclass
 class FieldSpec:
-    _: KW_ONLY = KW_ONLY_VAL
+    _: KW_ONLY = dataclasses.field(init=False, repr=False, compare=False)
     rename: t.Optional[str] = None
     in_names: t.Optional[t.Sequence[str]] = None
     aliases: t.Optional[t.Sequence[str]] = None
@@ -106,8 +106,8 @@ class FieldSpec:
 
     def replace_typevars(self, replacements: t.Mapping[t.Union[t.TypeVar, ParamSpec], t.Type[t.Any]]) -> Self:
         if self.ty is _MISSING:
-            return replace(self)
-        return replace(self, ty=replace_typevars(t.cast(type, self.ty), replacements))
+            return dataclasses.replace(self)
+        return dataclasses.replace(self, ty=replace_typevars(t.cast(type, self.ty), replacements))
 
     def make_field(self, name: str,
                    in_rename: t.Optional[t.Sequence[RenameStyle]] = None,

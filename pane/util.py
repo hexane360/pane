@@ -15,11 +15,8 @@ FileOrPath = t.Union[str, Path, TextIOBase, t.TextIO]
 # mock KW_ONLY on python <3.10
 try:
     from dataclasses import KW_ONLY
-    KW_ONLY_VAL = ()
 except ImportError:
-    from dataclasses import field
     KW_ONLY = object()
-    KW_ONLY_VAL = field(init=False, repr=False, compare=False, hash=False)
 
 
 def _validate_file(f: t.Union[t.IO[t.AnyStr], IOBase], mode: t.Union[t.Literal['r'], t.Literal['w']]):

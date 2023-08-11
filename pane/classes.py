@@ -4,7 +4,8 @@ Pane dataclasses.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace, FrozenInstanceError
+import dataclasses
+from dataclasses import FrozenInstanceError
 import functools
 from inspect import Signature, Parameter
 import traceback
@@ -31,10 +32,10 @@ PANE_OPTS = '__pane_opts__'
 POST_INIT = '__post_init__'
 
 
-@dataclass
+@dataclasses.dataclass
 class PaneOptions:
     name: t.Optional[str] = None
-    _: KW_ONLY = ()
+    _: KW_ONLY = dataclasses.field(init=False, repr=False, compare=False)
     eq: bool = True
     order: bool = True
     frozen: bool = True
@@ -48,7 +49,7 @@ class PaneOptions:
 
     def replace(self, **changes: t.Any):
         changes['name'] = changes.get('name', None)
-        return replace(self, **{k: v for (k, v) in changes.items() if v is not None})
+        return dataclasses.replace(self, **{k: v for (k, v) in changes.items() if v is not None})
 
 
 @functools.lru_cache(maxsize=256)
@@ -262,7 +263,7 @@ def _make_ord(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
     #ord_fields = list(filter(lambda f: f.ord, fields))
     def _pane_ord(self: PaneBase, other: t.Any) -> t.Literal[-1, 0, 1]:
         if self.__class__ != other.__class__:
-            return NotImplemented
+            return NotImplemented  # type: ignore
         for field in fields:
             if getattr(self, field.name) == getattr(other, field.name):
                 continue

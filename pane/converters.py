@@ -10,7 +10,7 @@ import typing as t
 from pane.errors import ErrorNode
 
 from .convert import DataType, Convertible, IntoConverter, make_converter, into_data
-from .util import list_phrase, pluralize, flatten_union_args, KW_ONLY, KW_ONLY_VAL
+from .util import list_phrase, pluralize, flatten_union_args, KW_ONLY
 from .errors import ConvertError, ParseInterrupt, WrongTypeError, ConditionFailedError
 from .errors import ErrorNode, SumErrorNode, ProductErrorNode
 
@@ -384,7 +384,7 @@ class StructConverter(Converter[T]):
     name: t.Optional[str] = None
     """Optional name of struct"""
 
-    _: KW_ONLY = KW_ONLY_VAL
+    _: KW_ONLY = dataclasses.field(init=False, repr=False, compare=False)
     opt_fields: t.Set[str] = dataclasses.field(default_factory=set)
     """Set of fields which are optional"""
     field_converters: t.Dict[str, Converter[t.Any]] = dataclasses.field(init=False)
