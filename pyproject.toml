@@ -31,6 +31,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   'pytest >= 6.2.4',
+  'numpy',  # for testing
 ]
 
 [project.urls]

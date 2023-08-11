@@ -3,9 +3,6 @@ from __future__ import annotations
 import typing as t
 
 import pytest
-import numpy
-from numpy.typing import NDArray
-from numpy.testing import assert_array_equal
 
 from pane.errors import ErrorNode, SumErrorNode, ProductErrorNode, WrongTypeError, ConditionFailedError
 from pane.convert import convert, make_converter, ConvertError
@@ -53,9 +50,6 @@ class TestConverter(Converter[TestConvertible]):
     (t.Union[str, int], UnionConverter((str, int))),
     (t.Literal['a', 'b', 'c'], LiteralConverter(('a', 'b', 'c'))),
     (t.Literal['a'], LiteralConverter(('a',))),
-    (numpy.ndarray, NestedSequenceConverter(t.Any, numpy.array, ragged=False)),
-    (NDArray[numpy.generic], NestedSequenceConverter(numpy.generic, numpy.array, ragged=False)),
-    (NDArray[numpy.int_], NestedSequenceConverter(numpy.int_, numpy.array, ragged=False)),
 ])
 def test_make_converter(input, conv: Converter):
     assert make_converter(input) == conv
@@ -118,9 +112,6 @@ def test_make_converter_annotated():
     (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag')], False, "an int or a float"),
     (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', external=True)], False, "a mapping '3 or 4' => an int or a float"),
     (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', external=('t', 'c'))], False, "a mapping 't' => 3 or 4, 'c' => an int or a float"),
-    (numpy.ndarray, False, 'a n-d array of any values'),
-    (NestedSequenceConverter(int, numpy.array, ragged=False), True, 'n-d arrays of ints'),
-    (NestedSequenceConverter(int, numpy.array, ragged=True), False, 'a nested sequence of ints'),
 ])
 def test_converter_expected(conv: Converter, plural: bool, expected: str):
     if not isinstance(conv, Converter):
@@ -170,9 +161,6 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
      (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', ('t', 'c'))], {'c': 4.}, WrongTypeError("mapping with keys 't' and 'c'", {'c': 4.})),
      (t.Annotated[t.Union[Variant3, Variant4], Tagged('tag')], {'tag': 3, 'val1': 4, 'val2': 3.}, Variant3({'tag': 3, 'val1': 4, 'val2': 3.})),
      (t.Annotated[t.Union[Variant3, Variant4], Tagged('tag')], {'tag': 5, 'v': 4}, WrongTypeError("tag 'tag' one of 3 or 4", 5)),
-     # nested sequences
-     (NDArray[int], [[5, 6], [7, 8]], numpy.array([[5, 6], [7, 8]])),
-     (NDArray[int], [[5, 6, 7], [7, 8]], WrongTypeError('a n-d array of ints', [[5, 6, 7], [7, 8]], info='shape mismatch at dim 0. Sub-shapes: [(3,), (2,)]')),
 ])
 def test_convert(ty, val, result):
     if isinstance(result, ErrorNode):
@@ -180,10 +168,7 @@ def test_convert(ty, val, result):
             convert(val, ty)
         assert exc_info.value.tree == result
     else:
-        if isinstance(result, numpy.ndarray):
-            assert_array_equal(convert(val, ty), result)
-        else:
-            assert convert(val, ty) == result
+        assert convert(val, ty) == result
         assert make_converter(ty).collect_errors(val) is None
 
 
