@@ -21,6 +21,7 @@ U = t.TypeVar('U', bound=Convertible)
 FromDataT = t.TypeVar('FromDataT', bound=Convertible)
 FromDataK = t.TypeVar('FromDataK', bound=Convertible)
 FromDataV = t.TypeVar('FromDataV', bound=Convertible)
+NestedSequence = t.Union[T, t.Sequence['NestedSequence[T]']]
 
 
 class Converter(abc.ABC, t.Generic[T_co]):
@@ -562,6 +563,84 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
                 nodes[i] = node
         if len(nodes):
             return ProductErrorNode("sequence", nodes, val)
+
+
+@dataclasses.dataclass
+class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
+    """
+    Converter which delegates to a sub-converter, and then attempts
+    to construct a different type
+    """
+    val_type: t.Type[U]
+    """Inner type to convert to"""
+    constructor: t.Callable[[NestedSequence[U]], T]
+    """Constructor to call."""
+    ragged: bool = False
+    """Whether to accept ragged arrays."""
+    val_conv: Converter[U] = dataclasses.field(init=False)
+
+    def __post_init__(self):
+        self.val_conv = make_converter(self.val_type)
+
+    def expected(self, plural: bool = False) -> str:
+        word = 'nested sequence' if self.ragged else 'n-d array'
+        return f"{pluralize(word, plural, article='a')} of {self.val_conv.expected(True)}"
+
+    @staticmethod
+    def _check_shape(val: NestedSequence[t.Any], dim: int = 0) -> t.Tuple[int, ...]:
+        if not isinstance(val, t.Sequence) or isinstance(val, str):
+            # single value
+            return ()
+        shapes = [NestedSequenceConverter._check_shape(v, dim+1) for v in val]
+        if len(shapes) == 0:
+            return (0,)
+        shape = shapes[0]
+        if not all(s == shape for s in shapes):
+            raise ValueError(f"shape mismatch at dim {dim}. Sub-shapes: {shapes}")
+        new_shape = (len(shapes), *shape)
+        return new_shape
+
+    def try_convert(self, val: t.Any) -> T:
+        result = self._try_convert(val)
+        if not self.ragged:
+            try:
+                self._check_shape(result)
+            except ValueError:
+                raise ParseInterrupt()
+        return self.constructor(result)
+
+    def _try_convert(self, val: t.Any) -> NestedSequence[U]:
+        if not isinstance(val, t.Sequence) or isinstance(val, str):
+            # single value
+            return self.val_conv.try_convert(val)
+        vals = list(map(self._try_convert, t.cast(t.Sequence[t.Any], val)))
+        return t.cast(NestedSequence[U], vals)
+
+    def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
+        if (node := self._collect_errors(val)) is not None:
+            return node
+        val = self._try_convert(val)
+        if not self.ragged:
+            try:
+                self._check_shape(val)
+            except ValueError as e:
+                return WrongTypeError(self.expected(), val, info=e.args[0])
+        try:
+            self.constructor(val)
+        except Exception as e:
+            tb = e.__traceback__.tb_next  # type: ignore
+            tb = traceback.TracebackException(type(e), e, tb)
+            return WrongTypeError(self.expected(), val, tb)
+
+    def _collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
+        if not isinstance(val, t.Sequence) or isinstance(val, str):
+            return self.val_conv.collect_errors(val)
+        nodes = {}
+        for (i, v) in enumerate(t.cast(t.Sequence[t.Any], val)):
+            if (node := self._collect_errors(v)) is not None:
+                nodes[i] = node
+        if len(nodes):
+            return ProductErrorNode("nested sequence", nodes, val)
 
 
 @dataclasses.dataclass

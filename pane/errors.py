@@ -52,12 +52,15 @@ class WrongTypeError(ErrorNode):
     expected: str
     actual: t.Any
     cause: t.Optional[traceback.TracebackException] = None
+    info: t.Optional[str] = None
 
     def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):
         if inside_sum:
             print(f"{self.expected}", file=file)
         else:
             print(f"Expected {self.expected}, instead got `{self.actual}` of type `{type(self.actual).__name__}`", file=file)
+        if self.info is not None:
+            print(f"{indent}{self.info}", file=file)
         if self.cause is not None:
             s = f"{indent}\n".join(self.cause.format())
             print(f"Caused by exception:\n{indent}{s}", file=file)

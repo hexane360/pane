@@ -9,6 +9,7 @@ import collections.abc
 import typing as t
 
 from .errors import ConvertError, UnsupportedAnnotation
+from .addons import numpy as numpy
 
 if t.TYPE_CHECKING:
     from .converters import Converter
@@ -33,9 +34,9 @@ class HasConverter(t.Protocol):
         ...
 
 
-DataType = t.Union[str, int, bool, float, complex, None, t.Mapping['DataType', 'DataType'], t.Sequence['DataType']]
+DataType = t.Union[str, int, bool, float, complex, None, t.Mapping['DataType', 'DataType'], t.Sequence['DataType'], numpy.NDArray[numpy.generic]]
 """Common data interchange type. ``IntoData`` converts to this, and ``FromData`` converts from this."""
-_DataType = t.Union[str, int, bool, float, complex, None, t.Mapping, t.Sequence]  # type: ignore
+_DataType = t.Union[str, int, bool, float, complex, None, t.Mapping, t.Sequence, numpy.ndarray]  # type: ignore
 """``DataType`` for use in ``isinstance``."""
 Convertible = t.Union[DataType, HasConverter]
 """Types supported by ``from_data``."""
@@ -48,6 +49,9 @@ IntoConverter = t.Union[
 Types supported by `make_converter``.
 Consists of ``FromData``, mappings, and sequences.
 """
+
+
+_CONVERTER_HANDLERS: t.Sequence[t.Callable[[t.Any, t.Tuple[t.Any]], Converter[t.Any]]] = []
 
 
 @t.overload
@@ -108,10 +112,18 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
     if base in _BASIC_CONVERTERS:
         return _BASIC_CONVERTERS[base]
 
+    # add-on handlers
+    for handler in _CONVERTER_HANDLERS:
+        try:
+            result = handler(base, args)
+            if result is not NotImplemented:
+                return result
+        except NotImplementedError:
+            pass
+
     # tuple converter
     if issubclass(base, (tuple, t.Tuple)) and len(args) > 0 and args[-1] != Ellipsis:
         return TupleConverter(base, args)
-    # homogenous sequence converter
     if issubclass(base, (list, t.Sequence)):
         if base is t.Sequence or base is collections.abc.Sequence:
             # t.Sequence => tuple
@@ -132,6 +144,17 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
             return conv
 
     raise TypeError(f"No converter for type '{ty}'")
+
+
+def register_converter_handler(handler: t.Callable[[t.Any, t.Tuple[t.Any]], Converter[t.Any]]) -> None:
+    """
+    Register a handler for make_converter.
+
+    This allows extending ``pane`` to handle third-party types, not
+    defined by your code or by ``pane``. Use sparingly, as this will
+    add runtime to ``make_converter``.
+    """
+    _CONVERTER_HANDLERS.append(handler)
 
 
 def _annotated_converter(ty: IntoConverter, args: t.Sequence[t.Any]) -> Converter[t.Any]:
@@ -210,6 +233,10 @@ def from_data(val: DataType, ty: t.Type[T]) -> T:
 def convert(val: Convertible, ty: t.Type[T]) -> T:
     data = into_data(val)
     return from_data(data, ty)
+
+
+# register some handlers
+register_converter_handler(numpy.numpy_converter_handler)
 
 
 __all__ = [

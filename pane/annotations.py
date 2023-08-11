@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import math
 import typing as t
 
-from .util import flatten_union_args
+from .util import flatten_union_args, is_broadcastable
 from .util import list_phrase, pluralize, remove_article
 
 if t.TYPE_CHECKING:
@@ -98,6 +98,22 @@ def len_range(*, min: t.Optional[int] = None, max: t.Optional[int] = None) -> Co
     cond = Condition.all(*conds)
     cond.make_expected = lambda exp, plural: f"{exp} with {cond.cond_name()}"
     return cond
+
+
+def shape(shape: t.Sequence[int]) -> Condition:
+    name = f"shape {tuple(shape)}"
+    return Condition(
+        lambda v: v.shape == shape, name,
+        lambda exp, plural: f"{exp} with {name}"
+    )
+
+
+def broadcastable(shape: t.Sequence[int]) -> Condition:
+    name = f"broadcastable to {tuple(shape)}"
+    return Condition(
+        lambda v: is_broadcastable(v.shape, shape), name,
+        lambda exp, plural: f"{exp} {name}"
+    )
 
 
 def adjective_condition(f: t.Callable[[t.Any], bool], adjective: str, article: str = 'a') -> Condition:

@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 from io import TextIOBase, IOBase, TextIOWrapper, BufferedIOBase
 from contextlib import AbstractContextManager, nullcontext
+from itertools import zip_longest
 import typing as t
 
 
@@ -159,6 +160,32 @@ def get_type_hints(cls: type) -> t.Dict[str, t.Any]:
         d[name] = value
 
     return d
+
+
+def broadcast_shapes(*args: t.Sequence[int]) -> t.Tuple[int, ...]:
+    try:
+        import numpy
+        return numpy.broadcast_shapes(*map(tuple, args))
+    except ImportError:
+        pass
+
+    # our own implementation, with worse error messages
+    out_shape: t.List[int] = []
+    for ax_lens in zip_longest(*(reversed(arg) for arg in args), fillvalue=1):
+        bcast = max(ax_lens)
+        if not all(ax_len in (1, bcast) for ax_len in ax_lens):
+            shapes = [f"'{tuple(arg)!r}'" for arg in args]
+            raise ValueError(f"Couldn't broadcast shapes {list_phrase(shapes, 'and')}")
+        out_shape.append(bcast)
+    return tuple(out_shape)
+
+
+def is_broadcastable(*args: t.Sequence[int]) -> bool:
+    try:
+        broadcast_shapes(*args)
+        return True
+    except ValueError:
+        return False
 
 
 __all__ = [
