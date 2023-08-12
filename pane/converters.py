@@ -643,7 +643,7 @@ class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
             if (node := self._collect_errors(v)) is not None:
                 nodes[i] = node
         if len(nodes):
-            return ProductErrorNode("nested sequence", nodes, val)
+            return ProductErrorNode(self.expected(), nodes, val)
 
 
 @dataclasses.dataclass
