@@ -15,7 +15,7 @@ from typing_extensions import dataclass_transform, ParamSpec, Self
 
 from .convert import DataType, Convertible, from_data, into_data, convert
 from .converters import Converter, make_converter
-from .errors import ParseInterrupt, ErrorNode, WrongTypeError, ProductErrorNode, DuplicateKeyError
+from .errors import ParseInterrupt, ErrorNode, WrongTypeError, WrongLenError, ProductErrorNode, DuplicateKeyError
 from .field import Field, FieldSpec, field, RenameStyle, _MISSING
 from .util import FileOrPath, open_file, get_type_hints, list_phrase, KW_ONLY
 
@@ -105,7 +105,7 @@ class PaneBase:
 
         if rename is not None:
             if in_rename is not None or out_rename is not None:
-                print("'rename' cannot be specified with 'in_rename' or 'out_rename'")
+                raise ValueError("'rename' cannot be specified with 'in_rename' or 'out_rename'")
             in_rename = t.cast(t.Tuple[RenameStyle, ...], (rename,))
             out_rename = rename
         elif in_rename is not None and isinstance(in_rename, str):
@@ -393,11 +393,40 @@ class PaneConverter(Converter[PaneBase]):
     def expected(self, plural: bool = False) -> str:
         return f"{list_phrase(self.opts.in_format)} {self.name}"
 
+    def _len_range(self) -> t.Tuple[int, int]:
+        """
+        Get the admissible length range of tuple inputs.
+        """
+        min_len, max_len = (0, 0)
+        for field in self.fields:
+            if not field.is_optional():
+                if field.kw_only:
+                    # TODO catch this error at class creation time
+                    raise RuntimeError("not kw_only non-optional field. This is incompatible with 'tuple'.")
+                min_len = max_len+1  # expand min length
+            if not field.kw_only:
+                max_len += 1
+        return (min_len, max_len)
+
     def try_convert(self, val: t.Any) -> PaneBase:
         if isinstance(val, (list, tuple, t.Sequence)):
+            val = t.cast(t.Sequence[t.Any], val)
             if 'tuple' not in self.opts.in_format:
                 raise ParseInterrupt()
-            raise NotImplementedError()
+
+            (min_len, max_len) = self._len_range()
+            if min_len < len(val) > max_len:
+                raise ParseInterrupt()
+
+            vals: t.List[t.Any] = []
+            for (field, conv, v) in zip(self.fields, self.field_converters, val):
+                vals.append(conv.try_convert(v))
+
+            try:
+                return self.cls.make_unchecked(*vals)
+            except Exception:  # error in __post_init__
+                raise ParseInterrupt()
+
         elif isinstance(val, (dict, t.Mapping)):
             if 'struct' not in self.opts.in_format:
                 raise ParseInterrupt()
@@ -426,12 +455,39 @@ class PaneConverter(Converter[PaneBase]):
 
         raise ParseInterrupt()
 
-    def collect_errors(self, val: t.Any) -> t.Union[WrongTypeError, ProductErrorNode, None]:
+    def collect_errors(self, val: t.Any) -> t.Union[WrongTypeError, WrongLenError, ProductErrorNode, None]:
         if isinstance(val, (list, tuple, t.Sequence)):
             val = t.cast(t.Sequence[t.Any], val)
             if 'tuple' not in self.opts.in_format:
                 return WrongTypeError(f'struct {self.name}', val)
-            return WrongTypeError(f'tuple {self.name}', "Not implemented")
+
+            (min_len, max_len) = self._len_range()
+            if min_len < len(val) > max_len:
+                return WrongLenError(self.expected(), (min_len, max_len), val, len(val))
+
+            vals: t.List[t.Any] = []
+            children: t.Dict[t.Union[str, int], ErrorNode] = {}
+            for (i, (field, conv, v)) in enumerate(zip(self.fields, self.field_converters, val)):
+                try:
+                    vals.append(conv.try_convert(v))
+                except ParseInterrupt:
+                    node = conv.collect_errors(v)
+                    assert node is not None
+                    children[i] = node
+
+            print(f"vals: {vals}")
+
+            if len(children):
+                return ProductErrorNode(self.name, children, val)
+
+            try:
+                self.cls.make_unchecked(*vals)
+                return None
+            except Exception as e:  # error in __post_init__
+                tb = e.__traceback__.tb_next  # type: ignore
+                tb = traceback.TracebackException(type(e), e, tb)
+                return WrongTypeError(self.expected(), val, tb)
+
         elif isinstance(val, (dict, t.Mapping)):
             val = t.cast(t.Mapping[str, t.Any], val)
             if 'struct' not in self.opts.in_format:

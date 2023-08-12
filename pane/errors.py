@@ -88,6 +88,21 @@ class WrongTypeError(ErrorNode):
 
 
 @dataclasses.dataclass
+class WrongLenError(ErrorNode):
+    expected: str
+    expected_len: t.Tuple[int, int]
+    actual: t.Any
+    actual_len: int
+
+    def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):
+        len_range = '-'.join(map(str, self.expected_len))
+        if inside_sum:
+            print(f"{self.expected} (length {len_range})", file=file)
+        else:
+            print(f"Expected {self.expected} of length {len_range}, instead got `{self.actual}` of length {self.actual_len}", file=file)
+
+
+@dataclasses.dataclass
 class ConditionFailedError(ErrorNode):
     expected: str
     actual: t.Any

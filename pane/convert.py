@@ -223,7 +223,6 @@ def into_data(val: Convertible, ty: t.Optional[IntoConverter] = None) -> DataTyp
 
 
 def from_data(val: DataType, ty: t.Type[T]) -> T:
-    print(f"val: {val} _DataType: {_DataType}")
     if not isinstance(val, _DataType):
         raise TypeError(f"Type {type(val)} is not a valid data interchange type.")
 

@@ -35,7 +35,7 @@ class Range(PaneBase, t.Generic[Num],
     end: Num
 
     n: t.Optional[NonNegativeInt] = field(default=None)
-    step: t.Optional[Num] = field(default=None)
+    step: t.Optional[Num] = field(default=None, kw_only=True)
 
     def __post_init__(self):
         s = sum((self.step is None, self.n is None))
