@@ -20,8 +20,8 @@ from pane.errors import ConvertError, ProductErrorNode, SumErrorNode, WrongTypeE
     (Range[float], {'start': 2., 'end': 4., 'n': 1, 'step': 3.}, WrongTypeError('struct Range', {'start': 2., 'end': 4., 'n': 1, 'step': 3.}, cause=TypeError("Either 'n' or 'step' may be specified, but not both"))),
     (ValueOrList[int], 5, ValueOrList.from_val(5)),
     (ValueOrList[int], (5, 6, 7), ValueOrList.from_list([5, 6, 7])),
-    (ValueOrList[int], (5, 6.5, 7), SumErrorNode([WrongTypeError('an int', (5, 6.5, 7)), ProductErrorNode('sequence', {1: WrongTypeError('an int', 6.5)}, (5, 6.5, 7))])),
-    (ValueOrList[int], {}, SumErrorNode([WrongTypeError('an int', {}), WrongTypeError('sequence', {})])),
+    (ValueOrList[int], (5, 6.5, 7), SumErrorNode([WrongTypeError('an int', (5, 6.5, 7)), ProductErrorNode('sequence of ints', {1: WrongTypeError('an int', 6.5)}, (5, 6.5, 7))])),
+    (ValueOrList[int], {}, SumErrorNode([WrongTypeError('an int', {}), WrongTypeError('sequence of ints', {})])),
 ])
 def test_convert_types(ty, val, result):
     if isinstance(result, ErrorNode):

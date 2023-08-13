@@ -138,7 +138,59 @@ class FieldSpec:
                      kw_only=self.kw_only)
 
 
-# TODO overloads here
+# only allow one of rename, in_names, and aliases
+@t.overload
+def field(*,
+    rename: t.Optional[str] = None,
+    in_names: None = None,
+    aliases: None = None,
+    out_name: t.Optional[str] = None,
+    init: bool = True,
+    default: t.Union[T, _Missing] = _MISSING,
+    default_factory: t.Optional[t.Callable[[], T]] = None,
+    kw_only: bool = False,
+) -> t.Any:
+    ...
+
+@t.overload
+def field(*,
+    rename: None = None,
+    in_names: t.Sequence[str],
+    aliases: None = None,
+    out_name: t.Optional[str] = None,
+    init: bool = True,
+    default: t.Union[T, _Missing] = _MISSING,
+    default_factory: t.Optional[t.Callable[[], T]] = None,
+    kw_only: bool = False,
+) -> t.Any:
+    ...
+
+@t.overload
+def field(*,
+    rename: None = None,
+    in_names: None = None,
+    aliases: t.Sequence[str],
+    out_name: t.Optional[str] = None,
+    init: bool = True,
+    default: t.Union[T, _Missing] = _MISSING,
+    default_factory: t.Optional[t.Callable[[], T]] = None,
+    kw_only: bool = False,
+) -> t.Any:
+    ...
+
+@t.overload
+def field(*,
+    rename: t.Optional[str] = None,
+    in_names: t.Optional[t.Sequence[str]] = None,
+    aliases: t.Optional[t.Sequence[str]] = None,
+    out_name: t.Optional[str] = None,
+    init: bool = True,
+    default: t.Union[T, _Missing] = _MISSING,
+    default_factory: t.Optional[t.Callable[[], T]] = None,
+    kw_only: bool = False,
+) -> t.Any:
+    ...
+
 def field(*,
     rename: t.Optional[str] = None,
     in_names: t.Optional[t.Sequence[str]] = None,

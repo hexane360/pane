@@ -10,7 +10,7 @@ try:
         from ..converters import Converter
 
 
-    def dtype_map(ty: t.Union[t.Type[t.Any], t.Type[generic]]) -> type:
+    def _dtype_map(ty: t.Union[t.Type[t.Any], t.Type[generic]]) -> type:
         # TODO add a lookup table here
         # TODO add conditions to some types
         # e.g. unsigned int -> NonNegativeInt
@@ -36,7 +36,7 @@ try:
 
         if issubclass(ty, generic):
             # dtype converters
-            return make_converter(dtype_map(ty))
+            return make_converter(_dtype_map(ty))
 
         if not (issubclass(ty, ndarray) or ty is NDArray):
             return NotImplemented

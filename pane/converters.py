@@ -553,19 +553,33 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
     def try_convert(self, val: t.Any) -> t.Sequence[FromDataT]:
         if not isinstance(val, t.Sequence) or isinstance(val, str):
             raise ParseInterrupt
-        # TODO handle exception in constructor
-        return self.ty(self.v_conv.try_convert(v) for v in val)  # type: ignore
+        try:
+            return self.ty(self.v_conv.try_convert(v) for v in val)  # type: ignore
+        except Exception:
+            raise ParseInterrupt()
 
     def collect_errors(self, val: t.Any) -> t.Union[None, WrongTypeError, ProductErrorNode]:
         if not isinstance(val, t.Sequence) or isinstance(val, str):
-            return WrongTypeError("sequence", val)
+            return WrongTypeError(self.expected(), val)
         val = t.cast(t.Sequence[t.Any], val)
         nodes = {}
+        vals: t.List[FromDataT] = []
         for (i, v) in enumerate(val):
-            if (node := self.v_conv.collect_errors(v)) is not None:
-                nodes[i] = node
+            try:
+                vals.append(self.v_conv.convert(v))
+            except ConvertError as e:
+                nodes[i] = e.tree
+
         if len(nodes):
-            return ProductErrorNode("sequence", nodes, val)
+            return ProductErrorNode(self.expected(), nodes, val)
+        # try to construct val
+        try:
+            self.ty(iter(vals))
+            return None
+        except Exception as e:
+            tb = e.__traceback__.tb_next  # type: ignore
+            tb = traceback.TracebackException(type(e), e, tb)
+            return WrongTypeError(self.expected(), val, tb)
 
 
 @dataclasses.dataclass
