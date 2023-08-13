@@ -24,12 +24,21 @@ ClassLayout = t.Literal['tuple', 'struct']
 T = t.TypeVar('T')
 
 
-PANE_FIELDS = '__pane_fields__'
-PANE_SET_FIELDS = '__pane_set__'
-PANE_SPECS = '__pane_specs__'
-PANE_BOUNDVARS = '__pane_boundvars__'
-PANE_OPTS = '__pane_opts__'
-POST_INIT = '__post_init__'
+#PANE_FIELDS = '__pane_fields__'
+PANE_INFO = '__pane_info__'  # class information
+PANE_SET_FIELDS = '__pane_set__'  # fields currently set
+PANE_BOUNDVARS = '__pane_boundvars__'  # bound variables, for subtypes of generics
+POST_INIT = '__post_init__'  # post-init function
+#PANE_SPECS = '__pane_specs__'
+#PANE_OPTS = '__pane_opts__'
+
+
+@dataclasses.dataclass
+class PaneInfo:
+    opts: PaneOptions
+    specs: t.Dict[str, FieldSpec]
+    fields: t.Tuple[Field, ...]
+    pos_args: t.Tuple[int, int]
 
 
 @dataclasses.dataclass
@@ -77,8 +86,7 @@ def _make_subclass(cls: t.Any, params: t.Tuple[t.Any, ...]) -> type:
     field_specifiers=(FieldSpec, field),
 )
 class PaneBase:
-    __pane_opts__: PaneOptions
-    __pane_fields__: t.Sequence[Field]
+    __pane_info__: PaneInfo
     __pane_specs__: t.Dict[str, FieldSpec]
     __pane_set__: t.Set[str]
 
@@ -112,13 +120,12 @@ class PaneBase:
             in_rename = t.cast(t.Tuple[RenameStyle, ...], (in_rename,))
 
         # handle option inheritance
-        opts = getattr(cls, '__pane_opts__', PaneOptions())
+        opts: PaneOptions = getattr(cls, PANE_INFO).opts if hasattr(cls, PANE_INFO) else PaneOptions()
         opts = opts.replace(
             name=name, out_format=out_format, in_format=in_format,
             eq=eq, order=order, frozen=frozen, init=init, allow_extra=allow_extra,
             kw_only=kw_only, in_rename=in_rename, out_rename=out_rename,
         )
-        setattr(cls, PANE_OPTS, opts)
 
         _process(cls, opts)
 
@@ -128,11 +135,11 @@ class PaneBase:
         return _make_subclass(cls, params)
 
     def __repr__(self) -> str:
-        inside = ", ".join(f"{field.name}={getattr(self, field.name)!r}" for field in self.__pane_fields__)
+        inside = ", ".join(f"{field.name}={getattr(self, field.name)!r}" for field in self.__pane_info__.fields)
         return f"{self.__class__.__name__}({inside})"
 
     def __setattr__(self, name: str, value: t.Any) -> None:
-        opts: PaneOptions = getattr(self, PANE_OPTS)
+        opts = self.__pane_info__.opts
         if opts.frozen:
             raise FrozenInstanceError(f"cannot assign to field {name!r}")
         super().__setattr__(name, value)
@@ -162,7 +169,7 @@ class PaneBase:
                 k : getattr(self, k) for k in getattr(self, PANE_SET_FIELDS)
             }
         return {
-            field.name: getattr(self, field.name) for field in getattr(self, PANE_FIELDS)
+            field.name: getattr(self, field.name) for field in self.__pane_info__.fields
         }
 
     @classmethod
@@ -213,7 +220,7 @@ def _make_init(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
 
         set_fields: t.Set[str] = set()
 
-        for field in t.cast(t.Sequence[Field], getattr(self, PANE_FIELDS)):
+        for field in self.__pane_info__.fields:
             if field.name in bound_args:
                 val = bound_args[field.name]
                 if checked:
@@ -296,9 +303,9 @@ def _process(cls: t.Type[PaneBase], opts: PaneOptions):
 
     # collect FieldSpecs from base classes
     for base in reversed(cls.__mro__[1:]):
-        if not hasattr(base, PANE_SPECS):
+        if not hasattr(base, PANE_INFO):
             continue  # not a pane dataclass
-        cls_specs = getattr(base, PANE_SPECS)
+        cls_specs = getattr(base, PANE_INFO).specs
 
         # apply typevar replacements
         bound_vars = t.cast(t.Mapping[t.Union[t.TypeVar, ParamSpec], type], getattr(base, PANE_BOUNDVARS, {}))
@@ -326,22 +333,35 @@ def _process(cls: t.Type[PaneBase], opts: PaneOptions):
         spec.kw_only |= kw_only
         cls_specs[name] = spec
 
-    # save specs for subclasses
-    setattr(cls, PANE_SPECS, cls_specs)
-    specs.update(cls_specs)
-
     # apply typevar replacements
     bound_vars = getattr(cls, PANE_BOUNDVARS, {})
+    specs.update(cls_specs)
     specs = {k: spec.replace_typevars(bound_vars) for (k, spec) in specs.items()}
 
     # bake FieldSpecs into Fields
     fields = [spec.make_field(name, opts.in_rename, opts.out_rename) for (name, spec) in specs.items()]
     # reorder kw-only fields to end
     fields = [*filter(lambda f: not f.kw_only, fields), *filter(lambda f: f.kw_only, fields)]
-    # TODO error on default positional arg before non-default arg
 
-    setattr(cls, PANE_FIELDS, fields)
-    #setattr(cls, '_converter', classmethod(PaneConverter))
+    # positional argument lengths
+    min_len, max_len = (0, 0)
+    seen_opt = False
+    for field in fields:
+        if field.kw_only:
+            if not field.is_optional() and 'tuple' in opts.in_format:
+                raise TypeError(f"Field '{field.name}' is kw_only but mandatory. This is incompatible with the 'tuple' in_format.")
+            continue
+        max_len += 1
+        if field.is_optional():
+            seen_opt = True
+        else:
+            if seen_opt:
+                raise TypeError(f"Mandatory field '{field.name}' follows optional field.")
+            min_len = max_len  # expand min length
+
+    cls.__pane_info__ = PaneInfo(
+        opts=opts, specs=cls_specs, fields=tuple(fields), pos_args=(min_len, max_len)
+    )
 
     for field in fields:
         name = str(field.name)
@@ -366,8 +386,9 @@ class PaneConverter(Converter[PaneBase]):
     def __init__(self, cls: t.Type[PaneBase]):
         self.cls = cls
         self.name = self.cls.__name__
-        self.opts: PaneOptions = getattr(self.cls, PANE_OPTS)
-        self.fields: t.Sequence[Field] = getattr(self.cls, PANE_FIELDS)
+        self.cls_info: PaneInfo = getattr(self.cls, PANE_INFO)
+        self.opts: PaneOptions = self.cls_info.opts
+        self.fields: t.Sequence[Field] = self.cls_info.fields
         self.field_converters: t.Sequence[Converter[t.Any]] = [make_converter(field.type) for field in self.fields]
         self.field_map: t.Dict[str, int] = {}
 
@@ -393,28 +414,14 @@ class PaneConverter(Converter[PaneBase]):
     def expected(self, plural: bool = False) -> str:
         return f"{list_phrase(self.opts.in_format)} {self.name}"
 
-    def _len_range(self) -> t.Tuple[int, int]:
-        """
-        Get the admissible length range of tuple inputs.
-        """
-        min_len, max_len = (0, 0)
-        for field in self.fields:
-            if not field.is_optional():
-                if field.kw_only:
-                    # TODO catch this error at class creation time
-                    raise RuntimeError("not kw_only non-optional field. This is incompatible with 'tuple'.")
-                min_len = max_len+1  # expand min length
-            if not field.kw_only:
-                max_len += 1
-        return (min_len, max_len)
-
     def try_convert(self, val: t.Any) -> PaneBase:
+        # TODO this and collect_errors need refactoring
         if isinstance(val, (list, tuple, t.Sequence)):
             val = t.cast(t.Sequence[t.Any], val)
             if 'tuple' not in self.opts.in_format:
                 raise ParseInterrupt()
 
-            (min_len, max_len) = self._len_range()
+            (min_len, max_len) = self.cls_info.pos_args
             if min_len < len(val) > max_len:
                 raise ParseInterrupt()
 
@@ -461,9 +468,9 @@ class PaneConverter(Converter[PaneBase]):
             if 'tuple' not in self.opts.in_format:
                 return WrongTypeError(f'struct {self.name}', val)
 
-            (min_len, max_len) = self._len_range()
+            (min_len, max_len) = self.cls_info.pos_args
             if min_len < len(val) > max_len:
-                return WrongLenError(self.expected(), (min_len, max_len), val, len(val))
+                return WrongLenError(f'tuple {self.name}', (min_len, max_len), val, len(val))
 
             vals: t.List[t.Any] = []
             children: t.Dict[t.Union[str, int], ErrorNode] = {}
@@ -475,8 +482,6 @@ class PaneConverter(Converter[PaneBase]):
                     assert node is not None
                     children[i] = node
 
-            print(f"vals: {vals}")
-
             if len(children):
                 return ProductErrorNode(self.name, children, val)
 
@@ -486,7 +491,7 @@ class PaneConverter(Converter[PaneBase]):
             except Exception as e:  # error in __post_init__
                 tb = e.__traceback__.tb_next  # type: ignore
                 tb = traceback.TracebackException(type(e), e, tb)
-                return WrongTypeError(self.expected(), val, tb)
+                return WrongTypeError(f'tuple {self.name}', val, tb)
 
         elif isinstance(val, (dict, t.Mapping)):
             val = t.cast(t.Mapping[str, t.Any], val)
@@ -530,7 +535,7 @@ class PaneConverter(Converter[PaneBase]):
             except Exception as e:  # error in __post_init__
                 tb = e.__traceback__.tb_next  # type: ignore
                 tb = traceback.TracebackException(type(e), e, tb)
-                return WrongTypeError(self.expected(), val, tb)
+                return WrongTypeError(f'struct {self.name}', val, tb)
 
         return WrongTypeError(self.name, val)
 
