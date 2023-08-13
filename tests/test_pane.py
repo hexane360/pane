@@ -21,6 +21,29 @@ def f(*args, **kwargs):
     return (args, kwargs)
 
 
+def test_pane_required_after_default():
+    with pytest.raises(TypeError, match="Mandatory field 'y' follows optional field"):
+        class RequiredAfterDefault(pane.PaneBase):
+            x: int = 3
+            y: int
+
+    class RequiredAfterDefaultKwOnly(pane.PaneBase):
+        _: pane.KW_ONLY
+        x: int = 3
+        y: int
+
+
+def test_pane_required_kw_only():
+    class RequiredKwOnly(pane.PaneBase):
+        x: int
+        z: int = pane.field(kw_only=True)
+        y: int
+
+    with pytest.raises(TypeError, match="Field 'z' is kw_only but mandatory. This is incompatible with the 'tuple' in_format."):
+        class RequiredKwOnlyTuple(RequiredKwOnly, in_format='tuple'):
+            ...
+
+
 class TestClass(pane.PaneBase, out_format='tuple'):
     x: int = 3
     y: float = 5.
@@ -79,7 +102,7 @@ class TestClassModifyFields(TestClassInherit):
     x: float = 9.  # type: ignore
 
 
-class TestClass2(pane.PaneBase):
+class TestClass2(pane.PaneBase, in_format=('tuple', 'struct')):
     x: int = 1
     z: int = pane.field(default=3, kw_only=True)
     y: int = 2
@@ -124,13 +147,13 @@ def test_make_unchecked_signature(cls, sig):
 @pytest.mark.parametrize(('cls', 'val', 'result'), [
     (TestClass, {'x': 3, 'y': 5.}, TestClass(3, 5.)),
     # extra fields
-    (TestClass, {'x': 3, 'y': 5., 'zz': 5}, ProductErrorNode('TestClass', {}, {'x': 3, 'y': 5., 'zz': 5}, extra={'zz'})),
+    (TestClass, {'x': 3, 'y': 5., 'zz': 5}, ProductErrorNode('struct TestClass', {}, {'x': 3, 'y': 5., 'zz': 5}, extra={'zz'})),
     # duplicate keys
-    (TestClass2, {'x': 3, 'w': 3, 'W': 4}, ProductErrorNode('TestClass2', {'W': DuplicateKeyError('W', ('w', 'W', 'P'))}, {'x': 3, 'w': 3, 'W': 4})),
+    (TestClass2, {'x': 3, 'w': 3, 'W': 4}, ProductErrorNode('struct TestClass2', {'W': DuplicateKeyError('W', ('w', 'W', 'P'))}, {'x': 3, 'w': 3, 'W': 4})),
     # extra fields, allow_extra=True
     (TestClass3, {'x': 2, 'y': 3, 'w': 4, 'zz': 5}, TestClass3(x=2, y=3, w=4)),
     # missing fields
-    (TestClass3, {}, ProductErrorNode('TestClass3', {}, {}, missing={'w'}))
+    (TestClass3, {}, ProductErrorNode('struct TestClass3', {}, {}, missing={'w'}))
 ])
 def test_pane_convert(cls, val, result):
     if isinstance(result, ErrorNode):

@@ -15,7 +15,8 @@ from typing_extensions import dataclass_transform, ParamSpec, Self
 
 from .convert import DataType, Convertible, from_data, into_data, convert
 from .converters import Converter, make_converter
-from .errors import ParseInterrupt, ErrorNode, WrongTypeError, WrongLenError, ProductErrorNode, DuplicateKeyError
+from .errors import ConvertError, ParseInterrupt, ErrorNode
+from .errors import WrongTypeError, WrongLenError, ProductErrorNode, DuplicateKeyError
 from .field import Field, FieldSpec, field, RenameStyle, _MISSING
 from .util import FileOrPath, open_file, get_type_hints, list_phrase, KW_ONLY
 
@@ -356,7 +357,7 @@ def _process(cls: t.Type[PaneBase], opts: PaneOptions):
             seen_opt = True
         else:
             if seen_opt:
-                raise TypeError(f"Mandatory field '{field.name}' follows optional field.")
+                raise TypeError(f"Mandatory field '{field.name}' follows optional field")
             min_len = max_len  # expand min length
 
     cls.__pane_info__ = PaneInfo(
@@ -415,129 +416,152 @@ class PaneConverter(Converter[PaneBase]):
         return f"{list_phrase(self.opts.in_format)} {self.name}"
 
     def try_convert(self, val: t.Any) -> PaneBase:
-        # TODO this and collect_errors need refactoring
+        # based on type, try to delegate to try_convert_tuple or try_convert_struct
         if isinstance(val, (list, tuple, t.Sequence)):
             val = t.cast(t.Sequence[t.Any], val)
             if 'tuple' not in self.opts.in_format:
                 raise ParseInterrupt()
 
-            (min_len, max_len) = self.cls_info.pos_args
-            if min_len < len(val) > max_len:
-                raise ParseInterrupt()
-
-            vals: t.List[t.Any] = []
-            for (field, conv, v) in zip(self.fields, self.field_converters, val):
-                vals.append(conv.try_convert(v))
-
-            try:
-                return self.cls.make_unchecked(*vals)
-            except Exception:  # error in __post_init__
-                raise ParseInterrupt()
+            return self.try_convert_tuple(t.cast(t.Sequence[t.Any], val))
 
         elif isinstance(val, (dict, t.Mapping)):
             if 'struct' not in self.opts.in_format:
                 raise ParseInterrupt()
 
-            values: t.Dict[str, t.Any] = {}
-            for (k, v) in t.cast(t.Dict[str, t.Any], val).items():
-                if k not in self.field_map:
-                    if not self.opts.allow_extra:
-                        raise ParseInterrupt()  # extra key
-                    continue
-                field = self.fields[self.field_map[k]]
-                conv = self.field_converters[self.field_map[k]]
-
-                if field.name in values:
-                    raise ParseInterrupt()  # multiple values for key
-                values[field.name] = conv.try_convert(v)
-
-            for field in self.fields:
-                if field.name not in values and not field.is_optional():
-                    raise ParseInterrupt()  # missing field
-
-            try:
-                return self.cls.make_unchecked(**values)
-            except Exception:  # error in __post_init__
-                raise ParseInterrupt()
+            return self.try_convert_struct(t.cast(t.Mapping[str, t.Any], val))
 
         raise ParseInterrupt()
 
     def collect_errors(self, val: t.Any) -> t.Union[WrongTypeError, WrongLenError, ProductErrorNode, None]:
+        # based on type, try to delegate to collect_errors_tuple or collect_errors_struct
         if isinstance(val, (list, tuple, t.Sequence)):
-            val = t.cast(t.Sequence[t.Any], val)
             if 'tuple' not in self.opts.in_format:
-                return WrongTypeError(f'struct {self.name}', val)
+                return WrongTypeError(self.expected_struct(), val)
 
-            (min_len, max_len) = self.cls_info.pos_args
-            if min_len < len(val) > max_len:
-                return WrongLenError(f'tuple {self.name}', (min_len, max_len), val, len(val))
-
-            vals: t.List[t.Any] = []
-            children: t.Dict[t.Union[str, int], ErrorNode] = {}
-            for (i, (field, conv, v)) in enumerate(zip(self.fields, self.field_converters, val)):
-                try:
-                    vals.append(conv.try_convert(v))
-                except ParseInterrupt:
-                    node = conv.collect_errors(v)
-                    assert node is not None
-                    children[i] = node
-
-            if len(children):
-                return ProductErrorNode(self.name, children, val)
-
-            try:
-                self.cls.make_unchecked(*vals)
-                return None
-            except Exception as e:  # error in __post_init__
-                tb = e.__traceback__.tb_next  # type: ignore
-                tb = traceback.TracebackException(type(e), e, tb)
-                return WrongTypeError(f'tuple {self.name}', val, tb)
+            return self.collect_errors_tuple(t.cast(t.Sequence[t.Any], val))
 
         elif isinstance(val, (dict, t.Mapping)):
             val = t.cast(t.Mapping[str, t.Any], val)
             if 'struct' not in self.opts.in_format:
                 return WrongTypeError(f'tuple {self.name}', val)
-
-            values: t.Dict[str, t.Any] = {}
-            children: t.Dict[t.Union[str, int], ErrorNode] = {}
-            extra: t.Set[str] = set()
-            seen: t.Set[str] = set()
-            for (k, v) in val.items():
-                if k not in self.field_map:
-                    if not self.opts.allow_extra:
-                        extra.add(k)  # unknown key
-                    continue
-
-                field = self.fields[self.field_map[k]]
-                conv = self.field_converters[self.field_map[k]]
-                if field.name in seen:
-                    children[k] = DuplicateKeyError(k, field.in_names)
-                    continue
-                seen.add(field.name)
-
-                try:
-                    values[field.name] = conv.try_convert(v)
-                except ParseInterrupt:
-                    node = conv.collect_errors(v)
-                    assert node is not None
-                    children[k] = node
-
-            missing: t.Set[str] = set()
-            for field in self.fields:
-                if field.name not in seen and not field.is_optional():
-                    missing.add(field.name)
-
-            if len(missing) or len(children) or len(extra):
-                return ProductErrorNode(self.name, children, val, missing, extra)
-            try:
-                self.cls.make_unchecked(**values)
-                return None
-            except Exception as e:  # error in __post_init__
-                tb = e.__traceback__.tb_next  # type: ignore
-                tb = traceback.TracebackException(type(e), e, tb)
-                return WrongTypeError(f'struct {self.name}', val, tb)
+            
+            return self.collect_errors_struct(t.cast(t.Mapping[str, t.Any], val))
 
         return WrongTypeError(self.name, val)
+
+    def expected_struct(self, plural: bool = False) -> str:
+        return f"struct {self.name}"
+
+    def try_convert_struct(self, val: t.Mapping[str, t.Any]) -> PaneBase:
+        # loop through values, and handle accordingly
+        values: t.Dict[str, t.Any] = {}
+        for (k, v) in t.cast(t.Dict[str, t.Any], val).items():
+            if k not in self.field_map:
+                if not self.opts.allow_extra:
+                    raise ParseInterrupt()  # extra key
+                continue
+            field = self.fields[self.field_map[k]]
+            conv = self.field_converters[self.field_map[k]]
+
+            if field.name in values:
+                raise ParseInterrupt()  # multiple values for key
+            values[field.name] = conv.try_convert(v)
+
+        for field in self.fields:
+            if field.name not in values and not field.is_optional():
+                raise ParseInterrupt()  # missing field
+
+        try:
+            return self.cls.make_unchecked(**values)
+        except Exception:  # error in __post_init__
+            raise ParseInterrupt()
+
+    def collect_errors_struct(self, val: t.Mapping[str, t.Any]) -> t.Union[WrongTypeError, ProductErrorNode, None]:
+        values: t.Dict[str, t.Any] = {}  # converted field values. Required to check for __post_init__ errors
+        children: t.Dict[t.Union[str, int], ErrorNode] = {}  # errors in converting fields
+        extra: t.Set[str] = set()  # extra fields found
+        seen: t.Set[str] = set()   # fields seen already (used to find dupes)
+        for (k, v) in val.items():
+            if k not in self.field_map:
+                if not self.opts.allow_extra:
+                    extra.add(k)  # unknown key
+                continue
+
+            field = self.fields[self.field_map[k]]
+            conv = self.field_converters[self.field_map[k]]
+            if field.name in seen:
+                children[k] = DuplicateKeyError(k, field.in_names)
+                continue
+            seen.add(field.name)
+
+            # this is a little tricky. we need to call convert() rather
+            # than collect_errors to grab a successful value
+            try:
+                values[field.name] = conv.convert(v)
+            except ConvertError as e:
+                # then we can collect errors if that fails.
+                children[k] = e.tree
+
+        missing: t.Set[str] = set()
+        for field in self.fields:
+            if field.name not in seen and not field.is_optional():
+                missing.add(field.name)
+
+        if len(missing) or len(children) or len(extra):
+            # return field errors
+            return ProductErrorNode(self.expected_struct(), children, val, missing, extra)
+        try:
+            self.cls.make_unchecked(**values)
+            return None
+        except Exception as e:  # error in __post_init__
+            tb = e.__traceback__.tb_next  # type: ignore
+            tb = traceback.TracebackException(type(e), e, tb)
+            return WrongTypeError(f'struct {self.name}', val, tb)
+
+    def expected_tuple(self, plural: bool = False) -> str:
+        return f"tuple {self.name}"
+
+    def try_convert_tuple(self, val: t.Sequence[t.Any]) -> PaneBase:
+        (min_len, max_len) = self.cls_info.pos_args
+        if min_len < len(val) > max_len:
+            raise ParseInterrupt()
+
+        vals: t.List[t.Any] = []
+        for (conv, v) in zip(self.field_converters, val):
+            vals.append(conv.try_convert(v))
+
+        try:
+            return self.cls.make_unchecked(*vals)
+        except Exception:  # error in __post_init__
+            raise ParseInterrupt()
+
+    def collect_errors_tuple(self, val: t.Sequence[t.Any]) -> t.Union[WrongTypeError, ProductErrorNode, WrongLenError, None]:
+        (min_len, max_len) = self.cls_info.pos_args
+        if min_len < len(val) > max_len:
+            return WrongLenError(f'tuple {self.name}', (min_len, max_len), val, len(val))
+
+        vals: t.List[t.Any] = []
+        children: t.Dict[t.Union[str, int], ErrorNode] = {}
+        for (i, (conv, v)) in enumerate(zip(self.field_converters, val)):
+            # this is a little tricky. we need to call convert() rather
+            # than collect_errors to grab a successful value
+            try:
+                vals.append(conv.convert(v))
+            except ConvertError as e:
+                # then we can collect errors if that fails.
+                children[i] = e.tree
+
+        if len(children):
+            # return field errors
+            return ProductErrorNode(self.expected_tuple(), children, val)
+
+        try:
+            self.cls.make_unchecked(*vals)
+            return None
+        except Exception as e:  # error in __post_init__
+            tb = e.__traceback__.tb_next  # type: ignore
+            tb = traceback.TracebackException(type(e), e, tb)
+            return WrongTypeError(f'tuple {self.name}', val, tb)
 
 
 __all__ = [
