@@ -14,7 +14,6 @@ nav:
     - using/condition.md
     - using/tagged.md
     - using/advanced.md
-  #- 'Using pane': using.md
   - API:
     - api/index.md
     - pane.convert: api/convert.md
@@ -66,6 +65,7 @@ plugins:
             show_root_heading: true
             members_order: source
             filters: ["!^_", "!^__(all|repr|str)__$", "!^(FromData)?[TUKV](_co(ntra)?)?$", '_converter']
+            inherited_members: true
   - mike:
       version_selector: true
 

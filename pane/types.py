@@ -135,6 +135,13 @@ class ValueOrListConverter(UnionConverter):
         )._inner
 
 
+class YAMLDocList(list):  # type: ignore
+    """
+    `list` subclass representing a list of objects from YAML documents.
+    """
+    ...
+
+
 __all__ = [
     'PositiveInt', 'NonNegativeInt', 'NegativeInt', 'NonPositiveInt',
     'PositiveFloat', 'NonNegativeFloat', 'NegativeFloat', 'NonPositiveFloat', 'FiniteFloat',

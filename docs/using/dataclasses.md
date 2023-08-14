@@ -40,6 +40,8 @@ While parsing field '2':
   Expected a float, instead got `s` of type `str`
 ```
 
+To bypass conversion, use `Mydataclass.make_unchecked` instead.
+
 `MyDataclass.from_data`, `MyDataclass.from_json`, and `MyDataclass.from_yaml` perform conversion from an object:
 
 ```python
@@ -54,11 +56,26 @@ MyDataclass(x=10, y=10.0, z=[10.0])
 
 (`from_json` and `from_yaml` take a file-like object or filename. `from_jsons` and `from_yamls` take a string).
 
-## Other helpers
+## Member methods
 
-`MyDataclass.into_data` performs the reverse operation, converting a dataclass to :
+`MyDataclass.into_data` performs the reverse operation, converting a dataclass to a data interchange type (usually a dict):
 
 ```python
 >>> MyDataclass(x=10, y=10.0, z=[10.0]).into_data()
 {'x': 10, 'y': 10.0, 'z': [10.0]}
 ```
+
+## Index of methods
+
+| Method name | Method type | Description                     |
+| :---------- | :---------: | :------------------------------ |
+| `__init__` | classmethod | Instantiate a dataclass from data |
+| [`make_unchecked`][pane.classes.PaneBase.make_unchecked] | classmethod | Instantiate a dataclass from data |
+| [`from_obj`][pane.classes.PaneBase.from_obj] | classmethod | Instantiate a dataclass from a convertible object |
+| [`from_data`][pane.classes.PaneBase.from_data] | classmethod | Instantiate a dataclass from interchange data |
+| [`from_json`][pane.classes.PaneBase.from_json] | classmethod | Instantiate a dataclass from a JSON file |
+| [`from_yaml`][pane.classes.PaneBase.from_yaml] | classmethod | Instantiate a dataclass from a YAML file |
+| [`from_jsons`][pane.classes.PaneBase.from_jsons] | classmethod | Instantiate a dataclass from a JSON string |
+| [`from_yamls`][pane.classes.PaneBase.from_yamls] | classmethod | Instantiate a dataclass from a YAML string |
+| [`into_data`][pane.classes.PaneBase.into_data] | instance method | Convert dataclass into interchange data |
+| [`dict`][pane.classes.PaneBase.dict] | instance method | Return dataclass fields as a dict (optionally, return only set fields) |

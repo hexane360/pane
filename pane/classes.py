@@ -21,62 +21,7 @@ from .field import Field, FieldSpec, field, RenameStyle, _MISSING
 from .util import FileOrPath, open_file, get_type_hints, list_phrase, KW_ONLY
 
 
-ClassLayout = t.Literal['tuple', 'struct']
 T = t.TypeVar('T')
-
-
-#PANE_FIELDS = '__pane_fields__'
-PANE_INFO = '__pane_info__'  # class information
-PANE_SET_FIELDS = '__pane_set__'  # fields currently set
-PANE_BOUNDVARS = '__pane_boundvars__'  # bound variables, for subtypes of generics
-POST_INIT = '__post_init__'  # post-init function
-#PANE_SPECS = '__pane_specs__'
-#PANE_OPTS = '__pane_opts__'
-
-
-@dataclasses.dataclass
-class PaneInfo:
-    opts: PaneOptions
-    specs: t.Dict[str, FieldSpec]
-    fields: t.Tuple[Field, ...]
-    pos_args: t.Tuple[int, int]
-
-
-@dataclasses.dataclass
-class PaneOptions:
-    name: t.Optional[str] = None
-    _: KW_ONLY = dataclasses.field(init=False, repr=False, compare=False)
-    eq: bool = True
-    order: bool = True
-    frozen: bool = True
-    init: bool = True
-    kw_only: bool = False
-    out_format: ClassLayout = 'struct'
-    in_format: t.Sequence[ClassLayout] = ('struct',)
-    in_rename: t.Optional[t.Sequence[RenameStyle]] = None
-    out_rename: t.Optional[RenameStyle] = None
-    allow_extra: bool = False
-
-    def replace(self, **changes: t.Any):
-        changes['name'] = changes.get('name', None)
-        return dataclasses.replace(self, **{k: v for (k, v) in changes.items() if v is not None})
-
-
-@functools.lru_cache(maxsize=256)
-def _make_subclass(cls: t.Any, params: t.Tuple[t.Any, ...]) -> type:
-    sup: t.Any = super(PaneBase, cls)
-    if not hasattr(sup, '__class_getitem__'):
-        raise TypeError(f"type '{cls}' is not subscriptable")
-    alias: t.Type[PaneBase] = sup.__class_getitem__(params)  # type: ignore
-    typevars = getattr(cls, '__parameters__', ())
-
-    # return subclass with bound type variables
-    bound_vars = dict(zip(typevars, params))
-    return type(cls.__name__, (cls,), {
-        PANE_BOUNDVARS: bound_vars,
-        '__origin__': cls,
-        '__parameters__': getattr(alias, '__parameters__'),
-    })
 
 
 @dataclass_transform(
@@ -87,9 +32,14 @@ def _make_subclass(cls: t.Any, params: t.Tuple[t.Any, ...]) -> type:
     field_specifiers=(FieldSpec, field),
 )
 class PaneBase:
+    """
+    Base class for all `pane` dataclasses
+    """
+
     __pane_info__: PaneInfo
-    __pane_specs__: t.Dict[str, FieldSpec]
+    """Dunder attribute holding [`PaneInfo`][pane.classes.PaneInfo]"""
     __pane_set__: t.Set[str]
+    """Dunder attribute holding a set of fields which have been set/modified"""
 
     def __init_subclass__(
         cls,
@@ -157,14 +107,36 @@ class PaneBase:
         return t.cast(Converter[T], PaneConverter(cls))
 
     @classmethod
-    def from_data(cls, data: t.Any) -> Self:
+    def from_obj(cls, obj: Convertible) -> Self:
+        """
+        Convert `obj` into `cls`. Equivalent to `convert(obj, cls)`
+
+        Parameters:
+          obj: Object to convert. Must be convertible.
+        """
+        return convert(obj, cls)
+
+    @classmethod
+    def from_data(cls, data: DataType) -> Self:
+        """
+        Convert `data` into `cls`. Equivalent to `from_data(data, cls)`
+
+        Parameters:
+          data: Data to convert. Must be a data interchange type.
+        """
         return from_data(data, cls)
 
     def into_data(self) -> DataType:
+        """Convert `self` into interchange data"""
         return into_data(self, self.__class__)
 
     def dict(self, set_only: bool = False) -> t.Dict[str, t.Any]:
-        """Return a dict of the fields in `self`."""
+        """
+        Return a dict of the fields in `self`
+
+        Parameters:
+          set_only: If `True`, return only the fields which have been set
+        """
         if set_only:
             return {
                 k : getattr(self, k) for k in getattr(self, PANE_SET_FIELDS)
@@ -175,26 +147,132 @@ class PaneBase:
 
     @classmethod
     def from_json(cls, f: FileOrPath) -> Self:
+        """
+        Load `cls` from a JSON file `f`
+
+        Parameters:
+          f: File-like or path-like to load from
+        """
         import json
         with open_file(f) as f:
             obj = json.load(f)
         return cls.from_data(obj)
 
     @classmethod
+    def from_jsons(cls, s: str) -> Self:
+        """
+        Load `cls` from a JSON string `s`
+
+        Parameters:
+          s: JSON string to load from
+        """
+        import json
+        obj = json.loads(s)
+        return cls.from_data(obj)
+
+    @classmethod
     def from_yaml(cls, f: FileOrPath) -> Self:
+        """
+        Load `cls` from a YAML file `f`
+
+        Parameters:
+          f: File-like or path-like to load from
+        """
         import yaml
         try:
-            from yaml import CLoader as Loader
+            from yaml import CSafeLoader as Loader
         except ImportError:
-            from yaml import Loader
+            from yaml import SafeLoader as Loader
 
         with open_file(f) as f:
-            obj = yaml.load(f, Loader)
+            obj = list(yaml.load_all(f, Loader))
+
         return cls.from_data(obj)
+
+    @classmethod
+    def from_yamls(cls, s: str) -> Self:
+        """
+        Load `cls` from a YAML string `s`
+
+        Parameters:
+          s: YAML string to load from
+        """
+        from io import StringIO
+        return cls.from_yaml(StringIO(s))
 
     @classmethod
     def make_unchecked(cls, *args: t.Any, **kwargs: t.Any) -> Self:
         ...
+
+
+@dataclasses.dataclass
+class PaneInfo:
+    """Structure holding internal information about a `pane` dataclass"""
+    opts: PaneOptions
+    """Dataclass options"""
+    specs: t.Dict[str, FieldSpec]
+    """
+    Dict of raw field specifications
+
+    This is used by subclasses to build [`Field`][pane.field.Field]s
+    """
+    fields: t.Tuple[Field, ...]
+    """
+    Tuple of processed [`Field`][pane.field.Field]s
+    """
+    pos_args: t.Tuple[int, int]
+    """
+    Range of allowed positional argument numbers, `[min, max]` inclusive
+    """
+
+
+@dataclasses.dataclass(frozen=True)
+class PaneOptions:
+    name: t.Optional[str] = None
+    """Dataclass name"""
+    _: KW_ONLY = dataclasses.field(init=False, repr=False, compare=False)
+    eq: bool = True
+    """Whether to generate `__eq__`/`__ne__` methods"""
+    order: bool = True
+    """Whether to generate `__gt__`/`__ge__`/`__lt__`/`__le__` methods"""
+    frozen: bool = True
+    """Whether dataclass fields are frozen"""
+    init: bool = True
+    """Whether to generate `__init__` method"""
+    kw_only: bool = False
+    """Whether all fields should be keyword-only"""
+    out_format: ClassLayout = 'struct'
+    """Data format to convert class into"""
+    in_format: t.Sequence[ClassLayout] = ('struct',)
+    """Set of data formats class is convertible from"""
+    in_rename: t.Optional[t.Sequence[RenameStyle]] = None
+    """Set of rename styles class is convertible from"""
+    out_rename: t.Optional[RenameStyle] = None
+    """Rename style to convert class into"""
+    allow_extra: bool = False
+    """Whether extra fields are allowed in conversion"""
+
+    def replace(self, **changes: t.Any):
+        """Return `self` with the given changes applied"""
+        changes['name'] = changes.get('name', None)
+        return dataclasses.replace(self, **{k: v for (k, v) in changes.items() if v is not None})
+
+
+@functools.lru_cache(maxsize=256)
+def _make_subclass(cls: t.Any, params: t.Tuple[t.Any, ...]) -> type:
+    sup: t.Any = super(PaneBase, cls)
+    if not hasattr(sup, '__class_getitem__'):
+        raise TypeError(f"type '{cls}' is not subscriptable")
+    alias: t.Type[PaneBase] = sup.__class_getitem__(params)  # type: ignore
+    typevars = getattr(cls, '__parameters__', ())
+
+    # return subclass with bound type variables
+    bound_vars = dict(zip(typevars, params))
+    return type(cls.__name__, (cls,), {
+        PANE_BOUNDVARS: bound_vars,
+        '__origin__': cls,
+        '__parameters__': getattr(alias, '__parameters__'),
+    })
 
 
 def _make_init(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
@@ -384,6 +462,9 @@ def _process(cls: t.Type[PaneBase], opts: PaneOptions):
 
 
 class PaneConverter(Converter[PaneBase]):
+    """
+    [`Converter`][pane.converters.Converter] for `pane` dataclasses
+    """
     def __init__(self, cls: t.Type[PaneBase]):
         self.cls = cls
         self.name = self.cls.__name__
@@ -399,6 +480,7 @@ class PaneConverter(Converter[PaneBase]):
                 self.field_map[alias] = i
 
     def into_data(self, val: t.Any) -> DataType:
+        """Convert dataclass `val` into data interchange, using the correct 'out_format'"""
         assert isinstance(val, PaneBase)
         if self.opts.out_format == 'tuple':
             return tuple(
@@ -413,9 +495,16 @@ class PaneConverter(Converter[PaneBase]):
         raise ValueError(f"Unknown 'out_format' '{self.opts.out_format}'")
 
     def expected(self, plural: bool = False) -> str:
+        """Expected value for this converter"""
         return f"{list_phrase(self.opts.in_format)} {self.name}"
 
     def try_convert(self, val: t.Any) -> PaneBase:
+        """
+        See [`Converter.try_convert`][pane.converters.Converter.try_convert]
+
+        Dispatches to [`try_convert_tuple`][pane.classes.PaneConverter.try_convert_tuple]
+        and [`try_convert_struct`][pane.classes.PaneConverter.try_convert_struct]
+        """
         # based on type, try to delegate to try_convert_tuple or try_convert_struct
         if isinstance(val, (list, tuple, t.Sequence)):
             val = t.cast(t.Sequence[t.Any], val)
@@ -433,6 +522,12 @@ class PaneConverter(Converter[PaneBase]):
         raise ParseInterrupt()
 
     def collect_errors(self, val: t.Any) -> t.Union[WrongTypeError, WrongLenError, ProductErrorNode, None]:
+        """
+        See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]
+
+        Dispatches to [`collect_errors_tuple`][pane.classes.PaneConverter.collect_errors_tuple]
+        and [`collect_errors_struct`][pane.classes.PaneConverter.collect_errors_struct]
+        """
         # based on type, try to delegate to collect_errors_tuple or collect_errors_struct
         if isinstance(val, (list, tuple, t.Sequence)):
             if 'tuple' not in self.opts.in_format:
@@ -450,9 +545,11 @@ class PaneConverter(Converter[PaneBase]):
         return WrongTypeError(self.name, val)
 
     def expected_struct(self, plural: bool = False) -> str:
+        """Expected value for the 'struct' data format"""
         return f"struct {self.name}"
 
     def try_convert_struct(self, val: t.Mapping[str, t.Any]) -> PaneBase:
+        """[`Converter.try_convert`][pane.converters.Converter.try_convert] for the 'struct' data format"""
         # loop through values, and handle accordingly
         values: t.Dict[str, t.Any] = {}
         for (k, v) in t.cast(t.Dict[str, t.Any], val).items():
@@ -477,6 +574,7 @@ class PaneConverter(Converter[PaneBase]):
             raise ParseInterrupt()
 
     def collect_errors_struct(self, val: t.Mapping[str, t.Any]) -> t.Union[WrongTypeError, ProductErrorNode, None]:
+        """[`Converter.collect_errors`][pane.converters.Converter.collect_errors] for the 'struct' data format"""
         values: t.Dict[str, t.Any] = {}  # converted field values. Required to check for __post_init__ errors
         children: t.Dict[t.Union[str, int], ErrorNode] = {}  # errors in converting fields
         extra: t.Set[str] = set()  # extra fields found
@@ -519,9 +617,11 @@ class PaneConverter(Converter[PaneBase]):
             return WrongTypeError(f'struct {self.name}', val, tb)
 
     def expected_tuple(self, plural: bool = False) -> str:
+        """Expected value for the 'tuple' data format"""
         return f"tuple {self.name}"
 
     def try_convert_tuple(self, val: t.Sequence[t.Any]) -> PaneBase:
+        """[`Converter.try_convert`][pane.converters.Converter.try_convert] for the 'tuple' data format"""
         (min_len, max_len) = self.cls_info.pos_args
         if min_len < len(val) > max_len:
             raise ParseInterrupt()
@@ -536,6 +636,7 @@ class PaneConverter(Converter[PaneBase]):
             raise ParseInterrupt()
 
     def collect_errors_tuple(self, val: t.Sequence[t.Any]) -> t.Union[WrongTypeError, ProductErrorNode, WrongLenError, None]:
+        """[`Converter.collect_errors`][pane.converters.Converter.collect_errors] for the 'tuple' data format"""
         (min_len, max_len) = self.cls_info.pos_args
         if min_len < len(val) > max_len:
             return WrongLenError(f'tuple {self.name}', (min_len, max_len), val, len(val))
@@ -562,6 +663,18 @@ class PaneConverter(Converter[PaneBase]):
             tb = e.__traceback__.tb_next  # type: ignore
             tb = traceback.TracebackException(type(e), e, tb)
             return WrongTypeError(f'tuple {self.name}', val, tb)
+
+
+ClassLayout = t.Literal['tuple', 'struct']
+"""Set of known class layouts for 'in_formats' and 'out_format'."""
+PANE_INFO = '__pane_info__'  # class information
+"""Name of dunder attribute holding [`PaneInfo`][pane.classes.PaneInfo]"""
+PANE_SET_FIELDS = '__pane_set__'  # fields currently set
+"""Name of dunder attribute holding a set of fields which have been set/modified"""
+PANE_BOUNDVARS = '__pane_boundvars__'  # bound variables, for subtypes of generics
+"""Name of dunder attribute holding a dictionary of bound type variables (for generic subclasses only)."""
+POST_INIT = '__post_init__'  # post-init function
+"""Name of post-init method"""
 
 
 __all__ = [
