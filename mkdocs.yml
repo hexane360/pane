@@ -8,8 +8,15 @@ extra_css:
 
 nav:
   - Home: index.md
-  - 'Using pane': using.md
+  - 'Using pane':
+    - using/basic.md
+    - using/dataclasses.md
+    - using/condition.md
+    - using/tagged.md
+    - using/advanced.md
+  #- 'Using pane': using.md
   - API:
+    - api/index.md
     - pane.convert: api/convert.md
     - pane.annotations: api/annotations.md
     - pane.types: api/types.md
@@ -24,11 +31,11 @@ theme:
   palette:
     primary: purple
     accent: green
-  featutures:
+  features:
     - navigation.tabs
-   #- navigation.tabs.sticky
+    - navigation.tabs.sticky
     - navigation.expand
-   #- navigation.indexes  seems broken
+    - navigation.indexes
 extra:
   version:
     provider: mike
