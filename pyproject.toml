@@ -33,11 +33,17 @@ dev = [
   'pytest >= 6.2.4',
   'numpy',  # for testing
 ]
+docs = [
+  'mkdocs>=1.5.2',
+  'mkdocs-material==9.1.21',
+  'mkdocstrings[python]==0.22.0',
+]
 
 [project.urls]
 Repository = "https://github.com/hexane360/pane.git"
 
 [tool.setuptools]
+packages = ["pane"]
 
 [tool.pyright]
 pythonVersion = "3.10"

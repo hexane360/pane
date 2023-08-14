@@ -1,0 +1,3 @@
+# pane.types
+
+::: pane.types

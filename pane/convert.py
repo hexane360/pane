@@ -1,5 +1,5 @@
 """
-High-level interface to ``pane``.
+High-level interface to (pane)[].
 """
 
 from __future__ import annotations
@@ -20,13 +20,13 @@ T = t.TypeVar('T', bound='Convertible')
 @t.runtime_checkable
 class HasConverter(t.Protocol):
     """
-    Protocol to add ``convert`` functionality into an arbitrary type from data.
+    Protocol to add [`convert`](pane.convert.convert) functionality into an arbitrary type from data.
     """
 
     @classmethod
     def _converter(cls: t.Type[T], *args: t.Type[Convertible]) -> Converter[T]:
         """
-        Return a ``Converter`` capable of constructing ``cls``.
+        Return a [`Converter`](pane.converters.Converter) capable of constructing `cls`.
 
         Any given type arguments are passed as positional arguments.
         This function should error when passed unknown type arguments.
@@ -150,9 +150,9 @@ def register_converter_handler(handler: t.Callable[[t.Any, t.Tuple[t.Any]], Conv
     """
     Register a handler for make_converter.
 
-    This allows extending ``pane`` to handle third-party types, not
+    This allows extending [pane]() to handle third-party types, not
     defined by your code or by ``pane``. Use sparingly, as this will
-    add runtime to ``make_converter``.
+    add runtime to [`make_converter`](pane.convert.make_converter).
     """
     _CONVERTER_HANDLERS.append(handler)
 
@@ -199,7 +199,7 @@ def _annotated_converter(ty: IntoConverter, args: t.Sequence[t.Any]) -> Converte
 
 def into_data(val: Convertible, ty: t.Optional[IntoConverter] = None) -> DataType:
     """
-    Convert ``val`` of ``pane`` type ``ty`` into a data interchange format.
+    Convert `val` of [pane]() type `ty` into a data interchange format.
     """
     if ty is not None:
         # use specialized implementation
@@ -231,6 +231,7 @@ def from_data(val: DataType, ty: t.Type[T]) -> T:
 
 
 def convert(val: Convertible, ty: t.Type[T]) -> T:
+    """Convert value `val` into type `ty`"""
     data = into_data(val)
     return from_data(data, ty)
 

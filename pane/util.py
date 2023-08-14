@@ -41,6 +41,12 @@ def open_file(f: FileOrPath,
     If given a path-like, opens it with the specified settings.
     Otherwise, make an effort to reconfigure the encoding, and
     check that it is readable/writable as specified.
+
+    Parameters:
+      f: File to open/reconfigure
+      mode: Mode file should be opened in
+      newline: Newline mode file should be opened in
+      encoding: Encoding file should be opened in
     """
     if not isinstance(f, (IOBase, t.BinaryIO, t.TextIO)):
         return open(f, mode, newline=newline, encoding=encoding)
@@ -57,7 +63,7 @@ def open_file(f: FileOrPath,
 
 
 def partition(f: t.Callable[[T], bool], iter: t.Iterable[T]) -> t.Tuple[t.Tuple[T, ...], t.Tuple[T, ...]]:
-    """Partition ``iter`` into values that satisfy ``f`` and those which don't."""
+    """Partition `iter` into values that satisfy `f` and those which don't."""
     true: t.List[T] = []
     false: t.List[T] = []
     for val in iter:
@@ -69,7 +75,7 @@ def partition(f: t.Callable[[T], bool], iter: t.Iterable[T]) -> t.Tuple[t.Tuple[
 
 
 def pluralize(word: str, plural: t.Union[bool, int], suffix: str = 's', article: t.Optional[str] = None) -> str:
-    """Pluralize ``word`` based on the value of ``plural``."""
+    """Pluralize `word` based on the value of `plural`."""
     if not isinstance(plural, bool):
         plural = plural != 1
     article = article + " " if article is not None and len(article) else ""
@@ -78,7 +84,7 @@ def pluralize(word: str, plural: t.Union[bool, int], suffix: str = 's', article:
 
 def list_phrase(words: t.Sequence[str], conj: str = 'or') -> str:
     """
-    Form an english list phrase from ``words``, using the conjunction ``conj``.
+    Form an english list phrase from `words`, using the conjunction `conj`.
     """
     if len(words) <= 2:
         return f" {conj} ".join(words)
@@ -86,7 +92,7 @@ def list_phrase(words: t.Sequence[str], conj: str = 'or') -> str:
 
 
 def remove_article(s: str) -> str:
-    """Remove an article from ``s``, if present."""
+    """Remove an article from `s`, if present."""
     s = s.lstrip()
     for article in ('a ', 'an ', 'the '):
         if s.startswith(article):
@@ -108,8 +114,15 @@ def _collect_typevars(d: t.Dict[t.Union[t.TypeVar, ParamSpec], None], ty: t.Any)
             d.setdefault(ty)
 
 
-def collect_typevars(args: t.Any) -> tuple[t.Union[t.TypeVar, ParamSpec]]:
-    # loosely based on typing._collect_parameters
+def collect_typevars(args: t.Any) -> t.Tuple[t.Union[t.TypeVar, ParamSpec], ...]:
+    """
+    Collect a list of type variables in `args`
+
+    Preserves order but removes duplicates (i.e. type variables are returned
+    in the order they are encountered, but no type variable is returned twice).
+
+    Loosely based on `typing._collect_parameters`.
+    """
     d: t.Dict[t.Union[t.TypeVar, ParamSpec], None] = {}  # relies on dicts preserving insertion order
     _collect_typevars(d, args)
     return tuple(d)
@@ -126,6 +139,9 @@ def flatten_union_args(types: t.Iterable[T]) -> t.Iterator[T]:
 
 def replace_typevars(ty: t.Any,
                      replacements: t.Mapping[t.Union[t.TypeVar, ParamSpec], type]) -> t.Any:
+    """
+    Apply a list of type-variable replacements to `ty`, and return the modified type.
+    """
     if isinstance(ty, (t.TypeVar, ParamSpec)):
         return replacements.get(ty, ty)
     if isinstance(ty, t.Sequence):
@@ -152,7 +168,11 @@ def replace_typevars(ty: t.Any,
 
 
 def get_type_hints(cls: type) -> t.Dict[str, t.Any]:
-    # modified version of typing.get_type_hints
+    """
+    Extract a dict of type hints from `cls`. Evaluate forward refs if possible.
+
+    This is a slightly modified version of [typing.get_type_hints]().
+    """
 
     globalns = getattr(sys.modules.get(cls.__module__, None), '__dict__', {})
     localns = dict(vars(cls))
@@ -171,6 +191,11 @@ def get_type_hints(cls: type) -> t.Dict[str, t.Any]:
 
 
 def broadcast_shapes(*args: t.Sequence[int]) -> t.Tuple[int, ...]:
+    """
+    Attempt to broadcast the given shapes together using numpy semantics.
+
+    Defers to `numpy.broadcast_shapes` if numpy is available.
+    """
     try:
         import numpy
         return numpy.broadcast_shapes(*map(tuple, args))
@@ -189,6 +214,7 @@ def broadcast_shapes(*args: t.Sequence[int]) -> t.Tuple[int, ...]:
 
 
 def is_broadcastable(*args: t.Sequence[int]) -> bool:
+    """Return whether `args` are broadcastable together using numpy semantics."""
     try:
         broadcast_shapes(*args)
         return True

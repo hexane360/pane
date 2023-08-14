@@ -8,6 +8,7 @@ __pycache__/
 /venv/
 /.venv/
 /docs/_build/
+/site/
 
 .pytest_cache/
 .mypy_cache/

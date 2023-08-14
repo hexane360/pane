@@ -349,11 +349,11 @@ def _process(cls: t.Type[PaneBase], opts: PaneOptions):
     seen_opt = False
     for field in fields:
         if field.kw_only:
-            if not field.is_optional() and 'tuple' in opts.in_format:
+            if not field.has_default() and 'tuple' in opts.in_format:
                 raise TypeError(f"Field '{field.name}' is kw_only but mandatory. This is incompatible with the 'tuple' in_format.")
             continue
         max_len += 1
-        if field.is_optional():
+        if field.has_default():
             seen_opt = True
         else:
             if seen_opt:
@@ -468,7 +468,7 @@ class PaneConverter(Converter[PaneBase]):
             values[field.name] = conv.try_convert(v)
 
         for field in self.fields:
-            if field.name not in values and not field.is_optional():
+            if field.name not in values and not field.has_default():
                 raise ParseInterrupt()  # missing field
 
         try:
@@ -504,7 +504,7 @@ class PaneConverter(Converter[PaneBase]):
 
         missing: t.Set[str] = set()
         for field in self.fields:
-            if field.name not in seen and not field.is_optional():
+            if field.name not in seen and not field.has_default():
                 missing.add(field.name)
 
         if len(missing) or len(children) or len(extra):

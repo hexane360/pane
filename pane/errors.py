@@ -11,10 +11,17 @@ import typing as t
 
 
 class ParseInterrupt(Exception):
+    """
+    Raised by [`Converter`](pane.converters.Converter)s to indicate that a given parsing path has failed
+    (without materializing a detailed error message).
+    """
     ...
 
 
 class UnsupportedAnnotation(Exception):
+    """
+    Raised when a given [`t.Annotated`](https://docs.python.org/3/library/typing.html#typing.Annotated) isn't understood by `pane`.
+    """
     def __init__(self, obj: t.Any):
         self.obj: t.Any = obj
 
@@ -26,6 +33,12 @@ class UnsupportedAnnotation(Exception):
 
 
 class ConvertError(Exception):
+    """
+    `pane` conversion error.
+
+    `self.tree` contains a detailed error tree, and `str(self)`
+    is a human-friendly representation of the same.
+    """
     def __init__(self, tree: ErrorNode):
         self.tree: ErrorNode = tree
 
@@ -37,8 +50,20 @@ class ConvertError(Exception):
 
 
 class ErrorNode(abc.ABC):
+    """
+    Abstract node in a conversion error tree
+    """
+
     @abc.abstractmethod
     def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):
+        """
+        Print a description of this error to `file`.
+
+        Parameters:
+          indent: String to indent all extra lines we print
+          inside_sum: Whether we are printing inside a [`SumErrorNode`](pane.errors.SumErrorNode) (and so should omit printing the actual value we got)
+          file: File-like object to print text to
+        """
         ...
 
     def __str__(self) -> str:
@@ -50,9 +75,13 @@ class ErrorNode(abc.ABC):
 @dataclasses.dataclass
 class WrongTypeError(ErrorNode):
     expected: str
+    """Short description of expected value type"""
     actual: t.Any
+    """Actual value received"""
     cause: t.Optional[traceback.TracebackException] = None
+    """If this was caused by an error, contains a traceback to that error"""
     info: t.Optional[str] = None
+    """Additional information to supply on an new line"""
 
     def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):
         if inside_sum:
@@ -66,6 +95,7 @@ class WrongTypeError(ErrorNode):
             print(f"Caused by exception:\n{indent}{s}", file=file)
 
     def _get_cause(self) -> str:
+        """Format `cause` as a human-readable string"""
         if self.cause is None:
             return 'None'
         if isinstance(self.cause, traceback.TracebackException):
@@ -76,6 +106,7 @@ class WrongTypeError(ErrorNode):
         return f"WrongTypeError(expected={self.expected!r}, actual={self.actual!r}, cause={self._get_cause()!r}, info={self.info!r})"
 
     def __eq__(self, other: t.Any) -> bool:
+        # mostly useful for testing
         if not self.__class__ == other.__class__:
             return False
 
@@ -90,9 +121,13 @@ class WrongTypeError(ErrorNode):
 @dataclasses.dataclass
 class WrongLenError(ErrorNode):
     expected: str
+    """Short description of expected value type"""
     expected_len: t.Tuple[int, int]
+    """(min, max) expected value length"""
     actual: t.Any
+    """Actual value received"""
     actual_len: int
+    """Actual length received"""
 
     def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):
         len_range = '-'.join(map(str, self.expected_len))
@@ -105,9 +140,13 @@ class WrongLenError(ErrorNode):
 @dataclasses.dataclass
 class ConditionFailedError(ErrorNode):
     expected: str
+    """Short description of expected value type"""
     actual: t.Any
+    """Actual value received"""
     condition: str
+    """Name of condition which failed"""
     cause: t.Optional[traceback.TracebackException] = None
+    """If this was caused by an error, contains a traceback to that error"""
 
     def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):
         if inside_sum:
@@ -124,7 +163,9 @@ class ConditionFailedError(ErrorNode):
 @dataclasses.dataclass
 class DuplicateKeyError(ErrorNode):
     key: str
+    """Offending key"""
     aliases: t.Sequence[str]
+    """List of keys semantically identical to `key`"""
 
     def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):
         assert not inside_sum
@@ -134,10 +175,15 @@ class DuplicateKeyError(ErrorNode):
 @dataclasses.dataclass
 class ProductErrorNode(ErrorNode):
     expected: str
+    """Short description of expected value type"""
     children: t.Dict[t.Union[int, str], ErrorNode]
+    """Map containing errors parsing subfields, if any"""
     actual: t.Any
+    """Actual value received"""
     missing: t.AbstractSet[t.Union[t.Sequence[str], str]] = dataclasses.field(default_factory=set)
+    """List of missing fields/equivalent aliases to fields"""
     extra: t.AbstractSet[str] = dataclasses.field(default_factory=set)
+    """List of extra, unexpected fields"""
 
     def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):
         # fuse together non-branching productnodes
@@ -167,6 +213,7 @@ class ProductErrorNode(ErrorNode):
 @dataclasses.dataclass
 class SumErrorNode(ErrorNode):
     children: t.List[ErrorNode]
+    """Map containing the errors while parsing as each variant"""
 
     def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):
         def _flatten_sum(children: t.Iterable[ErrorNode]) -> t.Iterator[ErrorNode]:

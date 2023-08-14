@@ -1,0 +1,3 @@
+# pane.classes
+
+::: pane.classes

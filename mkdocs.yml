@@ -1,0 +1,47 @@
+site_name: py-pane Documentation
+repo_url: https://github.com/hexane360/pane
+
+docs_dir: 'docs'
+site_dir: 'site'
+
+nav:
+  - Home: index.md
+  - 'Using pane': using.md
+  - API:
+    - pane.convert: api/convert.md
+    - pane.annotations: api/annotations.md
+    - pane.types: api/types.md
+    - pane.errors: api/errors.md
+    - pane.converters: api/converters.md
+    - pane.field: api/field.md
+    - pane.classes: api/classes.md
+    - pane.util: api/util.md
+
+theme:
+  name: material
+  featutures:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.expand
+    - navigation.indexes
+
+markdown_extensions:
+ - admonition
+
+plugins:
+  - search
+  #- autorefs
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+          import:
+            # 3rd-party object inventories
+            - https://docs.python.org/3/objects.inv
+          options:
+            show_if_no_docstring: true
+            members_order: source
+            filters: ["!^_", "!^__(all|repr|str)__$", "!^(FromData)?[TUKV](_co(ntra)?)?$", '_converter']
+
+watch:
+  - pane/

@@ -1,0 +1,3 @@
+# pane.errors
+
+::: pane.errors
