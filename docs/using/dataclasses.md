@@ -40,9 +40,14 @@ While parsing field '2':
   Expected a float, instead got `s` of type `str`
 ```
 
-To bypass conversion, use `Mydataclass.make_unchecked` instead.
+To bypass conversion, use `Mydataclass.make_unchecked` instead:
 
-`MyDataclass.from_data`, `MyDataclass.from_json`, and `MyDataclass.from_yaml` perform conversion from an object:
+```python
+>>> MyDataclass.make_unchecked(z=[5.0, 10.0, 's'])
+MyDataclass(x=5, y=None, z=[5.0, 10.0, 's'])
+```
+
+`MyDataclass.from_obj`, `MyDataclass.from_data`, `MyDataclass.from_json`, and `MyDataclass.from_yaml` perform conversion from an object:
 
 ```python
 # note the use of an alias for 'z'
