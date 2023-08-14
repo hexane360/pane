@@ -89,7 +89,7 @@
 
   
 
-<header class="md-header md-header--shadow" data-md-component="header">
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
     <a href="../.." title="py-pane Documentation" class="md-header__button md-logo" aria-label="py-pane Documentation" data-md-component="logo">
       
@@ -169,13 +169,68 @@
     
   </nav>
   
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+
+
+  <li class="md-tabs__item">
+    <a href="../.." class="md-tabs__link">
+      Home
+    </a>
+  </li>
+
+      
+        
+  
+  
+
+
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../using/basic/" class="md-tabs__link">
+        Using pane
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+
+
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../" class="md-tabs__link md-tabs__link--active">
+        API
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
 </header>
     
     <div class="md-container" data-md-component="container">
       
       
-        
-          
         
       
       <main class="md-main" data-md-component="main">
@@ -188,8 +243,10 @@
                   <div class="md-sidebar__inner">
                     
 
+  
 
-<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
     <a href="../.." title="py-pane Documentation" class="md-nav__button md-logo" aria-label="py-pane Documentation" data-md-component="logo">
       
@@ -236,10 +293,114 @@
   
   
   
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+      
+      
+        
+      
+      <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+      
+      
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      
+      
+        <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          Using pane
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <label class="md-nav__title" for="__nav_2">
+          <span class="md-nav__icon md-icon"></span>
+          Using pane
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
     <li class="md-nav__item">
-      <a href="../../using/" class="md-nav__link">
-        Using pane
+      <a href="../../using/basic/" class="md-nav__link">
+        Basic type conversion: convert & friends
       </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using/dataclasses/" class="md-nav__link">
+        Dataclasses: The ultimate product type
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using/condition/" class="md-nav__link">
+        Condition: Adding extra restrictions to types
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using/tagged/" class="md-nav__link">
+        Tagged: Tagged unions
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using/advanced/" class="md-nav__link">
+        Under the hood: Advanced usage
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
     </li>
   
 
@@ -262,11 +423,39 @@
       <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
       
       
+        
+          
+            
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
       
-        <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
-          API
-          <span class="md-nav__icon md-icon"></span>
-        </label>
+      
+        
+        
+        <div class="md-nav__link md-nav__link--index ">
+          <a href="../">API</a>
+          
+            <label for="__nav_3">
+              <span class="md-nav__icon md-icon"></span>
+            </label>
+          
+        </div>
       
       <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
         <label class="md-nav__title" for="__nav_3">
@@ -274,6 +463,8 @@
           API
         </label>
         <ul class="md-nav__list" data-md-scrollfix>
+          
+            
           
             
               
@@ -442,6 +633,20 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#pane.converters.AnyConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.AnyConverter.into_data" class="md-nav__link">
+    into_data()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pane.converters.AnyConverter.try_convert" class="md-nav__link">
     try_convert()
   </a>
@@ -504,6 +709,20 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#pane.converters.ScalarConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.ScalarConverter.into_data" class="md-nav__link">
+    into_data()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pane.converters.ScalarConverter.expected" class="md-nav__link">
     expected()
   </a>
@@ -536,6 +755,20 @@
   
     <nav class="md-nav" aria-label="NoneConverter">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.NoneConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.NoneConverter.into_data" class="md-nav__link">
+    into_data()
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#pane.converters.NoneConverter.try_convert" class="md-nav__link">
@@ -574,6 +807,20 @@
           <li class="md-nav__item">
   <a href="#pane.converters.LiteralConverter.vals" class="md-nav__link">
     vals
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.LiteralConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.LiteralConverter.into_data" class="md-nav__link">
+    into_data()
   </a>
   
 </li>
@@ -634,6 +881,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#pane.converters.UnionConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pane.converters.UnionConverter.expected" class="md-nav__link">
     expected()
   </a>
@@ -682,6 +936,27 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#pane.converters.TaggedUnionConverter.types" class="md-nav__link">
+    types
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.TaggedUnionConverter.converters" class="md-nav__link">
+    converters
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.TaggedUnionConverter.constructor" class="md-nav__link">
+    constructor
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pane.converters.TaggedUnionConverter.tag" class="md-nav__link">
     tag
   </a>
@@ -698,6 +973,20 @@
           <li class="md-nav__item">
   <a href="#pane.converters.TaggedUnionConverter.tag_map" class="md-nav__link">
     tag_map
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.TaggedUnionConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.TaggedUnionConverter.construct" class="md-nav__link">
+    construct()
   </a>
   
 </li>
@@ -793,6 +1082,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#pane.converters.StructConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pane.converters.StructConverter.expected" class="md-nav__link">
     expected()
   </a>
@@ -843,6 +1139,13 @@
           <li class="md-nav__item">
   <a href="#pane.converters.TupleConverter.converters" class="md-nav__link">
     converters
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.TupleConverter.convert" class="md-nav__link">
+    convert()
   </a>
   
 </li>
@@ -910,6 +1213,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#pane.converters.DictConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pane.converters.DictConverter.into_data" class="md-nav__link">
     into_data()
   </a>
@@ -960,6 +1270,13 @@
           <li class="md-nav__item">
   <a href="#pane.converters.SequenceConverter.v_conv" class="md-nav__link">
     v_conv
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.SequenceConverter.convert" class="md-nav__link">
+    convert()
   </a>
   
 </li>
@@ -1034,6 +1351,20 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#pane.converters.NestedSequenceConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.NestedSequenceConverter.into_data" class="md-nav__link">
+    into_data()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pane.converters.NestedSequenceConverter.expected" class="md-nav__link">
     expected()
   </a>
@@ -1098,6 +1429,13 @@
           <li class="md-nav__item">
   <a href="#pane.converters.ConditionalConverter.inner" class="md-nav__link">
     inner
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.ConditionalConverter.convert" class="md-nav__link">
+    convert()
   </a>
   
 </li>
@@ -1174,6 +1512,13 @@
           <li class="md-nav__item">
   <a href="#pane.converters.DelegateConverter.inner" class="md-nav__link">
     inner
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.DelegateConverter.convert" class="md-nav__link">
+    convert()
   </a>
   
 </li>
@@ -1371,6 +1716,20 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#pane.converters.AnyConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.AnyConverter.into_data" class="md-nav__link">
+    into_data()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pane.converters.AnyConverter.try_convert" class="md-nav__link">
     try_convert()
   </a>
@@ -1433,6 +1792,20 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#pane.converters.ScalarConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.ScalarConverter.into_data" class="md-nav__link">
+    into_data()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pane.converters.ScalarConverter.expected" class="md-nav__link">
     expected()
   </a>
@@ -1465,6 +1838,20 @@
   
     <nav class="md-nav" aria-label="NoneConverter">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.NoneConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.NoneConverter.into_data" class="md-nav__link">
+    into_data()
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#pane.converters.NoneConverter.try_convert" class="md-nav__link">
@@ -1503,6 +1890,20 @@
           <li class="md-nav__item">
   <a href="#pane.converters.LiteralConverter.vals" class="md-nav__link">
     vals
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.LiteralConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.LiteralConverter.into_data" class="md-nav__link">
+    into_data()
   </a>
   
 </li>
@@ -1563,6 +1964,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#pane.converters.UnionConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pane.converters.UnionConverter.expected" class="md-nav__link">
     expected()
   </a>
@@ -1611,6 +2019,27 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#pane.converters.TaggedUnionConverter.types" class="md-nav__link">
+    types
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.TaggedUnionConverter.converters" class="md-nav__link">
+    converters
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.TaggedUnionConverter.constructor" class="md-nav__link">
+    constructor
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pane.converters.TaggedUnionConverter.tag" class="md-nav__link">
     tag
   </a>
@@ -1627,6 +2056,20 @@
           <li class="md-nav__item">
   <a href="#pane.converters.TaggedUnionConverter.tag_map" class="md-nav__link">
     tag_map
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.TaggedUnionConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.TaggedUnionConverter.construct" class="md-nav__link">
+    construct()
   </a>
   
 </li>
@@ -1722,6 +2165,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#pane.converters.StructConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pane.converters.StructConverter.expected" class="md-nav__link">
     expected()
   </a>
@@ -1772,6 +2222,13 @@
           <li class="md-nav__item">
   <a href="#pane.converters.TupleConverter.converters" class="md-nav__link">
     converters
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.TupleConverter.convert" class="md-nav__link">
+    convert()
   </a>
   
 </li>
@@ -1839,6 +2296,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#pane.converters.DictConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pane.converters.DictConverter.into_data" class="md-nav__link">
     into_data()
   </a>
@@ -1889,6 +2353,13 @@
           <li class="md-nav__item">
   <a href="#pane.converters.SequenceConverter.v_conv" class="md-nav__link">
     v_conv
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.SequenceConverter.convert" class="md-nav__link">
+    convert()
   </a>
   
 </li>
@@ -1963,6 +2434,20 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#pane.converters.NestedSequenceConverter.convert" class="md-nav__link">
+    convert()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.NestedSequenceConverter.into_data" class="md-nav__link">
+    into_data()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pane.converters.NestedSequenceConverter.expected" class="md-nav__link">
     expected()
   </a>
@@ -2027,6 +2512,13 @@
           <li class="md-nav__item">
   <a href="#pane.converters.ConditionalConverter.inner" class="md-nav__link">
     inner
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.ConditionalConverter.convert" class="md-nav__link">
+    convert()
   </a>
   
 </li>
@@ -2103,6 +2595,13 @@
           <li class="md-nav__item">
   <a href="#pane.converters.DelegateConverter.inner" class="md-nav__link">
     inner
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pane.converters.DelegateConverter.convert" class="md-nav__link">
+    convert()
   </a>
   
 </li>
@@ -2592,6 +3091,78 @@ when a given parsing path reaches a dead end.</p>
 
 
 
+<h4 id="pane.converters.AnyConverter.convert" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> to <code>T_co</code>. Raises a <code>ConvertError</code> on failure.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="k">def</span> <span class="nf">convert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T_co</span><span class="p">:</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` to ``T_co``. Raises a ``ConvertError`` on failure.&quot;&quot;&quot;</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="k">except</span> <span class="n">ParseInterrupt</span><span class="p">:</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="k">pass</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collect_errors</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="k">if</span> <span class="n">node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;convert() raised but ``collect_errors`` returned ``None``.&quot;</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41"></a>                           <span class="s2">&quot; This is a bug of the ``Converter`` implementation.&quot;</span><span class="p">)</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="k">raise</span> <span class="n">ConvertError</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h4 id="pane.converters.AnyConverter.into_data" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">into_data</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> into data.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-44">44</a></span>
+<span class="normal"><a href="#__codelineno-0-45">45</a></span>
+<span class="normal"><a href="#__codelineno-0-46">46</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44"></a><span class="k">def</span> <span class="nf">into_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataType</span><span class="p">:</span>
+</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` into data.&quot;&quot;&quot;</span>
+</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46"></a>    <span class="k">return</span> <span class="n">into_data</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
 <h4 id="pane.converters.AnyConverter.try_convert" class="doc doc-heading">
 <code class="highlight language-python"><span class="n">try_convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
 
@@ -2861,6 +3432,78 @@ constructible from a list of allowed types.</p>
 
 
 
+<h4 id="pane.converters.ScalarConverter.convert" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> to <code>T_co</code>. Raises a <code>ConvertError</code> on failure.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="k">def</span> <span class="nf">convert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T_co</span><span class="p">:</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` to ``T_co``. Raises a ``ConvertError`` on failure.&quot;&quot;&quot;</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="k">except</span> <span class="n">ParseInterrupt</span><span class="p">:</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="k">pass</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collect_errors</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="k">if</span> <span class="n">node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;convert() raised but ``collect_errors`` returned ``None``.&quot;</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41"></a>                           <span class="s2">&quot; This is a bug of the ``Converter`` implementation.&quot;</span><span class="p">)</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="k">raise</span> <span class="n">ConvertError</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h4 id="pane.converters.ScalarConverter.into_data" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">into_data</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> into data.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-44">44</a></span>
+<span class="normal"><a href="#__codelineno-0-45">45</a></span>
+<span class="normal"><a href="#__codelineno-0-46">46</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44"></a><span class="k">def</span> <span class="nf">into_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataType</span><span class="p">:</span>
+</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` into data.&quot;&quot;&quot;</span>
+</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46"></a>    <span class="k">return</span> <span class="n">into_data</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
 <h4 id="pane.converters.ScalarConverter.expected" class="doc doc-heading">
 <code class="highlight language-python"><span class="n">expected</span><span class="p">(</span><span class="n">plural</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
@@ -3017,6 +3660,78 @@ constructible from a list of allowed types.</p>
 
 
 
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h4 id="pane.converters.NoneConverter.convert" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> to <code>T_co</code>. Raises a <code>ConvertError</code> on failure.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="k">def</span> <span class="nf">convert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T_co</span><span class="p">:</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` to ``T_co``. Raises a ``ConvertError`` on failure.&quot;&quot;&quot;</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="k">except</span> <span class="n">ParseInterrupt</span><span class="p">:</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="k">pass</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collect_errors</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="k">if</span> <span class="n">node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;convert() raised but ``collect_errors`` returned ``None``.&quot;</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41"></a>                           <span class="s2">&quot; This is a bug of the ``Converter`` implementation.&quot;</span><span class="p">)</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="k">raise</span> <span class="n">ConvertError</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h4 id="pane.converters.NoneConverter.into_data" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">into_data</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> into data.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-44">44</a></span>
+<span class="normal"><a href="#__codelineno-0-45">45</a></span>
+<span class="normal"><a href="#__codelineno-0-46">46</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44"></a><span class="k">def</span> <span class="nf">into_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataType</span><span class="p">:</span>
+</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` into data.&quot;&quot;&quot;</span>
+</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46"></a>    <span class="k">return</span> <span class="n">into_data</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
 
 
 <div class="doc doc-object doc-function">
@@ -3204,6 +3919,78 @@ constructible from a list of allowed types.</p>
 </div>
 
 
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h4 id="pane.converters.LiteralConverter.convert" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> to <code>T_co</code>. Raises a <code>ConvertError</code> on failure.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="k">def</span> <span class="nf">convert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T_co</span><span class="p">:</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` to ``T_co``. Raises a ``ConvertError`` on failure.&quot;&quot;&quot;</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="k">except</span> <span class="n">ParseInterrupt</span><span class="p">:</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="k">pass</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collect_errors</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="k">if</span> <span class="n">node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;convert() raised but ``collect_errors`` returned ``None``.&quot;</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41"></a>                           <span class="s2">&quot; This is a bug of the ``Converter`` implementation.&quot;</span><span class="p">)</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="k">raise</span> <span class="n">ConvertError</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h4 id="pane.converters.LiteralConverter.into_data" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">into_data</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> into data.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-44">44</a></span>
+<span class="normal"><a href="#__codelineno-0-45">45</a></span>
+<span class="normal"><a href="#__codelineno-0-46">46</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44"></a><span class="k">def</span> <span class="nf">into_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataType</span><span class="p">:</span>
+</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` into data.&quot;&quot;&quot;</span>
+</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46"></a>    <span class="k">return</span> <span class="n">into_data</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
 
 
 <div class="doc doc-object doc-function">
@@ -3543,6 +4330,50 @@ Called with <code>(val, index of type in union)</code></p>
 </div>
 
 
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h4 id="pane.converters.UnionConverter.convert" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> to <code>T_co</code>. Raises a <code>ConvertError</code> on failure.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="k">def</span> <span class="nf">convert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T_co</span><span class="p">:</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` to ``T_co``. Raises a ``ConvertError`` on failure.&quot;&quot;&quot;</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="k">except</span> <span class="n">ParseInterrupt</span><span class="p">:</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="k">pass</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collect_errors</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="k">if</span> <span class="n">node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;convert() raised but ``collect_errors`` returned ``None``.&quot;</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41"></a>                           <span class="s2">&quot; This is a bug of the ``Converter`` implementation.&quot;</span><span class="p">)</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="k">raise</span> <span class="n">ConvertError</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
 
 
 <div class="doc doc-object doc-function">
@@ -4068,6 +4899,70 @@ two keys <code>external=(t, c)</code>. The union is stored as
 
 
 
+<h4 id="pane.converters.TaggedUnionConverter.types" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">types</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">IntoConverter</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">flatten_union_args</span><span class="p">(</span><span class="n">types</span><span class="p">))</span></code>
+  
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>List of potential types</p>
+  </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="pane.converters.TaggedUnionConverter.converters" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">converters</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Converter</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">make_converter</span><span class="p">,</span> <span class="n">types</span><span class="p">))</span></code>
+  
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>List of type converters</p>
+  </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="pane.converters.TaggedUnionConverter.constructor" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">constructor</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Optional</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">Callable</span><span class="p">[[</span><span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="n">constructor</span></code>
+  
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Constructor to call with parsed value.
+Called with <code>(val, index of type in union)</code></p>
+  </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
 <h4 id="pane.converters.TaggedUnionConverter.tag" class="doc doc-heading">
 <code class="highlight language-python"><span class="n">tag</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">tag</span></code>
   
@@ -4130,6 +5025,78 @@ True: external representation
 </div>
 
 
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h4 id="pane.converters.TaggedUnionConverter.convert" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> to <code>T_co</code>. Raises a <code>ConvertError</code> on failure.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="k">def</span> <span class="nf">convert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T_co</span><span class="p">:</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` to ``T_co``. Raises a ``ConvertError`` on failure.&quot;&quot;&quot;</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="k">except</span> <span class="n">ParseInterrupt</span><span class="p">:</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="k">pass</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collect_errors</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="k">if</span> <span class="n">node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;convert() raised but ``collect_errors`` returned ``None``.&quot;</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41"></a>                           <span class="s2">&quot; This is a bug of the ``Converter`` implementation.&quot;</span><span class="p">)</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="k">raise</span> <span class="n">ConvertError</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h4 id="pane.converters.TaggedUnionConverter.construct" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">construct</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-200">200</a></span>
+<span class="normal"><a href="#__codelineno-0-201">201</a></span>
+<span class="normal"><a href="#__codelineno-0-202">202</a></span>
+<span class="normal"><a href="#__codelineno-0-203">203</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-200"><a id="__codelineno-0-200" name="__codelineno-0-200"></a><span class="k">def</span> <span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="n">i</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">:</span>
+</span><span id="__span-0-201"><a id="__codelineno-0-201" name="__codelineno-0-201"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">constructor</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-202"><a id="__codelineno-0-202" name="__codelineno-0-202"></a>        <span class="k">return</span> <span class="n">val</span>
+</span><span id="__span-0-203"><a id="__codelineno-0-203" name="__codelineno-0-203"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">constructor</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
 
 
 <div class="doc doc-object doc-function">
@@ -4716,6 +5683,50 @@ True: external representation
 
 
 
+<h4 id="pane.converters.StructConverter.convert" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> to <code>T_co</code>. Raises a <code>ConvertError</code> on failure.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="k">def</span> <span class="nf">convert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T_co</span><span class="p">:</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` to ``T_co``. Raises a ``ConvertError`` on failure.&quot;&quot;&quot;</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="k">except</span> <span class="n">ParseInterrupt</span><span class="p">:</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="k">pass</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collect_errors</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="k">if</span> <span class="n">node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;convert() raised but ``collect_errors`` returned ``None``.&quot;</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41"></a>                           <span class="s2">&quot; This is a bug of the ``Converter`` implementation.&quot;</span><span class="p">)</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="k">raise</span> <span class="n">ConvertError</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
 <h4 id="pane.converters.StructConverter.expected" class="doc doc-heading">
 <code class="highlight language-python"><span class="n">expected</span><span class="p">(</span><span class="n">plural</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
@@ -5052,6 +6063,50 @@ True: external representation
 
 
 
+<h4 id="pane.converters.TupleConverter.convert" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> to <code>T_co</code>. Raises a <code>ConvertError</code> on failure.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="k">def</span> <span class="nf">convert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T_co</span><span class="p">:</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` to ``T_co``. Raises a ``ConvertError`` on failure.&quot;&quot;&quot;</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="k">except</span> <span class="n">ParseInterrupt</span><span class="p">:</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="k">pass</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collect_errors</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="k">if</span> <span class="n">node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;convert() raised but ``collect_errors`` returned ``None``.&quot;</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41"></a>                           <span class="s2">&quot; This is a bug of the ``Converter`` implementation.&quot;</span><span class="p">)</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="k">raise</span> <span class="n">ConvertError</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
 <h4 id="pane.converters.TupleConverter.into_data" class="doc doc-heading">
 <code class="highlight language-python"><span class="n">into_data</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
 
@@ -5381,6 +6436,50 @@ True: external representation
 
 
 
+<h4 id="pane.converters.DictConverter.convert" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> to <code>T_co</code>. Raises a <code>ConvertError</code> on failure.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="k">def</span> <span class="nf">convert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T_co</span><span class="p">:</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` to ``T_co``. Raises a ``ConvertError`` on failure.&quot;&quot;&quot;</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="k">except</span> <span class="n">ParseInterrupt</span><span class="p">:</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="k">pass</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collect_errors</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="k">if</span> <span class="n">node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;convert() raised but ``collect_errors`` returned ``None``.&quot;</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41"></a>                           <span class="s2">&quot; This is a bug of the ``Converter`` implementation.&quot;</span><span class="p">)</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="k">raise</span> <span class="n">ConvertError</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
 <h4 id="pane.converters.DictConverter.into_data" class="doc doc-heading">
 <code class="highlight language-python"><span class="n">into_data</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
 
@@ -5695,6 +6794,50 @@ True: external representation
 </div>
 
 
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h4 id="pane.converters.SequenceConverter.convert" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> to <code>T_co</code>. Raises a <code>ConvertError</code> on failure.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="k">def</span> <span class="nf">convert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T_co</span><span class="p">:</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` to ``T_co``. Raises a ``ConvertError`` on failure.&quot;&quot;&quot;</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="k">except</span> <span class="n">ParseInterrupt</span><span class="p">:</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="k">pass</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collect_errors</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="k">if</span> <span class="n">node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;convert() raised but ``collect_errors`` returned ``None``.&quot;</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41"></a>                           <span class="s2">&quot; This is a bug of the ``Converter`` implementation.&quot;</span><span class="p">)</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="k">raise</span> <span class="n">ConvertError</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
 
 
 <div class="doc doc-object doc-function">
@@ -6136,6 +7279,78 @@ to construct a different type</p>
 
 
 
+<h4 id="pane.converters.NestedSequenceConverter.convert" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> to <code>T_co</code>. Raises a <code>ConvertError</code> on failure.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="k">def</span> <span class="nf">convert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T_co</span><span class="p">:</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` to ``T_co``. Raises a ``ConvertError`` on failure.&quot;&quot;&quot;</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="k">except</span> <span class="n">ParseInterrupt</span><span class="p">:</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="k">pass</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collect_errors</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="k">if</span> <span class="n">node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;convert() raised but ``collect_errors`` returned ``None``.&quot;</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41"></a>                           <span class="s2">&quot; This is a bug of the ``Converter`` implementation.&quot;</span><span class="p">)</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="k">raise</span> <span class="n">ConvertError</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h4 id="pane.converters.NestedSequenceConverter.into_data" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">into_data</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> into data.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-44">44</a></span>
+<span class="normal"><a href="#__codelineno-0-45">45</a></span>
+<span class="normal"><a href="#__codelineno-0-46">46</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44"></a><span class="k">def</span> <span class="nf">into_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataType</span><span class="p">:</span>
+</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` into data.&quot;&quot;&quot;</span>
+</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46"></a>    <span class="k">return</span> <span class="n">into_data</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
 <h4 id="pane.converters.NestedSequenceConverter.expected" class="doc doc-heading">
 <code class="highlight language-python"><span class="n">expected</span><span class="p">(</span><span class="n">plural</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
@@ -6494,6 +7709,50 @@ to construct a different type</p>
 </div>
 
 
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h4 id="pane.converters.ConditionalConverter.convert" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> to <code>T_co</code>. Raises a <code>ConvertError</code> on failure.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="k">def</span> <span class="nf">convert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T_co</span><span class="p">:</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` to ``T_co``. Raises a ``ConvertError`` on failure.&quot;&quot;&quot;</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="k">except</span> <span class="n">ParseInterrupt</span><span class="p">:</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="k">pass</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collect_errors</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="k">if</span> <span class="n">node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;convert() raised but ``collect_errors`` returned ``None``.&quot;</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41"></a>                           <span class="s2">&quot; This is a bug of the ``Converter`` implementation.&quot;</span><span class="p">)</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="k">raise</span> <span class="n">ConvertError</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
 
 
 <div class="doc doc-object doc-function">
@@ -6893,6 +8152,50 @@ to construct a different type</p>
 
 
 
+<h4 id="pane.converters.DelegateConverter.convert" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Convert <code>val</code> to <code>T_co</code>. Raises a <code>ConvertError</code> on failure.</p>
+
+          <details class="quote">
+            <summary>Source code in <code>pane/converters.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="k">def</span> <span class="nf">convert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T_co</span><span class="p">:</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``val`` to ``T_co``. Raises a ``ConvertError`` on failure.&quot;&quot;&quot;</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">try_convert</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="k">except</span> <span class="n">ParseInterrupt</span><span class="p">:</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="k">pass</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collect_errors</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39"></a>    <span class="k">if</span> <span class="n">node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;convert() raised but ``collect_errors`` returned ``None``.&quot;</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41"></a>                           <span class="s2">&quot; This is a bug of the ``Converter`` implementation.&quot;</span><span class="p">)</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="k">raise</span> <span class="n">ConvertError</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span></code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
 <h4 id="pane.converters.DelegateConverter.into_data" class="doc doc-heading">
 <code class="highlight language-python"><span class="n">into_data</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></code>
 
@@ -7075,7 +8378,7 @@ to construct a different type</p>
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.74e28a9f.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.expand", "navigation.indexes"], "search": "../../assets/javascripts/workers/search.74e28a9f.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.220ee61c.min.js"></script>
