@@ -29,6 +29,9 @@ theme:
    #- navigation.tabs.sticky
     - navigation.expand
    #- navigation.indexes  seems broken
+extra:
+  version:
+    provider: mike
 
 markdown_extensions:
   - admonition
@@ -50,13 +53,14 @@ plugins:
           paths: [.]
           import:
             # 3rd-party object inventories
-            #- https://docs.python-requests.org/en/master/objects.inv
             - https://docs.python.org/3/objects.inv
           options:
             show_if_no_docstring: true
             show_root_heading: true
             members_order: source
             filters: ["!^_", "!^__(all|repr|str)__$", "!^(FromData)?[TUKV](_co(ntra)?)?$", '_converter']
+  - mike:
+      version_selector: true
 
 watch:
   - pane/

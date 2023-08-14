@@ -37,6 +37,7 @@ docs = [
   'mkdocs>=1.5.2',
   'mkdocs-material==9.1.21',
   'mkdocstrings[python]==0.22.0',
+  'mike==1.1.2',
 ]
 
 [project.urls]
