@@ -3,6 +3,8 @@ repo_url: https://github.com/hexane360/pane
 
 docs_dir: 'docs'
 site_dir: 'site'
+extra_css:
+  - style.css
 
 nav:
   - Home: index.md
@@ -19,27 +21,40 @@ nav:
 
 theme:
   name: material
+  palette:
+    primary: purple
+    accent: green
   featutures:
     - navigation.tabs
-    - navigation.tabs.sticky
+   #- navigation.tabs.sticky
     - navigation.expand
-    - navigation.indexes
+   #- navigation.indexes  seems broken
 
 markdown_extensions:
- - admonition
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
 
 plugins:
   - search
-  #- autorefs
+  - autorefs
   - mkdocstrings:
+      custom_templates: templates
       handlers:
         python:
           paths: [.]
           import:
             # 3rd-party object inventories
+            #- https://docs.python-requests.org/en/master/objects.inv
             - https://docs.python.org/3/objects.inv
           options:
             show_if_no_docstring: true
+            show_root_heading: true
             members_order: source
             filters: ["!^_", "!^__(all|repr|str)__$", "!^(FromData)?[TUKV](_co(ntra)?)?$", '_converter']
 

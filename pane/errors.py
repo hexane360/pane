@@ -12,7 +12,7 @@ import typing as t
 
 class ParseInterrupt(Exception):
     """
-    Raised by [`Converter`](pane.converters.Converter)s to indicate that a given parsing path has failed
+    Raised by [`Converter`][pane.converters.Converter]s to indicate that a given parsing path has failed
     (without materializing a detailed error message).
     """
     ...
@@ -20,7 +20,7 @@ class ParseInterrupt(Exception):
 
 class UnsupportedAnnotation(Exception):
     """
-    Raised when a given [`t.Annotated`](https://docs.python.org/3/library/typing.html#typing.Annotated) isn't understood by `pane`.
+    Raised when a given [`t.Annotated`][typing.Annotated] isn't understood by `pane`.
     """
     def __init__(self, obj: t.Any):
         self.obj: t.Any = obj
@@ -61,7 +61,8 @@ class ErrorNode(abc.ABC):
 
         Parameters:
           indent: String to indent all extra lines we print
-          inside_sum: Whether we are printing inside a [`SumErrorNode`](pane.errors.SumErrorNode) (and so should omit printing the actual value we got)
+          inside_sum: Whether we are printing inside a [`SumErrorNode`][pane.errors.SumErrorNode] 
+                      and so should omit printing the actual value we got)
           file: File-like object to print text to
         """
         ...

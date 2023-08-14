@@ -77,14 +77,14 @@ class Field:
     """
     Represents a materialized dataclass field.
 
-    Typically instantiated from a [`FieldSpec`](FieldSpec).
+    Typically instantiated from a [`FieldSpec`][pane.field.FieldSpec].
     """
 
     _: KW_ONLY = dataclasses.field(init=False, repr=False, compare=False)
     name: str
     """Name of field"""
     type: type
-    """Type of field. Must be Convertible."""
+    """Type of field. Must be [`Convertible`][pane.convert.Convertible]."""
     in_names: t.Sequence[str]
     """List of names which convert to this field."""
     out_name: str
@@ -118,7 +118,7 @@ class FieldSpec:
 
     This hasn't been applied to a class yet, so some information is missing.
 
-    In most cases, end users should use the [`field()`](pane.field.field) function instead.
+    In most cases, end users should use the [`field()`][pane.field.field] function instead.
     """
 
     _: KW_ONLY = dataclasses.field(init=False, repr=False, compare=False)
@@ -157,7 +157,7 @@ class FieldSpec:
                    in_rename: t.Optional[t.Sequence[RenameStyle]] = None,
                    out_rename: t.Optional[RenameStyle] = None) -> Field:
         """
-        Make a [`Field`](pane.field.Field) from this [`FieldSpec`](pane.field.FieldSpec).
+        Make a [`Field`][pane.field.Field] from this [`FieldSpec`][pane.field.FieldSpec].
         """
         # out_name
         if self.out_name is not None:

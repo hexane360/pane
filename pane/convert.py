@@ -1,5 +1,5 @@
 """
-High-level interface to (pane)[].
+High-level interface to `pane`.
 """
 
 from __future__ import annotations
@@ -20,13 +20,13 @@ T = t.TypeVar('T', bound='Convertible')
 @t.runtime_checkable
 class HasConverter(t.Protocol):
     """
-    Protocol to add [`convert`](pane.convert.convert) functionality into an arbitrary type from data.
+    Protocol to add [`convert`][pane.convert.convert] functionality into an arbitrary type from data.
     """
 
     @classmethod
     def _converter(cls: t.Type[T], *args: t.Type[Convertible]) -> Converter[T]:
         """
-        Return a [`Converter`](pane.converters.Converter) capable of constructing `cls`.
+        Return a [`Converter`][pane.converters.Converter] capable of constructing `cls`.
 
         Any given type arguments are passed as positional arguments.
         This function should error when passed unknown type arguments.
@@ -35,19 +35,19 @@ class HasConverter(t.Protocol):
 
 
 DataType = t.Union[str, int, bool, float, complex, None, t.Mapping['DataType', 'DataType'], t.Sequence['DataType'], numpy.NDArray[numpy.generic]]
-"""Common data interchange type. ``IntoData`` converts to this, and ``FromData`` converts from this."""
+"""Common data interchange type. [`into_data`][pane.convert.into_data] converts to this."""
 _DataType = (str, int, bool, float, complex, type(None), t.Mapping, t.Sequence, numpy.ndarray)  # type: ignore
-"""``DataType`` for use in ``isinstance``."""
+"""[`DataType`][pane.convert.DataType] for use in [`isinstance`][isinstance]."""
 Convertible = t.Union[DataType, HasConverter]
-"""Types supported by ``from_data``."""
+"""Types supported by [`from_data`][pane.convert.from_data]. [`DataType`][pane.convert.DataType] + [`HasConverter`][pane.convert.HasConverter]"""
 IntoConverter = t.Union[
     t.Type[DataType], t.Type[HasConverter],
     t.Mapping[str, 'IntoConverter'],
     t.Sequence['IntoConverter']
 ]
 """
-Types supported by `make_converter``.
-Consists of ``FromData``, mappings, and sequences.
+Types supported by [`make_converter`][pane.convert.make_converter].
+Consists of `t.Type[DataType]`, mappings (struct types), and sequences (tuple types).
 """
 
 
@@ -64,7 +64,7 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
 
 def make_converter(ty: IntoConverter) -> Converter[t.Any]:
     """
-    Make a ``Converter`` for ``ty``.
+    Make a [`Converter`][pane.convert.Converter] for `ty`.
 
     Supports types, mappings of types, and sequences of types.
     """
@@ -146,13 +146,13 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
     raise TypeError(f"No converter for type '{ty}'")
 
 
-def register_converter_handler(handler: t.Callable[[t.Any, t.Tuple[t.Any]], Converter[t.Any]]) -> None:
+def register_converter_handler(handler: t.Callable[[t.Any, t.Tuple[t.Any, ...]], Converter[t.Any]]) -> None:
     """
     Register a handler for make_converter.
 
-    This allows extending [pane]() to handle third-party types, not
-    defined by your code or by ``pane``. Use sparingly, as this will
-    add runtime to [`make_converter`](pane.convert.make_converter).
+    This allows extending `pane` to handle third-party types, not
+    defined by your code or by `pane`. Use sparingly, as this will
+    add runtime to [`make_converter`][pane.convert.make_converter].
     """
     _CONVERTER_HANDLERS.append(handler)
 
@@ -161,7 +161,7 @@ def _annotated_converter(ty: IntoConverter, args: t.Sequence[t.Any]) -> Converte
     """
     Make an annotated converter.
 
-    Wraps `ty` in `args` from left to right. However, `Condition` annotations
+    Wraps `ty` in `args` from left to right. However, [`Condition`][pane.annotations.Condition] annotations
     are handled separately (bundled together).
     """
     from .converters import Converter
@@ -199,7 +199,7 @@ def _annotated_converter(ty: IntoConverter, args: t.Sequence[t.Any]) -> Converte
 
 def into_data(val: Convertible, ty: t.Optional[IntoConverter] = None) -> DataType:
     """
-    Convert `val` of [pane]() type `ty` into a data interchange format.
+    Convert `val` of type `ty` into a data interchange format.
     """
     if ty is not None:
         # use specialized implementation
@@ -223,6 +223,10 @@ def into_data(val: Convertible, ty: t.Optional[IntoConverter] = None) -> DataTyp
 
 
 def from_data(val: DataType, ty: t.Type[T]) -> T:
+    """
+    Convert `val` from a data interchange format into type `ty`.
+    """
+
     if not isinstance(val, _DataType):
         raise TypeError(f"Type {type(val)} is not a valid data interchange type.")
 
@@ -231,7 +235,9 @@ def from_data(val: DataType, ty: t.Type[T]) -> T:
 
 
 def convert(val: Convertible, ty: t.Type[T]) -> T:
-    """Convert value `val` into type `ty`"""
+    """
+    Convert `val` into type `ty`, passing through a data interchange format.
+    """
     data = into_data(val)
     return from_data(data, ty)
 
