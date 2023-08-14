@@ -3,7 +3,7 @@
 `pane` is a modern Python library for dataclasses and data conversion, aiming
 for speed and expressiveness.
 
-[![][ci-badge]][ci-url] [![][commit-badge]][commit-url] [![][pypi-badge]][pypi-url]
+[![][ci-badge]][ci-url] [![][commit-badge]][commit-url] [![][pypi-badge]][pypi-url] [![][docs-stable-badge]][docs-stable-url] [![][docs-dev-badge]][docs-dev-url]
 
 `pane` draws heavy inspiration from [Pydantic][pydantic] (among others), but its goals
 are quite different. For example, `pane` has first-class conversion to and from
@@ -58,6 +58,10 @@ Instead got `fail` of type `str`
 [pydantic]: https://github.com/pydantic/pydantic
 [ci-badge]: https://github.com/hexane360/pane/workflows/Tests/badge.svg
 [ci-url]: https://github.com/hexane360/pane/actions?query=workflow%3ATests
+[docs-dev-badge]: https://img.shields.io/badge/docs-dev-blue
+[docs-dev-url]: https://hexane360.github.io/pane/dev/
+[docs-stable-badge]: https://img.shields.io/badge/docs-stable-blue
+[docs-stable-url]: https://hexane360.github.io/pane/latest/
 [commit-badge]: https://img.shields.io/github/last-commit/hexane360/pane
 [commit-url]: https://github.com/hexane360/pane/commits
 [pypi-badge]: https://badge.fury.io/py/py-pane.svg
