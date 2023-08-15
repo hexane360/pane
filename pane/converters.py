@@ -52,12 +52,22 @@ class Converter(abc.ABC, t.Generic[T_co]):
         raise ConvertError(node)
 
     def into_data(self, val: t.Any) -> DataType:
-        """Convert ``val`` into data."""
+        """
+        Convert ``val`` into a data interchange format.
+
+        ``val`` *should* be of a type returned by this converter,
+        but don't count on it.
+        """
         return into_data(val, None)
 
     @abc.abstractmethod
     def expected(self, plural: bool = False) -> str:
-        """Return a descriptive string indicating the value(s) expected."""
+        """
+        Return a descriptive string indicating the value(s) expected.
+
+        Parameters:
+          plural: Whether to pluralize the descriptive string
+        """
         ...
 
     @abc.abstractmethod
@@ -82,12 +92,15 @@ class Converter(abc.ABC, t.Generic[T_co]):
 class AnyConverter(Converter[t.Any]):
     """Converter for ``t.Any``."""
     def try_convert(self, val: t.Any) -> t.Any:
+        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         return val
 
     def expected(self, plural: bool = False) -> str:
+        """See [`Converter.expected`][pane.converters.Converter.expected]"""
         return pluralize("any value", plural)
 
     def collect_errors(self, val: t.Any) -> None:
+        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         return None
 
 
@@ -112,14 +125,17 @@ class ScalarConverter(Converter[T]):
         self.expect_plural = self.expect_plural or self.expect
 
     def expected(self, plural: bool = False) -> str:
+        """See [`Converter.expected`][pane.converters.Converter.expected]"""
         return t.cast(str, self.expect_plural if plural else self.expect)
 
     def try_convert(self, val: t.Any) -> T:
+        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if isinstance(val, self.allowed):
             return self.ty(val)  # type: ignore
         raise ParseInterrupt()
 
     def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
+        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         if isinstance(val, self.allowed):
             return None
         return WrongTypeError(f'{self.expected()}', val)
@@ -132,14 +148,17 @@ class NoneConverter(Converter[None]):
     """
 
     def try_convert(self, val: t.Any) -> None:
+        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if val is None:
             return val
         raise ParseInterrupt()
 
     def expected(self, plural: bool = False) -> str:
+        """See [`Converter.expected`][pane.converters.Converter.expected]"""
         return pluralize("null value", plural)
 
     def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
+        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         if val is None:
             return None
         return WrongTypeError(self.expected(), val)
@@ -154,15 +173,18 @@ class LiteralConverter(Converter[T_co]):
     vals: t.Sequence[T_co]
 
     def try_convert(self, val: t.Any) -> T_co:
+        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if val in self.vals:
             return val
         raise ParseInterrupt()
 
     def expected(self, plural: bool = False) -> str:
+        """See [`Converter.expected`][pane.converters.Converter.expected]"""
         l = list_phrase(tuple(map(repr, self.vals)))
         return f"({l})" if plural else l
 
     def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
+        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         if val in self.vals:
             return None
         return WrongTypeError(self.expected(), val)
@@ -191,9 +213,11 @@ class UnionConverter(Converter[t.Any]):
         self.constructor = constructor
 
     def expected(self, plural: bool = False) -> str:
+        """See [`Converter.expected`][pane.converters.Converter.expected]"""
         return list_phrase(tuple(conv.expected(plural) for conv in self.converters))
 
     def into_data(self, val: t.Any) -> DataType:
+        """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
         # this is tricky, because we have no type information about which variant ``val`` is.
         # so we basically try_convert each until we find a match
         # this works because try_convert should be idempotent
@@ -213,6 +237,7 @@ class UnionConverter(Converter[t.Any]):
         return self.constructor(val, i)
 
     def try_convert(self, val: t.Any) -> t.Any:
+        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         for (i, conv) in enumerate(self.converters):
             try:
                 val = conv.try_convert(val)
@@ -225,6 +250,7 @@ class UnionConverter(Converter[t.Any]):
         raise ParseInterrupt
 
     def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
+        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         failed_children: t.List[ErrorNode] = []
         for (i, conv) in enumerate(self.converters):
             # if one branch is successful, the whole type is successful
@@ -289,12 +315,15 @@ class TaggedUnionConverter(UnionConverter):
                 raise AttributeError(f"Tag '{self.tag}' not found inside type '{ty}'")
 
     def tag_expected(self) -> str:
+        """Return a string list of the expected/supported tags"""
         return list_phrase(tuple(map(repr, self.tag_map.keys())))
 
     def obj_expected(self, plural: bool = False) -> str:
+        """Return a string list of the supported objects"""
         return list_phrase(tuple(conv.expected(plural) for conv in self.converters))
 
     def expected(self, plural: bool = False) -> str:
+        """See [`Converter.expected`][pane.converters.Converter.expected]"""
         if self.external is False:
             # internally tagged
             return self.obj_expected(plural)
@@ -310,6 +339,7 @@ class TaggedUnionConverter(UnionConverter):
             return f"{mapping} {repr(t)} => {tag}, {repr(c)} => {obj}"
 
     def into_data(self, val: t.Any) -> DataType:
+        """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
         tag = getattr(val, self.tag)
         inner_conv = self.converters[self.tag_map[tag]]
         if self.external is False:
@@ -323,6 +353,7 @@ class TaggedUnionConverter(UnionConverter):
         return {t_r: tag, c_r: inner_conv.into_data(val)}
 
     def try_convert(self, val: t.Any) -> t.Any:
+        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if not data_is_mapping(val):
             raise ParseInterrupt()
         val = t.cast(t.Dict[str, t.Any], val)
@@ -352,6 +383,7 @@ class TaggedUnionConverter(UnionConverter):
         return self.converters[i].try_convert(val)
 
     def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
+        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         if not data_is_mapping(val):
             return WrongTypeError(self.expected(), val)
         val = t.cast(t.Dict[str, t.Any], val)
@@ -404,10 +436,12 @@ class StructConverter(Converter[T]):
         self.field_converters = {k: make_converter(v) for (k, v) in self.fields.items()}
 
     def expected(self, plural: bool = False) -> str:
+        """See [`Converter.expected`][pane.converters.Converter.expected]"""
         name = f" {self.name}" if self.name is not None else ""
         return f"{pluralize('struct', plural)}{name}"
 
     def into_data(self, val: t.Any) -> DataType:
+        """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
         assert data_is_mapping(val)
         d: t.Dict[DataType, DataType] = {}
         for (k, v) in t.cast(t.Mapping[str, t.Any], val).items():
@@ -418,6 +452,7 @@ class StructConverter(Converter[T]):
         return d
 
     def try_convert(self, val: t.Any) -> T:
+        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if not data_is_mapping(val):
             raise ParseInterrupt()
         val = t.cast(t.Dict[str, t.Any], val)
@@ -432,6 +467,7 @@ class StructConverter(Converter[T]):
         return self.ty(d)  # type: ignore
 
     def collect_errors(self, val: t.Any) -> t.Union[WrongTypeError, ProductErrorNode, None]:
+        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         if not data_is_mapping(val):
             return WrongTypeError(self.expected(), val)
         val = t.cast(t.Dict[str, t.Any], val)
@@ -463,15 +499,18 @@ class TupleConverter(t.Generic[T], Converter[T]):
         self.converters = tuple(map(make_converter, types))
 
     def into_data(self, val: t.Any) -> DataType:
+        """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
         return tuple(
             conv.into_data(v)
             for (v, conv) in zip(t.cast(t.Sequence[t.Any], val), self.converters)
         )
 
     def expected(self, plural: bool = False) -> str:
+        """See [`Converter.expected`][pane.converters.Converter.expected]"""
         return f"{pluralize('tuple', plural)} of length {len(self.converters)}"
 
     def try_convert(self, val: t.Any) -> T:
+        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if not data_is_sequence(val):
             raise ParseInterrupt
         if len(val) != len(self.converters):
@@ -480,6 +519,7 @@ class TupleConverter(t.Generic[T], Converter[T]):
         return self.ty(conv.try_convert(v) for (conv, v) in zip(self.converters, val))
 
     def collect_errors(self, val: t.Any) -> t.Union[None, ProductErrorNode, WrongTypeError]:
+        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         if not data_is_sequence(val) or len(val) != len(self.converters):
             return WrongTypeError(self.expected(), val)
         children = {}
@@ -508,15 +548,18 @@ class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDat
         self.v_conv = make_converter(v)
 
     def into_data(self, val: t.Any) -> DataType:
+        """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
         return {
             self.k_conv.into_data(k): self.v_conv.into_data(v)
             for (k, v) in t.cast(t.Mapping[FromDataK, FromDataV], val).items()
         }
 
     def expected(self, plural: bool = False) -> str:
+        """See [`Converter.expected`][pane.converters.Converter.expected]"""
         return f"{pluralize('mapping', plural)} of {self.k_conv.expected(True)} => {self.v_conv.expected(True)}"
 
     def try_convert(self, val: t.Any) -> t.Mapping[FromDataK, FromDataV]:
+        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if not data_is_mapping(val):
             raise ParseInterrupt()
 
@@ -524,6 +567,7 @@ class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDat
         return self.ty(d)  # type: ignore
 
     def collect_errors(self, val: t.Any) -> t.Union[None, WrongTypeError, ProductErrorNode]:
+        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         if not data_is_mapping(val):
             return WrongTypeError(self.expected(), val)
 
@@ -550,15 +594,18 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
         self.v_conv = make_converter(v)
 
     def into_data(self, val: t.Any) -> DataType:
+        """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
         return [
             self.v_conv.into_data(v)
             for v in t.cast(t.Sequence[FromDataT], val)
         ]
 
     def expected(self, plural: bool = False) -> str:
+        """See [`Converter.expected`][pane.converters.Converter.expected]"""
         return f"{pluralize('sequence', plural)} of {self.v_conv.expected(True)}"
 
     def try_convert(self, val: t.Any) -> t.Sequence[FromDataT]:
+        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if not data_is_sequence(val):
             raise ParseInterrupt
         try:
@@ -567,6 +614,7 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
             raise ParseInterrupt()
 
     def collect_errors(self, val: t.Any) -> t.Union[None, WrongTypeError, ProductErrorNode]:
+        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         if not data_is_sequence(val):
             return WrongTypeError(self.expected(), val)
 
@@ -603,11 +651,13 @@ class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
     ragged: bool = False
     """Whether to accept ragged arrays."""
     val_conv: Converter[U] = dataclasses.field(init=False)
+    """[`Converter`][pane.converters.Converter] for value type"""
 
     def __post_init__(self):
         self.val_conv = make_converter(self.val_type)
 
     def expected(self, plural: bool = False) -> str:
+        """See [`Converter.expected`][pane.converters.Converter.expected]"""
         word = 'nested sequence' if self.ragged else 'n-d array'
         return f"{pluralize(word, plural, article='a')} of {self.val_conv.expected(True)}"
 
@@ -626,6 +676,7 @@ class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
         return new_shape
 
     def try_convert(self, val: t.Any) -> T:
+        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         result = self._try_convert(val)
         if not self.ragged:
             try:
@@ -642,6 +693,7 @@ class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
         return t.cast(NestedSequence[U], vals)
 
     def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
+        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         if (node := self._collect_errors(val)) is not None:
             return node
         val = self._try_convert(val)
@@ -678,6 +730,7 @@ class ConditionalConverter(t.Generic[FromDataT], Converter[FromDataT]):
     condition: t.Callable[[FromDataT], bool]
     """Function to evaluate condition"""
     condition_name: str
+    """Human-readable name of condition"""
     make_expected: t.Callable[[str, bool], str]
     """Function which takes ``(expected, plural)`` and makes a compound ``expected``."""
     inner: Converter[FromDataT] = dataclasses.field(init=False)
@@ -690,12 +743,15 @@ class ConditionalConverter(t.Generic[FromDataT], Converter[FromDataT]):
             self.inner = make_converter(t.cast(t.Type[FromDataT], self.inner_type))
 
     def into_data(self, val: t.Any) -> DataType:
+        """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
         return self.inner.into_data(val)
 
     def expected(self, plural: bool = False) -> str:
+        """See [`Converter.expected`][pane.converters.Converter.expected]"""
         return self.make_expected(self.inner.expected(plural), plural)
 
     def try_convert(self, val: t.Any) -> FromDataT:
+        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         val = self.inner.try_convert(val)
         try:
             if self.condition(val):
@@ -705,6 +761,7 @@ class ConditionalConverter(t.Generic[FromDataT], Converter[FromDataT]):
         raise ParseInterrupt()
 
     def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
+        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         try:
             conv_val = self.inner.try_convert(val)
         except ParseInterrupt:
@@ -744,6 +801,7 @@ class DelegateConverter(t.Generic[T, U], Converter[T]):
         self.expect_plural = self.expect_plural or self.expect
 
     def into_data(self, val: t.Any) -> DataType:
+        """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
         # TODO: this is a hack, because we can't easily convert T back to U
         try:
             return self.inner.into_data(val)
@@ -752,9 +810,11 @@ class DelegateConverter(t.Generic[T, U], Converter[T]):
         return into_data(val)
 
     def expected(self, plural: bool = False) -> str:
+        """See [`Converter.expected`][pane.converters.Converter.expected]"""
         return t.cast(str, self.expect_plural if plural else self.expect)
 
     def try_convert(self, val: t.Any) -> T:
+        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         val = self.inner.try_convert(val)
         try:
             return self.constructor(val)
@@ -762,6 +822,7 @@ class DelegateConverter(t.Generic[T, U], Converter[T]):
             raise ParseInterrupt from None
 
     def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
+        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         try:
             conv_val = self.inner.try_convert(val)
         except ParseInterrupt:
