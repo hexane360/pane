@@ -24,6 +24,16 @@ FromDataV = t.TypeVar('FromDataV', bound=Convertible)
 NestedSequence = t.Union[T, t.Sequence['NestedSequence[T]']]
 
 
+def data_is_sequence(val: t.Any) -> t.TypeGuard[t.Sequence[t.Any]]:
+    """Return whether `val` is a sequence-like data type."""
+    return isinstance(val, t.Sequence) and not isinstance(val, (str, bytes))
+
+
+def data_is_mapping(val: t.Any) -> t.TypeGuard[t.Mapping[t.Any, t.Any]]:
+    """Return whether `val` is a mapping-like data type."""
+    return isinstance(val, (dict, t.Mapping))
+
+
 class Converter(abc.ABC, t.Generic[T_co]):
     """
     Base class for a converter to a given type ``T_co``.
@@ -313,7 +323,7 @@ class TaggedUnionConverter(UnionConverter):
         return {t_r: tag, c_r: inner_conv.into_data(val)}
 
     def try_convert(self, val: t.Any) -> t.Any:
-        if not isinstance(val, (dict, t.Mapping)):
+        if not data_is_mapping(val):
             raise ParseInterrupt()
         val = t.cast(t.Dict[str, t.Any], val)
         tag: t.Any
@@ -342,7 +352,7 @@ class TaggedUnionConverter(UnionConverter):
         return self.converters[i].try_convert(val)
 
     def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
-        if not isinstance(val, (dict, t.Mapping)):
+        if not data_is_mapping(val):
             return WrongTypeError(self.expected(), val)
         val = t.cast(t.Dict[str, t.Any], val)
         tag: t.Any
@@ -398,7 +408,7 @@ class StructConverter(Converter[T]):
         return f"{pluralize('struct', plural)}{name}"
 
     def into_data(self, val: t.Any) -> DataType:
-        assert isinstance(val, t.Mapping)
+        assert data_is_mapping(val)
         d: t.Dict[DataType, DataType] = {}
         for (k, v) in t.cast(t.Mapping[str, t.Any], val).items():
             if (conv := self.field_converters.get(k)) is not None:
@@ -408,7 +418,7 @@ class StructConverter(Converter[T]):
         return d
 
     def try_convert(self, val: t.Any) -> T:
-        if not isinstance(val, (dict, t.Mapping)):
+        if not data_is_mapping(val):
             raise ParseInterrupt()
         val = t.cast(t.Dict[str, t.Any], val)
         d: t.Dict[str, t.Any] = {}
@@ -422,7 +432,7 @@ class StructConverter(Converter[T]):
         return self.ty(d)  # type: ignore
 
     def collect_errors(self, val: t.Any) -> t.Union[WrongTypeError, ProductErrorNode, None]:
-        if not isinstance(val, (dict, t.Mapping)):
+        if not data_is_mapping(val):
             return WrongTypeError(self.expected(), val)
         val = t.cast(t.Dict[str, t.Any], val)
 
@@ -462,18 +472,16 @@ class TupleConverter(t.Generic[T], Converter[T]):
         return f"{pluralize('tuple', plural)} of length {len(self.converters)}"
 
     def try_convert(self, val: t.Any) -> T:
-        if not isinstance(val, t.Sequence):
+        if not data_is_sequence(val):
             raise ParseInterrupt
-        val = t.cast(t.Sequence[t.Any], val)
         if len(val) != len(self.converters):
             raise ParseInterrupt
 
         return self.ty(conv.try_convert(v) for (conv, v) in zip(self.converters, val))
 
     def collect_errors(self, val: t.Any) -> t.Union[None, ProductErrorNode, WrongTypeError]:
-        if not isinstance(val, t.Sequence) or len(val) != len(self.converters):  # type: ignore
+        if not data_is_sequence(val) or len(val) != len(self.converters):
             return WrongTypeError(self.expected(), val)
-        val = t.cast(t.Sequence[t.Any], val)
         children = {}
         for (i, (conv, v)) in enumerate(zip(self.converters, val)):
             node = conv.collect_errors(v)
@@ -509,16 +517,16 @@ class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDat
         return f"{pluralize('mapping', plural)} of {self.k_conv.expected(True)} => {self.v_conv.expected(True)}"
 
     def try_convert(self, val: t.Any) -> t.Mapping[FromDataK, FromDataV]:
-        if not isinstance(val, t.Mapping):
+        if not data_is_mapping(val):
             raise ParseInterrupt()
-        val = t.cast(t.Mapping[t.Any, t.Any], val)
+
         d = {self.k_conv.try_convert(k): self.v_conv.try_convert(v) for (k, v) in val.items()}
         return self.ty(d)  # type: ignore
 
     def collect_errors(self, val: t.Any) -> t.Union[None, WrongTypeError, ProductErrorNode]:
-        if not isinstance(val, t.Mapping):
+        if not data_is_mapping(val):
             return WrongTypeError(self.expected(), val)
-        val = t.cast(t.Mapping[t.Any, t.Any], val)
+
         nodes: t.Dict[t.Union[str, int], ErrorNode] = {}
         for (k, v) in val.items():
             if (node := self.k_conv.collect_errors(k)) is not None:
@@ -551,7 +559,7 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
         return f"{pluralize('sequence', plural)} of {self.v_conv.expected(True)}"
 
     def try_convert(self, val: t.Any) -> t.Sequence[FromDataT]:
-        if not isinstance(val, t.Sequence) or isinstance(val, str):
+        if not data_is_sequence(val):
             raise ParseInterrupt
         try:
             return self.ty(self.v_conv.try_convert(v) for v in val)  # type: ignore
@@ -559,9 +567,9 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
             raise ParseInterrupt()
 
     def collect_errors(self, val: t.Any) -> t.Union[None, WrongTypeError, ProductErrorNode]:
-        if not isinstance(val, t.Sequence) or isinstance(val, str):
+        if not data_is_sequence(val):
             return WrongTypeError(self.expected(), val)
-        val = t.cast(t.Sequence[t.Any], val)
+
         nodes = {}
         vals: t.List[FromDataT] = []
         for (i, v) in enumerate(val):
@@ -605,7 +613,7 @@ class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
 
     @staticmethod
     def _check_shape(val: NestedSequence[t.Any], dim: int = 0) -> t.Tuple[int, ...]:
-        if not isinstance(val, t.Sequence) or isinstance(val, str):
+        if not data_is_sequence(val):
             # single value
             return ()
         shapes = [NestedSequenceConverter._check_shape(v, dim+1) for v in val]
@@ -627,10 +635,10 @@ class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
         return self.constructor(result)
 
     def _try_convert(self, val: t.Any) -> NestedSequence[U]:
-        if not isinstance(val, t.Sequence) or isinstance(val, str):
+        if not data_is_sequence(val):
             # single value
             return self.val_conv.try_convert(val)
-        vals = list(map(self._try_convert, t.cast(t.Sequence[t.Any], val)))
+        vals = list(map(self._try_convert, val))
         return t.cast(NestedSequence[U], vals)
 
     def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
@@ -650,10 +658,10 @@ class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
             return WrongTypeError(self.expected(), val, tb)
 
     def _collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
-        if not isinstance(val, t.Sequence) or isinstance(val, str):
+        if not data_is_sequence(val):
             return self.val_conv.collect_errors(val)
         nodes = {}
-        for (i, v) in enumerate(t.cast(t.Sequence[t.Any], val)):
+        for (i, v) in enumerate(val):
             if (node := self._collect_errors(v)) is not None:
                 nodes[i] = node
         if len(nodes):
