@@ -34,9 +34,9 @@ class HasConverter(t.Protocol):
         ...
 
 
-DataType = t.Union[str, int, bool, float, complex, None, t.Mapping['DataType', 'DataType'], t.Sequence['DataType'], numpy.NDArray[numpy.generic]]
+DataType = t.Union[str, bytes, int, bool, float, complex, None, t.Mapping['DataType', 'DataType'], t.Sequence['DataType'], numpy.NDArray[numpy.generic]]
 """Common data interchange type. [`into_data`][pane.convert.into_data] converts to this."""
-_DataType = (str, int, bool, float, complex, type(None), t.Mapping, t.Sequence, numpy.ndarray)  # type: ignore
+_DataType = (str, bytes, int, bool, float, complex, type(None), t.Mapping, t.Sequence, numpy.ndarray)  # type: ignore
 """[`DataType`][pane.convert.DataType] for use in [`isinstance`][isinstance]."""
 Convertible = t.Union[DataType, HasConverter]
 """Types supported by [`from_data`][pane.convert.from_data]. [`DataType`][pane.convert.DataType] + [`HasConverter`][pane.convert.HasConverter]"""
@@ -201,6 +201,8 @@ def into_data(val: Convertible, ty: t.Optional[IntoConverter] = None) -> DataTyp
     """
     Convert `val` of type `ty` into a data interchange format.
     """
+    from .converters import data_is_sequence, data_is_mapping
+
     if ty is not None:
         # use specialized implementation
         converter = make_converter(ty)
@@ -210,11 +212,11 @@ def into_data(val: Convertible, ty: t.Optional[IntoConverter] = None) -> DataTyp
     if isinstance(val, HasConverter):
         converter = val._converter()
         return converter.into_data(val)
-    if isinstance(val, (dict, t.Mapping)):
+    if data_is_mapping(val):
         return {into_data(k): into_data(v) for (k, v) in val.items()}
     if isinstance(val, tuple):
         return type(val)(map(into_data, val))
-    if isinstance(val, t.Sequence) and not isinstance(val, str):
+    if data_is_sequence(val):
         return list(map(into_data, val))
     if isinstance(val, _DataType):
         return val

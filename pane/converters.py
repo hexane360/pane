@@ -26,7 +26,7 @@ NestedSequence = t.Union[T, t.Sequence['NestedSequence[T]']]
 
 def data_is_sequence(val: t.Any) -> t.TypeGuard[t.Sequence[t.Any]]:
     """Return whether `val` is a sequence-like data type."""
-    return isinstance(val, t.Sequence) and not isinstance(val, (str, bytes))
+    return isinstance(val, t.Sequence) and not isinstance(val, (str, bytes, bytearray))
 
 
 def data_is_mapping(val: t.Any) -> t.TypeGuard[t.Mapping[t.Any, t.Any]]:
@@ -842,6 +842,8 @@ _BASIC_CONVERTERS: t.Dict[type, Converter[t.Any]] = {
     float: ScalarConverter(float, (int, float), 'a float', 'floats'),
     int: ScalarConverter(int, int, 'an int', 'ints'),
     str: ScalarConverter(str, str, 'a string', 'strings'),
+    bytes: ScalarConverter(bytes, (bytes, bytearray), 'a bytestring', 'bytestrings'),
+    bytearray: ScalarConverter(bytearray, (bytes, bytearray), 'a bytearray', 'bytearrays'),
     type(None): NoneConverter(),
 }
 """Built-in scalar converters for some basic types"""

@@ -120,8 +120,16 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
 
 
 @pytest.mark.parametrize(('ty', 'val', 'result'), [
-    # scalar converter
+    # scalar converters
     (int, 's', WrongTypeError('an int', 's')),
+    (float, 5, 5.0),
+    (complex, 6, 6.0+0j),
+    # bytes types
+    (bytes, b'bytestring', b'bytestring'),
+    (str, b'bytestring', WrongTypeError('a string', b'bytestring')),
+    (bytes, 'string', WrongTypeError('a bytestring', 'string')),
+    (bytearray, b'bytestring', bytearray(b'bytestring')),
+    (bytes, bytearray(b'bytestring'), b'bytestring'),
     # sequence converters
     (t.Tuple[int, ...], [1, 2], (1, 2)),
     (t.Sequence[int], [1, 2], (1, 2)),  # same as tuple
