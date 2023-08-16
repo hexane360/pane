@@ -6,6 +6,7 @@ import abc
 import dataclasses
 import traceback
 import typing as t
+from typing_extensions import TypeGuard
 
 from pane.errors import ErrorNode
 
@@ -24,12 +25,12 @@ FromDataV = t.TypeVar('FromDataV', bound=Convertible)
 NestedSequence = t.Union[T, t.Sequence['NestedSequence[T]']]
 
 
-def data_is_sequence(val: t.Any) -> t.TypeGuard[t.Sequence[t.Any]]:
+def data_is_sequence(val: t.Any) -> TypeGuard[t.Sequence[t.Any]]:
     """Return whether `val` is a sequence-like data type."""
     return isinstance(val, t.Sequence) and not isinstance(val, (str, bytes, bytearray))
 
 
-def data_is_mapping(val: t.Any) -> t.TypeGuard[t.Mapping[t.Any, t.Any]]:
+def data_is_mapping(val: t.Any) -> TypeGuard[t.Mapping[t.Any, t.Any]]:
     """Return whether `val` is a mapping-like data type."""
     return isinstance(val, (dict, t.Mapping))
 
