@@ -1,3 +1,4 @@
+from __future__ import annotations
 
 import inspect
 import typing as t
@@ -6,6 +7,7 @@ import pytest
 
 import pane
 from pane.errors import ErrorNode, ProductErrorNode, DuplicateKeyError, WrongTypeError
+from pane.annotations import Tagged
 
 
 def check_ord(obj, other, ordering: t.Literal[-1, 0, 1]):
@@ -257,3 +259,37 @@ def test_pane_rename():
     obj = {'snake-case': 1, 'scream-case': 2., 'camel-case': 3, 'pascal-case': 4.}
     assert PaneRenameKebab.from_data(obj) == PaneRenameKebab(1, 2., 3, 4.)
     assert PaneRenameKebab(1, 2., 3, 4.).into_data() == obj
+
+
+class PaneTag1(pane.PaneBase, kw_only=True):
+    tag: t.Literal['tag1'] = 'tag1'
+    x: int
+    y: float
+
+
+class PaneTag2(pane.PaneBase, kw_only=True):
+    tag: t.Literal['tag2'] = 'tag2'
+    x: int
+
+
+class PaneTag3(pane.PaneBase, kw_only=True):
+    tag: t.Literal['tag3'] = 'tag3'
+    x: int
+
+
+class PaneTagBase(pane.PaneBase):
+    x: t.Annotated[t.Union[PaneTag1, PaneTag2, PaneTag3], Tagged('tag')]
+
+
+@pytest.mark.parametrize(('val', 'result'), [
+    ({'x': {'tag': 'tag1', 'x': 5, 'y': 5.0}}, PaneTagBase(x=PaneTag1(x=5, y=5.0))),
+    ({'x': {'tag': 'tag3', 'x': 8}}, PaneTagBase(x=PaneTag3(x=8))),
+])
+def test_pane_convert_tagged_union(val, result):
+    cls = PaneTagBase
+    if isinstance(result, ErrorNode):
+        with pytest.raises(pane.ConvertError) as e:
+            pane.convert(val, cls)
+        assert e.value.tree == result
+    else:
+        assert pane.convert(val, cls) == result

@@ -13,8 +13,8 @@ jobs:
       contents: write
       id-token: write
 
-    # require tests to succeed, and a tag commit
-    if: "${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.ref, 'refs/tags/v') }}"
+    # require tests to succeed, and 'ci: deploy' in commit message
+    if: "${{ github.event.workflow_run.conclusion == 'success' && contains(github.event.workflow_run.head_commit.message, 'ci: deploy') }}"
     steps:
       - uses: actions/checkout@v3
       - name: Install python

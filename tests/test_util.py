@@ -22,6 +22,7 @@ P = ParamSpec('P')
     (t.Tuple[T, ...], tuple[t.Tuple[int, ...], ...]),
     (t.Tuple[T, U, K], tuple[t.Tuple[int, ...], t.Union[int, str], int]),
     (t.Callable[[int, T], U], collections.abc.Callable[[int, t.Tuple[int, ...]], t.Union[int, str]]),
+    (t.Literal['test'], t.Literal['test']),
 ])
 def test_replace_typevars(input, output):
     replacements: t.Dict[t.Union[t.TypeVar, t.ParamSpec], type] = {

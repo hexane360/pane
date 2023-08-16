@@ -16,7 +16,8 @@ FileOrPath = t.Union[str, Path, TextIOBase, t.TextIO]
 try:
     from dataclasses import KW_ONLY
 except ImportError:
-    KW_ONLY = object()
+    class KW_ONLY:
+        pass
 
 
 def _validate_file(f: t.Union[t.IO[t.AnyStr], IOBase], mode: t.Union[t.Literal['r'], t.Literal['w']]):
@@ -144,7 +145,7 @@ def replace_typevars(ty: t.Any,
     """
     if isinstance(ty, (t.TypeVar, ParamSpec)):
         return replacements.get(ty, ty)
-    if isinstance(ty, t.Sequence):
+    if isinstance(ty, t.Sequence) and not isinstance(ty, (str, bytes)):
         return type(ty)(replace_typevars(t, replacements) for t in ty)  # type: ignore
 
     base = t.get_origin(ty) or ty
