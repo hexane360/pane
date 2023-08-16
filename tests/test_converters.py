@@ -130,6 +130,9 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
     (bytes, 'string', WrongTypeError('a bytestring', 'string')),
     (bytearray, b'bytestring', bytearray(b'bytestring')),
     (bytes, bytearray(b'bytestring'), b'bytestring'),
+    # be conservative for now
+    (t.List[int], bytearray(b'bytestring'), WrongTypeError('sequence of ints', bytearray(b'bytestring'))),
+    (bytearray, [98, 121, 116, 101, 115, 116, 114, 105, 110, 103], WrongTypeError('a bytearray', [98, 121, 116, 101, 115, 116, 114, 105, 110, 103])),
     # sequence converters
     (t.Tuple[int, ...], [1, 2], (1, 2)),
     (t.Sequence[int], [1, 2], (1, 2)),  # same as tuple
