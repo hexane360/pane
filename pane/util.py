@@ -16,8 +16,9 @@ FileOrPath = t.Union[str, Path, TextIOBase, t.TextIO]
 try:
     from dataclasses import KW_ONLY
 except ImportError:
-    class KW_ONLY:
+    class _KW_ONLY_TYPE:
         pass
+    KW_ONLY = _KW_ONLY_TYPE()
 
 
 def _validate_file(f: t.Union[t.IO[t.AnyStr], IOBase], mode: t.Union[t.Literal['r'], t.Literal['w']]):
@@ -184,7 +185,13 @@ def get_type_hints(cls: type) -> t.Dict[str, t.Any]:
             value = type(None)
         if isinstance(value, str):
             value = t.ForwardRef(value, is_argument=False, is_class=True)
-        # private access inside typing.
+        if isinstance(value, t.ForwardRef):
+            # hack to handle top-level KW_ONLY
+            val = value.__forward_value__ if value.__forward_evaluated__ else eval(value.__forward_code__, globalns, localns)
+            if val is KW_ONLY:
+                d[name] = KW_ONLY
+                continue
+        # private access inside typing module
         value = t._eval_type(value, globalns, localns)  # type: ignore
         d[name] = value
 
