@@ -1120,7 +1120,7 @@
 
 
 <h3 id="pane.annotations.Positive" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">Positive</span> <span class="o">=</span> <span class="n">adjective_condition</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">v</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;positive&#39;</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">Positive</span> <span class="o">=</span> <span class="n">adjective_condition</span><span class="p">(</span><span class="k">lambda</span> <span class="p">:</span> <span class="n">v</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;positive&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
@@ -1141,7 +1141,7 @@
 
 
 <h3 id="pane.annotations.Negative" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">Negative</span> <span class="o">=</span> <span class="n">adjective_condition</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">v</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;negative&#39;</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">Negative</span> <span class="o">=</span> <span class="n">adjective_condition</span><span class="p">(</span><span class="k">lambda</span> <span class="p">:</span> <span class="n">v</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;negative&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
@@ -1162,7 +1162,7 @@
 
 
 <h3 id="pane.annotations.NonPositive" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">NonPositive</span> <span class="o">=</span> <span class="n">adjective_condition</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">v</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;non-positive&#39;</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">NonPositive</span> <span class="o">=</span> <span class="n">adjective_condition</span><span class="p">(</span><span class="k">lambda</span> <span class="p">:</span> <span class="n">v</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;non-positive&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
@@ -1183,7 +1183,7 @@
 
 
 <h3 id="pane.annotations.NonNegative" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">NonNegative</span> <span class="o">=</span> <span class="n">adjective_condition</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">v</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;non-negative&#39;</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">NonNegative</span> <span class="o">=</span> <span class="n">adjective_condition</span><span class="p">(</span><span class="k">lambda</span> <span class="p">:</span> <span class="n">v</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;non-negative&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
@@ -1225,7 +1225,7 @@
 
 
 <h3 id="pane.annotations.Empty" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">Empty</span> <span class="o">=</span> <span class="n">adjective_condition</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;empty&#39;</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">Empty</span> <span class="o">=</span> <span class="n">adjective_condition</span><span class="p">(</span><span class="k">lambda</span> <span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;empty&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
@@ -1246,7 +1246,7 @@
 
 
 <h3 id="pane.annotations.NonEmpty" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">NonEmpty</span> <span class="o">=</span> <span class="n">adjective_condition</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;non-empty&#39;</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">NonEmpty</span> <span class="o">=</span> <span class="n">adjective_condition</span><span class="p">(</span><span class="k">lambda</span> <span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;non-empty&#39;</span><span class="p">)</span></code>
   
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
@@ -1276,7 +1276,7 @@
 
   <div class="doc doc-contents ">
           <p class="doc doc-class-bases">
-            Bases: <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/abc.html#module-abc">abc</a>.<a class="autorefs autorefs-external" title="abc.ABC" href="https://docs.python.org/3/library/abc.html#abc.ABC">ABC</a></code>, <code><a class="autorefs autorefs-external" title="typing" href="https://docs.python.org/3/library/typing.html#module-typing">t</a>.<a class="autorefs autorefs-external" title="typing.Hashable" href="https://docs.python.org/3/library/typing.html#typing.Hashable">Hashable</a></code></p>
+            Bases: <code><a class="autorefs autorefs-external" title="abc.ABC" href="https://docs.python.org/3/library/abc.html#abc.ABC">ABC</a></code>, <code><a class="autorefs autorefs-external" title="typing.Hashable" href="https://docs.python.org/3/library/typing.html#typing.Hashable">Hashable</a></code></p>
 
   
       <p>Abstract annotation supported by <code>pane</code>.</p>
@@ -1833,7 +1833,7 @@ formatted <code>expected</code> string including the condition.</p>
         <tr>
           <td><code>make_expected</code></td>
           <td>
-                <code><a class="autorefs autorefs-external" title="typing" href="https://docs.python.org/3/library/typing.html#module-typing">t</a>.<a class="autorefs autorefs-external" title="typing.Optional" href="https://docs.python.org/3/library/typing.html#typing.Optional">Optional</a>[<a class="autorefs autorefs-external" title="typing" href="https://docs.python.org/3/library/typing.html#module-typing">t</a>.<a class="autorefs autorefs-external" title="typing.Callable" href="https://docs.python.org/3/library/typing.html#typing.Callable">Callable</a>[[<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a>], <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>]]</code>
+                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/typing.html#module-typing">typing</a>.<a class="autorefs autorefs-external" title="typing.Optional" href="https://docs.python.org/3/library/typing.html#typing.Optional">Optional</a>[<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/typing.html#module-typing">typing</a>.<a class="autorefs autorefs-external" title="typing.Callable" href="https://docs.python.org/3/library/typing.html#typing.Callable">Callable</a>[[<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a>], <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>]]</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -1931,7 +1931,7 @@ formatted <code>expected</code> string including the condition.</p>
         <tr>
           <td><code>make_expected</code></td>
           <td>
-                <code><a class="autorefs autorefs-external" title="typing" href="https://docs.python.org/3/library/typing.html#module-typing">t</a>.<a class="autorefs autorefs-external" title="typing.Optional" href="https://docs.python.org/3/library/typing.html#typing.Optional">Optional</a>[<a class="autorefs autorefs-external" title="typing" href="https://docs.python.org/3/library/typing.html#module-typing">t</a>.<a class="autorefs autorefs-external" title="typing.Callable" href="https://docs.python.org/3/library/typing.html#typing.Callable">Callable</a>[[<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a>], <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>]]</code>
+                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/typing.html#module-typing">typing</a>.<a class="autorefs autorefs-external" title="typing.Optional" href="https://docs.python.org/3/library/typing.html#typing.Optional">Optional</a>[<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/typing.html#module-typing">typing</a>.<a class="autorefs autorefs-external" title="typing.Callable" href="https://docs.python.org/3/library/typing.html#typing.Callable">Callable</a>[[<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a>], <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>]]</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -2248,7 +2248,7 @@ formatted <code>expected</code> string including the condition.</p>
         <tr>
           <td><code>f</code></td>
           <td>
-                <code><a class="autorefs autorefs-external" title="typing" href="https://docs.python.org/3/library/typing.html#module-typing">t</a>.<a class="autorefs autorefs-external" title="typing.Callable" href="https://docs.python.org/3/library/typing.html#typing.Callable">Callable</a>[[<a class="autorefs autorefs-external" title="typing" href="https://docs.python.org/3/library/typing.html#module-typing">t</a>.<a class="autorefs autorefs-external" title="typing.Any" href="https://docs.python.org/3/library/typing.html#typing.Any">Any</a>], <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a>]</code>
+                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/typing.html#module-typing">typing</a>.<a class="autorefs autorefs-external" title="typing.Callable" href="https://docs.python.org/3/library/typing.html#typing.Callable">Callable</a>[[<a class="autorefs autorefs-external" title="typing.Any" href="https://docs.python.org/3/library/typing.html#typing.Any">Any</a>], <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a>]</code>
           </td>
           <td>
             <div class="doc-md-description">
