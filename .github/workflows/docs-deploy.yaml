@@ -1,10 +1,8 @@
 name: Build Docs
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -34,4 +32,6 @@ jobs:
       - name: Fetch gh-pages branch
         run: git fetch origin gh-pages --depth=1
       - name: Deploy
-        run: mike deploy -u '${{ steps.version.outputs.version }}' dev --push
+        run: |
+          mike alias '${{ steps.version.outputs.version }}' latest --push
+          mike set-default '${{ steps.version.outputs.version }}' --push
