@@ -170,7 +170,7 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
      (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', ('t', 'c'))], {'t': 4, 'c': 4.}, Variant2(4.)),
      (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', ('t', 'c'))], {'t': 5, 'c': 4.}, WrongTypeError("tag 'tag' one of 3 or 4", 5)),
      (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', ('t', 'c'))], {'c': 4.}, WrongTypeError("mapping with keys 't' and 'c'", {'c': 4.})),
-     (t.Annotated[t.Union[Variant3, Variant4], Tagged('tag')], {'tag': 3, 'val1': 4, 'val2': 3.}, Variant3({'tag': 3, 'val1': 4, 'val2': 3.})),
+     (t.Annotated[t.Union[Variant3, Variant4], Tagged('tag')], {'tag': 3, 'val1': 4, 'val2': 3.}, Variant3({'val1': 4, 'val2': 3.})),
      (t.Annotated[t.Union[Variant3, Variant4], Tagged('tag')], {'tag': 5, 'v': 4}, WrongTypeError("tag 'tag' one of 3 or 4", 5)),
 ])
 def test_convert(ty, val, result):

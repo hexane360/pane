@@ -362,7 +362,9 @@ class TaggedUnionConverter(UnionConverter):
 
         if self.external is False:
             try:
-                tag = val[self.tag]
+                # don't give 'tag' to variants
+                val = val.copy()
+                tag = val.pop(self.tag)
             except KeyError:
                 raise ParseInterrupt()
         elif self.external is True:
@@ -392,7 +394,9 @@ class TaggedUnionConverter(UnionConverter):
 
         if self.external is False:
             try:
-                tag = val[self.tag]
+                # don't give 'tag' to variants
+                val = val.copy()
+                tag = val.pop(self.tag)
             except KeyError:
                 return WrongTypeError(f"mapping with key '{self.tag}' => {self.tag_expected()}", val)
         elif self.external is True:
