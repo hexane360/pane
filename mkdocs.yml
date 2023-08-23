@@ -68,6 +68,8 @@ plugins:
             inherited_members: true
   - mike:
       version_selector: true
+      canonical_version: latest
+     #alias_type: symlink
 
 watch:
   - pane/
