@@ -293,3 +293,14 @@ def test_pane_convert_tagged_union(val, result):
         assert e.value.tree == result
     else:
         assert pane.convert(val, cls) == result
+
+
+def test_manual_slots():
+    class SlotsClass(pane.PaneBase, frozen=False):
+        __slots__ = ("x", "z")
+        x: int
+
+    obj = SlotsClass(5)
+    obj.z = 8
+    with pytest.raises(AttributeError, match="'SlotsClass' object has no attribute 'y'"):
+        obj.y = 8

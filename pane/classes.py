@@ -35,6 +35,7 @@ class PaneBase:
     """
     Base class for all `pane` dataclasses
     """
+    __slots__ = ('__pane_set__',)
 
     __pane_info__: PaneInfo
     """Dunder attribute holding [`PaneInfo`][pane.classes.PaneInfo]"""
