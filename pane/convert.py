@@ -122,8 +122,12 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
             pass
 
     # tuple converter
-    if issubclass(base, (tuple, t.Tuple)) and len(args) > 0 and args[-1] != Ellipsis:
-        return TupleConverter(base, args)
+    if issubclass(base, (tuple, t.Tuple)):
+        # treat tuple[int, ...] and tuple[()] correctly
+        if len(args) > 0 and args[-1] != Ellipsis \
+              or args == () and hasattr(ty, '__args__'):
+            return TupleConverter(base, args)
+        # fall through to sequence converter
     if issubclass(base, (list, t.Sequence)):
         if base is t.Sequence or base is collections.abc.Sequence:
             # t.Sequence => tuple
