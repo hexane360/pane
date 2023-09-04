@@ -51,7 +51,7 @@ Consists of `t.Type[DataType]`, mappings (struct types), and sequences (tuple ty
 """
 
 
-_CONVERTER_HANDLERS: t.Sequence[t.Callable[[t.Any, t.Tuple[t.Any]], Converter[t.Any]]] = []
+_CONVERTER_HANDLERS: t.Sequence[t.Callable[[t.Any, t.Tuple[t.Any, ...]], Converter[t.Any]]] = []
 
 
 @t.overload
@@ -142,6 +142,8 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
         # treat tuple[int, ...] and tuple[()] correctly
         if len(args) > 0 and args[-1] != Ellipsis \
               or args == () and hasattr(ty, '__args__'):
+            if args == ((),):  # tuple[()] on python <3.11
+                args = ()
             return TupleConverter(base, args)
         # fall through to sequence converter
     if issubclass(base, (list, t.Sequence)):
