@@ -71,7 +71,7 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
 
     from .converters import AnyConverter, StructConverter, SequenceConverter, UnionConverter
     from .converters import LiteralConverter, DictConverter, TupleConverter
-    from .converters import _BASIC_CONVERTERS
+    from .converters import _BASIC_CONVERTERS, _BASIC_WITH_ARGS
 
     if ty is t.Any:
         return AnyConverter()
@@ -124,6 +124,9 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
     # simple/scalar converters
     if base in _BASIC_CONVERTERS:
         return _BASIC_CONVERTERS[base]
+
+    if base in _BASIC_WITH_ARGS:
+        return _BASIC_WITH_ARGS[base](*args)
 
     # add-on handlers
     for handler in _CONVERTER_HANDLERS:
@@ -218,27 +221,17 @@ def into_data(val: Convertible, ty: t.Optional[IntoConverter] = None) -> DataTyp
     """
     Convert `val` of type `ty` into a data interchange format.
     """
-    from .converters import data_is_sequence, data_is_mapping
+    if ty is None:
+        if isinstance(val, _DataType):
+            return val
+        ty = type(val)
 
-    if ty is not None:
-        # use specialized implementation
-        converter = make_converter(ty)
-        return converter.into_data(val)
+    try:
+        conv = make_converter(ty)
+    except TypeError:
+        raise TypeError(f"Can't convert type '{type(val)}' into data.") from None
 
-    # without type information, convert as best we can
-    if isinstance(val, HasConverter):
-        converter = val._converter()
-        return converter.into_data(val)
-    if data_is_mapping(val):
-        return {into_data(k): into_data(v) for (k, v) in val.items()}
-    if isinstance(val, tuple):
-        return type(val)(map(into_data, val))
-    if data_is_sequence(val):
-        return list(map(into_data, val))
-    if isinstance(val, _DataType):
-        return val
-
-    raise TypeError(f"Can't convert type '{type(val)}' into data.")
+    return conv.into_data(val)
 
 
 def from_data(val: DataType, ty: t.Type[T]) -> T:

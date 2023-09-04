@@ -9,6 +9,7 @@ from pane.errors import ErrorNode, SumErrorNode, ProductErrorNode, WrongTypeErro
 from pane.convert import convert, make_converter, ConvertError
 from pane.converters import Converter, ScalarConverter, TupleConverter, SequenceConverter, TaggedUnionConverter, AnyConverter
 from pane.converters import StructConverter, UnionConverter, LiteralConverter, ConditionalConverter, NestedSequenceConverter
+from pane.converters import PatternConverter
 from pane.annotations import Condition, Tagged, val_range, len_range
 
 
@@ -53,9 +54,21 @@ class TestConverter(Converter[TestConvertible]):
     (t.Union[str, int], UnionConverter((str, int))),
     (t.Literal['a', 'b', 'c'], LiteralConverter(('a', 'b', 'c'))),
     (t.Literal['a'], LiteralConverter(('a',))),
+    (re.Pattern[bytes], PatternConverter(bytes)),
+    (t.Pattern, PatternConverter(str)),
 ])
 def test_make_converter(input, conv: Converter):
     assert make_converter(input) == conv
+
+
+@pytest.mark.parametrize(('input', 'error'), [
+    (t.Pattern[int], TypeError("Pattern only accepts a 'str' or 'bytes' type argument, instead got '<class 'int'>'")),
+    # tag not found, tag matches multiple types
+])
+def test_make_converter_raises(input, error: Exception):
+    with pytest.raises(type(error)) as exc_info:
+        make_converter(input)
+    assert str(exc_info.value) == str(error)
 
 
 @pytest.mark.parametrize(('input', 'conv', 's'), [
@@ -125,6 +138,7 @@ def test_make_converter_annotated():
     (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag')], False, "an int or a float"),
     (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', external=True)], False, "a mapping '3 or 4' => an int or a float"),
     (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', external=('t', 'c'))], False, "a mapping 't' => 3 or 4, 'c' => an int or a float"),
+    (t.Pattern[str], True, 'string regex patterns'),
 ])
 def test_converter_expected(conv: Converter, plural: bool, expected: str):
     if not isinstance(conv, Converter):
@@ -185,6 +199,12 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
      (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', ('t', 'c'))], {'c': 4.}, WrongTypeError("mapping with keys 't' and 'c'", {'c': 4.})),
      (t.Annotated[t.Union[Variant3, Variant4], Tagged('tag')], {'tag': 3, 'val1': 4, 'val2': 3.}, Variant3({'val1': 4, 'val2': 3.})),
      (t.Annotated[t.Union[Variant3, Variant4], Tagged('tag')], {'tag': 5, 'v': 4}, WrongTypeError("tag 'tag' one of 3 or 4", 5)),
+     # regex patterns
+     (re.Pattern, 'abcde', re.compile('abcde')),
+     (re.Pattern[bytes], 'abcde', WrongTypeError('a bytes regex pattern', 'abcde')),
+     (re.Pattern[bytes], b'abcde', re.compile(b'abcde')),
+     (re.Pattern[str], '(', WrongTypeError('a string regex pattern', '(', cause=re.error('missing ), unterminated subpattern at position 0'))),
+     (re.Pattern[bytes], re.compile(b'abcde'), re.compile(b'abcde')),
 ])
 def test_convert(ty, val, result):
     if isinstance(result, ErrorNode):

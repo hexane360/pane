@@ -4,6 +4,7 @@ Converter types, which do the hard work of recursive validation.
 
 import abc
 import dataclasses
+import re
 import traceback
 import typing as t
 from typing_extensions import TypeGuard
@@ -112,6 +113,7 @@ class ScalarConverter(Converter[T]):
     constructible from a list of allowed types.
     """
 
+    # TODO this needs to handle into_data better
     ty: t.Type[T]
     """Type to convert into."""
     allowed: t.Union[type, t.Tuple[type, ...]]
@@ -841,6 +843,52 @@ class DelegateConverter(t.Generic[T, U], Converter[T]):
             return WrongTypeError(self.expected(), val, tb)
 
 
+@dataclasses.dataclass(init=False)
+class PatternConverter(t.Generic[t.AnyStr], Converter[re.Pattern[t.AnyStr]]):
+    ty: t.Type[t.AnyStr]
+    ty_conv: Converter[t.AnyStr]
+
+    def __init__(self, ty: t.Type[t.AnyStr] = str, *args: t.Any):
+        if len(args) > 0:
+            raise TypeError("PatternConverter takes only one type argument")
+        self.ty = ty
+        if not issubclass(ty, (str, bytes)):
+            raise TypeError(f"Pattern only accepts a 'str' or 'bytes' type argument, instead got '{ty!r}'")
+        self.ty_conv = make_converter(self.ty)
+
+    def into_data(self, val: t.Any) -> t.AnyStr:
+        assert isinstance(val, re.Pattern)
+        return t.cast(re.Pattern[t.AnyStr], val).pattern
+
+    def expected(self, plural: bool = False) -> str:
+        ty = 'bytes' if self.ty is bytes else 'string'
+        return pluralize(f'{ty} regex pattern', plural, article='a')
+
+    def try_convert(self, val: t.Any) -> re.Pattern[t.AnyStr]:
+        if isinstance(val, re.Pattern):
+            val = t.cast(re.Pattern[t.Any], val).pattern
+        s = self.ty_conv.try_convert(val)
+        try:
+            return re.compile(s)
+        except Exception:
+            raise ParseInterrupt from None
+
+    def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
+        if isinstance(val, re.Pattern):
+            val = t.cast(re.Pattern[t.Any], val).pattern
+        try:
+            s = self.ty_conv.try_convert(val)
+        except ParseInterrupt:
+            return WrongTypeError(self.expected(), val)
+        try:
+            re.compile(s)
+        except re.error as e:
+            tb = e.__traceback__.tb_next  # type: ignore
+            tb = traceback.TracebackException(type(e), e, tb)
+            return WrongTypeError(self.expected(), val, tb)
+        return None
+
+
 # converters for scalar types
 _BASIC_CONVERTERS: t.Dict[type, Converter[t.Any]] = {
     complex: ScalarConverter(complex, (int, float, complex), 'a complex float', 'complex floats'),
@@ -852,6 +900,11 @@ _BASIC_CONVERTERS: t.Dict[type, Converter[t.Any]] = {
     type(None): NoneConverter(),
 }
 """Built-in scalar converters for some basic types"""
+
+_BASIC_WITH_ARGS: t.Dict[type, t.Type[Converter[t.Any]]] = {
+    re.Pattern: PatternConverter,
+    t.Pattern: PatternConverter,
+}
 
 __all__ = [
     'Converter', 'AnyConverter', 'ScalarConverter', 'NoneConverter', 'LiteralConverter',
