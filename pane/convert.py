@@ -76,8 +76,21 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
     if ty is t.Any:
         return AnyConverter()
     if isinstance(ty, t.TypeVar):
-        warnings.warn(f"Unbound TypeVar '{ty}'. Will be interpreted as Any.")
-        return AnyConverter()
+        if ty.__bound__ is not None:  # type: ignore
+            # bound typevar
+            var_ty = ty.__bound__
+        elif len(ty.__constraints__) == 1:
+            # typevar with constraints
+            var_ty = ty.__constraints__
+        elif len(ty.__constraints__) > 1:
+            # typevar with multiple constraints
+            var_ty = t.Union[ty.__constraints__]  # type: ignore
+        else:
+            # unbound typevar
+            var_ty = t.Any
+
+        warnings.warn(f"Unbound TypeVar '{ty}'. Will be interpreted as '{var_ty}'.")
+        return make_converter(var_ty)
     if isinstance(ty, (dict, t.Mapping)):
         return StructConverter(type(ty), ty)
     if isinstance(ty, (tuple, t.Tuple)):

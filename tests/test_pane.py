@@ -227,7 +227,7 @@ def test_generic_signatures(cls, sig):
 @pytest.mark.parametrize(('cls', 'args', 'error'), [
     (GenericPane[int], f('s'), WrongTypeError('an int', 's')),
     (GenericPane[int], f(5), None),
-    (GenericPane, f('any value'), UserWarning("Unbound TypeVar '~T'. Will be interpreted as Any.")),
+    (GenericPane, f('any value'), UserWarning("Unbound TypeVar '~T'. Will be interpreted as 'typing.Any'.")),
     (GenericInherit[float], f('s', 5.), WrongTypeError('a float', 's')),
     (GenericInherit[float], f(5., 's'), WrongTypeError('a float', 's')),
 ])

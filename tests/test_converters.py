@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import re
 import typing as t
 
 import pytest
 
 from pane.errors import ErrorNode, SumErrorNode, ProductErrorNode, WrongTypeError, ConditionFailedError
 from pane.convert import convert, make_converter, ConvertError
-from pane.converters import Converter, ScalarConverter, TupleConverter, SequenceConverter, TaggedUnionConverter
+from pane.converters import Converter, ScalarConverter, TupleConverter, SequenceConverter, TaggedUnionConverter, AnyConverter
 from pane.converters import StructConverter, UnionConverter, LiteralConverter, ConditionalConverter, NestedSequenceConverter
 from pane.annotations import Condition, Tagged, val_range, len_range
 
@@ -55,6 +56,16 @@ class TestConverter(Converter[TestConvertible]):
 ])
 def test_make_converter(input, conv: Converter):
     assert make_converter(input) == conv
+
+
+@pytest.mark.parametrize(('input', 'conv', 's'), [
+    (t.TypeVar('T'), AnyConverter(), "Unbound TypeVar '~T'. Will be interpreted as 'typing.Any'."),
+    (t.TypeVar('U', int, str), UnionConverter((int, str)), "Unbound TypeVar '~U'. Will be interpreted as 'typing.Union[int, str]'."),
+    (t.TypeVar('V', bound=tuple), SequenceConverter(tuple, t.Any), "Unbound TypeVar '~V'. Will be interpreted as '<class 'tuple'>'."),
+])
+def test_typevar_converters(input, conv, s):
+    with pytest.warns(UserWarning, match=re.escape(s)):
+        assert make_converter(input) == conv
 
 
 cond1 = Condition(lambda v: True, 'true', lambda exp, plural: exp)
