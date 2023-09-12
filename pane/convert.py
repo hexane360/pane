@@ -8,6 +8,8 @@ import warnings
 import collections
 import collections.abc
 import inspect
+import os
+import pathlib
 import typing as t
 
 from .errors import ConvertError, UnsupportedAnnotation
@@ -69,6 +71,8 @@ _ABSTRACT_MAPPING: t.Mapping[type, type] = {  # type: ignore
 
     collections.abc.MutableSet: set,
     collections.abc.Set: frozenset,
+
+    os.PathLike: pathlib.PurePath,
 }
 """Mapping to attempt to choose a simple concrete type for abstract/base collection types"""
 
@@ -89,7 +93,7 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
     """
 
     from .converters import AnyConverter, StructConverter, SequenceConverter, UnionConverter
-    from .converters import LiteralConverter, DictConverter, TupleConverter
+    from .converters import LiteralConverter, DictConverter, TupleConverter, ScalarConverter
     from .converters import _BASIC_CONVERTERS, _BASIC_WITH_ARGS
 
     if ty is t.Any:
@@ -155,6 +159,12 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
                 return result
         except NotImplementedError:
             pass
+
+    if issubclass(base, os.PathLike):
+        new_base = _ABSTRACT_MAPPING.get(base, base)  # type: ignore
+        if inspect.isabstract(new_base):
+            raise TypeError(f"No converter for abstract type '{ty}'")
+        return ScalarConverter(new_base, (str, os.PathLike), 'a path', 'paths', str)  # type: ignore
 
     # tuple converter
     if issubclass(base, (tuple, t.Tuple)):

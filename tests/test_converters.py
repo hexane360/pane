@@ -3,8 +3,10 @@ from __future__ import annotations
 import re
 import datetime
 import collections
-from fractions import Fraction
 from decimal import Decimal
+from fractions import Fraction
+import pathlib
+import os
 import typing as t
 
 import pytest
@@ -238,6 +240,9 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
     (Fraction, '1/5', Fraction(1, 5)),
     (Fraction, 5.1345, Fraction(5780933071683453, 1125899906842624)),
     (Fraction, '1/0', WrongTypeError('a fraction', '1/0', cause=ZeroDivisionError('Fraction(1, 0)'))),
+    # path
+    (pathlib.PurePosixPath, "/test/path", pathlib.PurePosixPath("/test/path")),
+    (os.PathLike, "test/path", pathlib.PurePath("test/path")),
 ])
 def test_convert(ty, val, result):
     if isinstance(result, ErrorNode):
