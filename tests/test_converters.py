@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import datetime
+import collections
 import typing as t
 
 import pytest
@@ -169,6 +170,16 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
     (t.Tuple[int, ...], [1, 2], (1, 2)),
     (t.Sequence[int], [1, 2], (1, 2)),  # same as tuple
     (t.List[int], (1, 2), [1, 2]),
+    # exotic sequences
+    (t.Set[float], (1, 2, 3), {1., 2., 3.}),
+    (collections.deque, (1, 2, 3), collections.deque((1, 2, 3))),
+    (t.MutableSet[int], (1, 2, 3), {1, 2, 3}),
+    # dict converters
+    (t.Dict[str, float], {'a': 1}, {'a': 1.0}),
+    (collections.abc.Mapping[str, float], {'a': 1}, {'a': 1.0}),
+    (t.MutableMapping[str, str], {'a': 'b'}, {'a': 'b'}),
+    (t.Counter[str], {'a': 5, 'b': 1, 'c': 2}, collections.Counter('aaaaabcc')),
+    (collections.defaultdict, {'a': 'b'}, collections.defaultdict(None, {'a': 'b'})),
     # tuple converters
     (t.Tuple[str], ['int'], ('int',)),
     (t.Tuple[str], ('s1', 's2'), WrongTypeError('tuple of length 1', ('s1', 's2'))),

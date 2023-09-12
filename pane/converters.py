@@ -545,16 +545,20 @@ class TupleConverter(t.Generic[T], Converter[T]):
 class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDataK, FromDataV]]):
     """Converter for a homogenous dict-like type."""
     ty: t.Type[t.Mapping[FromDataK, FromDataV]]
-    """Type to convert into. Must be constructible from a dict"""
+    """Type to convert into. Must be constructible from a dict (unless `constructor` is specified)"""
     k_conv: Converter[FromDataK]
     """Sub-converter for keys"""
     v_conv: Converter[FromDataV]
     """Sub-converter for values"""
+    constructor: t.Callable[[t.Dict[t.Any, t.Any]], t.Mapping[FromDataK, FromDataV]]
 
-    def __init__(self, ty: t.Type[t.Dict[t.Any, t.Any]], k: t.Type[FromDataK] = t.Any, v: t.Type[FromDataV] = t.Any):
+    def __init__(self, ty: t.Type[t.Dict[t.Any, t.Any]],
+                 k: t.Type[FromDataK] = t.Any, v: t.Type[FromDataV] = t.Any,
+                 constructor: t.Optional[t.Callable[[t.Dict[t.Any, t.Any]], t.Mapping[FromDataK, FromDataV]]] = None):
         self.ty = ty
         self.k_conv = make_converter(k)
         self.v_conv = make_converter(v)
+        self.constructor = self.ty if constructor is None else constructor
 
     def into_data(self, val: t.Any) -> DataType:
         """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
@@ -573,7 +577,8 @@ class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDat
             raise ParseInterrupt()
 
         d = {self.k_conv.try_convert(k): self.v_conv.try_convert(v) for (k, v) in val.items()}
-        return self.ty(d)  # type: ignore
+        # TODO catch errors here
+        return self.constructor(d)
 
     def collect_errors(self, val: t.Any) -> t.Union[None, WrongTypeError, ProductErrorNode]:
         """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""

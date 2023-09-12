@@ -5,7 +5,9 @@ High-level interface to `pane`.
 from __future__ import annotations
 
 import warnings
+import collections
 import collections.abc
+import inspect
 import typing as t
 
 from .errors import ConvertError, UnsupportedAnnotation
@@ -52,6 +54,23 @@ Consists of `t.Type[DataType]`, mappings (struct types), and sequences (tuple ty
 
 
 _CONVERTER_HANDLERS: t.Sequence[t.Callable[[t.Any, t.Tuple[t.Any, ...]], Converter[t.Any]]] = []
+
+
+_ABSTRACT_MAPPING: t.Mapping[type, type] = {  # type: ignore
+    t.Sequence: tuple,
+    collections.abc.Sequence: tuple,
+    t.MutableSequence: list,
+    collections.abc.MutableSequence: list,
+
+    collections.abc.Mapping: dict,
+    t.Mapping: dict,
+    collections.abc.MutableMapping: dict,
+    t.MutableMapping: dict,
+
+    collections.abc.MutableSet: set,
+    collections.abc.Set: frozenset,
+}
+"""Mapping to attempt to choose a simple concrete type for abstract/base collection types"""
 
 
 @t.overload
@@ -146,23 +165,38 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
                 args = ()
             return TupleConverter(base, args)
         # fall through to sequence converter
-    if issubclass(base, (list, t.Sequence)):
-        if base is t.Sequence or base is collections.abc.Sequence:
-            # t.Sequence => tuple
-            base = tuple
-        return SequenceConverter(base, args[0] if len(args) > 0 else t.Any)  # type: ignore
+
+    # homogenous sequence converter
+    # concrete t.Set/t.List/etc are already converted to set/list/etc by t.get_origin
+    if issubclass(base, (collections.abc.Sequence, collections.abc.Set)):
+        # map abstract to concrete types
+        new_base = _ABSTRACT_MAPPING.get(base, base)  # type: ignore
+        if inspect.isabstract(new_base):
+            raise TypeError(f"No converter for abstract type '{ty}'")
+        return SequenceConverter(new_base, args[0] if len(args) > 0 else t.Any)  # type: ignore
+
     # homogenous mapping converter
+    # this also handles dict subclasses like Counter & OrderedDict
     if issubclass(base, (dict, t.Mapping)):
-        if base is t.Mapping or base is collections.abc.Mapping:
-            # t.Mapping => dict
-            base = dict
-        return DictConverter(base,  # type: ignore
+        # map abstract to concrete types
+        new_base = _ABSTRACT_MAPPING.get(base, base)  # type: ignore
+        if inspect.isabstract(new_base):
+            raise TypeError(f"No converter for abstract type '{ty}'")
+        if issubclass(new_base, collections.Counter):
+            # counter takes one type argument, handle it specially
+            return DictConverter(new_base, args[0] if len(args) > 0 else t.Any, int)
+
+        # defaultdict needs a special constructor
+        constructor: t.Optional[t.Callable[[t.Mapping[t.Any, t.Any]], collections.defaultdict[t.Any, t.Any]]]
+        constructor = (lambda d: collections.defaultdict(None, d)) if issubclass(new_base, collections.defaultdict) else None
+        return DictConverter(new_base,  # type: ignore
                              args[0] if len(args) > 0 else t.Any,
-                             args[1] if len(args) > 1 else t.Any)  # type: ignore
+                             args[1] if len(args) > 1 else t.Any,
+                             constructor)
 
     # after we've handled common cases, look for subclasses of basic types
-    for (ty, conv) in _BASIC_CONVERTERS.items():
-        if issubclass(base, ty):
+    for (conv_ty, conv) in _BASIC_CONVERTERS.items():
+        if issubclass(base, conv_ty):
             return conv
 
     raise TypeError(f"No converter for type '{ty}'")
