@@ -6,6 +6,7 @@ import abc
 import dataclasses
 import re
 import traceback
+import datetime
 import typing as t
 from typing_extensions import TypeGuard
 
@@ -24,6 +25,7 @@ FromDataT = t.TypeVar('FromDataT', bound=Convertible)
 FromDataK = t.TypeVar('FromDataK', bound=Convertible)
 FromDataV = t.TypeVar('FromDataV', bound=Convertible)
 NestedSequence = t.Union[T, t.Sequence['NestedSequence[T]']]
+DatetimeT = t.TypeVar('DatetimeT', bound=t.Union[datetime.datetime, datetime.date, datetime.time])
 
 
 def data_is_sequence(val: t.Any) -> TypeGuard[t.Sequence[t.Any]]:
@@ -889,6 +891,115 @@ class PatternConverter(t.Generic[t.AnyStr], Converter[re.Pattern[t.AnyStr]]):
         return None
 
 
+class DatetimeConverter(Converter[DatetimeT], t.Generic[DatetimeT]):
+    """
+    Converter for a simple scalar type,
+    constructible from a list of allowed types.
+    """
+    _date_types: t.Tuple[type, ...] = (datetime.date, datetime.time, datetime.datetime)
+    _expected: t.Mapping[type, str] = {
+        datetime.date: "date",
+        datetime.datetime: "datetime",
+        datetime.time: "time",
+    }
+
+    def __init__(self, ty: t.Type[DatetimeT]):
+        self.ty = ty
+        self.super_ty: t.Type[DatetimeT]
+        if ty in self._date_types:
+            self.super_ty = ty
+            return
+        for date_ty in self._date_types:
+            if issubclass(ty, date_ty):
+                self.super_ty = t.cast(t.Type[DatetimeT], date_ty)
+                return
+        raise TypeError(f"Only types {list_phrase([repr(str(ty)) for ty in self._date_types])} are supported")
+
+    def __eq__(self, other: t.Any) -> bool:
+        return type(self) == type(other) and self.ty == other.ty
+
+    def expected(self, plural: bool = False) -> str:
+        """See [`Converter.expected`][pane.converters.Converter.expected]"""
+        return pluralize(self._expected[self.super_ty], plural, article='a')
+
+    def into_data(self, val: t.Any) -> str:
+        if isinstance(val, (datetime.time, datetime.date, datetime.datetime)):
+            return val.isoformat()
+        return str(val)
+
+    #                input type:
+    # output type:     date    datetime  time    str
+    #          date     id     .date()   error  parse
+    #      datetime   combine     id     error  parse
+    #          time    error   .timetz()  id    parse
+
+    def from_datetime(self, dt: datetime.datetime) -> DatetimeT:
+        d: t.Mapping[type, t.Callable[[datetime.datetime], DatetimeT]] = {
+            # datetime to datetime
+            datetime.datetime: lambda dt: t.cast(DatetimeT, dt),
+            # datetime to time
+            datetime.time: lambda dt: t.cast(DatetimeT, dt.time()),
+            # datetime to date
+            datetime.date: lambda dt: t.cast(DatetimeT, dt.date()),
+        }
+        return d[self.super_ty](dt)
+
+    def from_date(self, dt: datetime.date) -> DatetimeT:
+        def err(val: t.Any):
+            raise TypeError()
+
+        d: t.Mapping[type, t.Callable[[datetime.date], DatetimeT]] = {
+            # date to datetime
+            datetime.datetime: lambda date: t.cast(DatetimeT, datetime.datetime.combine(date, datetime.time())),
+            # date to date
+            datetime.date: lambda date: t.cast(DatetimeT, date),
+            datetime.time: err,
+        }
+        return d[self.super_ty](dt)
+
+    def try_convert(self, val: t.Any) -> DatetimeT:
+        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
+        if isinstance(val, str):
+            # parse string
+            try:
+                return t.cast(DatetimeT, self.ty.fromisoformat(val))
+            except ValueError:
+                raise ParseInterrupt() from None
+        if isinstance(val, datetime.datetime):
+            # from datetime, to datetime, date, or time
+            return self.from_datetime(val)
+        elif isinstance(val, datetime.time):
+            # from time, to time only
+            if self.super_ty == datetime.time:
+                return t.cast(DatetimeT, val)
+        elif isinstance(val, datetime.date):
+            # from date, to date or datetime
+            if self.super_ty != datetime.time:
+                return self.from_date(val)
+        raise ParseInterrupt()
+
+    def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
+        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
+        if isinstance(val, str):
+            # parse string
+            try:
+                self.ty.fromisoformat(val)
+                return None
+            except ValueError as e:
+                tb = e.__traceback__.tb_next  # type: ignore
+                tb = traceback.TracebackException(type(e), e, tb)
+                return WrongTypeError(self.expected(), val, tb)
+        if isinstance(val, datetime.datetime):
+            return None
+        elif isinstance(val, datetime.time):
+            if self.super_ty == datetime.time:
+                return None
+        elif isinstance(val, datetime.date):
+            if self.super_ty != datetime.time:
+                return None
+        return WrongTypeError(self.expected(), val)
+
+
 # converters for scalar types
 _BASIC_CONVERTERS: t.Dict[type, Converter[t.Any]] = {
     complex: ScalarConverter(complex, (int, float, complex), 'a complex float', 'complex floats'),
@@ -898,6 +1009,9 @@ _BASIC_CONVERTERS: t.Dict[type, Converter[t.Any]] = {
     bytes: ScalarConverter(bytes, (bytes, bytearray), 'a bytestring', 'bytestrings'),
     bytearray: ScalarConverter(bytearray, (bytes, bytearray), 'a bytearray', 'bytearrays'),
     type(None): NoneConverter(),
+    datetime.datetime: DatetimeConverter(datetime.datetime),
+    datetime.time: DatetimeConverter(datetime.time),
+    datetime.date: DatetimeConverter(datetime.date),
 }
 """Built-in scalar converters for some basic types"""
 

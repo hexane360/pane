@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import re
+import datetime
 import typing as t
 
 import pytest
 
 from pane.errors import ErrorNode, SumErrorNode, ProductErrorNode, WrongTypeError, ConditionFailedError
-from pane.convert import convert, make_converter, ConvertError
+from pane.convert import convert, from_data, make_converter, ConvertError
 from pane.converters import Converter, ScalarConverter, TupleConverter, SequenceConverter, TaggedUnionConverter, AnyConverter
 from pane.converters import StructConverter, UnionConverter, LiteralConverter, ConditionalConverter, NestedSequenceConverter
-from pane.converters import PatternConverter
+from pane.converters import PatternConverter, DatetimeConverter
 from pane.annotations import Condition, Tagged, val_range, len_range
 
 
@@ -56,6 +57,8 @@ class TestConverter(Converter[TestConvertible]):
     (t.Literal['a'], LiteralConverter(('a',))),
     (re.Pattern[bytes], PatternConverter(bytes)),
     (t.Pattern, PatternConverter(str)),
+    (datetime.datetime, DatetimeConverter(datetime.datetime)),
+    (datetime.time, DatetimeConverter(datetime.time)),
 ])
 def test_make_converter(input, conv: Converter):
     assert make_converter(input) == conv
@@ -139,6 +142,8 @@ def test_make_converter_annotated():
     (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', external=True)], False, "a mapping '3 or 4' => an int or a float"),
     (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', external=('t', 'c'))], False, "a mapping 't' => 3 or 4, 'c' => an int or a float"),
     (t.Pattern[str], True, 'string regex patterns'),
+    (datetime.datetime, True, 'datetimes'),
+    (datetime.time, False, 'a time'),
 ])
 def test_converter_expected(conv: Converter, plural: bool, expected: str):
     if not isinstance(conv, Converter):
@@ -180,31 +185,39 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
                1: WrongTypeError('an int', 's'),
          },  (0., 's')),
      }, {'x': 5., 'y': (0., 's')})
-     ),
-     # custom convertible type
-     (TestConvertible, 's', TestConvertible()),
-     # conditions
-     (t.Annotated[int, cond2], 1, 1),
-     (t.Annotated[int, cond2], 0, ConditionFailedError('an int > 0', 0., 'v > 0')),
-     (t.Annotated[int, cond1, cond2], 0, ConditionFailedError('an int satisfying true and v > 0', 0., 'true and v > 0')),
-     (t.Annotated[int, val_range(min=0)], 0, 0),
-     (t.Annotated[int, val_range(min=0)], -1, ConditionFailedError('an int satisfying v >= 0', -1., 'v >= 0')),
-     (t.Annotated[float, val_range(min=0, max=5)], 5, 5.),
-     (t.Annotated[float, val_range(min=0, max=5)], 5.05, ConditionFailedError('a float satisfying v >= 0 and v <= 5', 5.05, 'v >= 0 and v <= 5')),
-     (t.Annotated[t.Sequence[int], len_range(min=1)], [], ConditionFailedError('sequence of ints with at least 1 elem', [], 'at least 1 elem')),
-     # tagged unions
-     (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', True)], {3: 4}, Variant1(4)),
-     (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', ('t', 'c'))], {'t': 4, 'c': 4.}, Variant2(4.)),
-     (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', ('t', 'c'))], {'t': 5, 'c': 4.}, WrongTypeError("tag 'tag' one of 3 or 4", 5)),
-     (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', ('t', 'c'))], {'c': 4.}, WrongTypeError("mapping with keys 't' and 'c'", {'c': 4.})),
-     (t.Annotated[t.Union[Variant3, Variant4], Tagged('tag')], {'tag': 3, 'val1': 4, 'val2': 3.}, Variant3({'val1': 4, 'val2': 3.})),
-     (t.Annotated[t.Union[Variant3, Variant4], Tagged('tag')], {'tag': 5, 'v': 4}, WrongTypeError("tag 'tag' one of 3 or 4", 5)),
-     # regex patterns
-     (re.Pattern, 'abcde', re.compile('abcde')),
-     (re.Pattern[bytes], 'abcde', WrongTypeError('a bytes regex pattern', 'abcde')),
-     (re.Pattern[bytes], b'abcde', re.compile(b'abcde')),
-     (re.Pattern[str], '(', WrongTypeError('a string regex pattern', '(', cause=re.error('missing ), unterminated subpattern at position 0'))),
-     (re.Pattern[bytes], re.compile(b'abcde'), re.compile(b'abcde')),
+    ),
+    # custom convertible type
+    (TestConvertible, 's', TestConvertible()),
+    # conditions
+    (t.Annotated[int, cond2], 1, 1),
+    (t.Annotated[int, cond2], 0, ConditionFailedError('an int > 0', 0., 'v > 0')),
+    (t.Annotated[int, cond1, cond2], 0, ConditionFailedError('an int satisfying true and v > 0', 0., 'true and v > 0')),
+    (t.Annotated[int, val_range(min=0)], 0, 0),
+    (t.Annotated[int, val_range(min=0)], -1, ConditionFailedError('an int satisfying v >= 0', -1., 'v >= 0')),
+    (t.Annotated[float, val_range(min=0, max=5)], 5, 5.),
+    (t.Annotated[float, val_range(min=0, max=5)], 5.05, ConditionFailedError('a float satisfying v >= 0 and v <= 5', 5.05, 'v >= 0 and v <= 5')),
+    (t.Annotated[t.Sequence[int], len_range(min=1)], [], ConditionFailedError('sequence of ints with at least 1 elem', [], 'at least 1 elem')),
+    # tagged unions
+    (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', True)], {3: 4}, Variant1(4)),
+    (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', ('t', 'c'))], {'t': 4, 'c': 4.}, Variant2(4.)),
+    (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', ('t', 'c'))], {'t': 5, 'c': 4.}, WrongTypeError("tag 'tag' one of 3 or 4", 5)),
+    (t.Annotated[t.Union[Variant1, Variant2], Tagged('tag', ('t', 'c'))], {'c': 4.}, WrongTypeError("mapping with keys 't' and 'c'", {'c': 4.})),
+    (t.Annotated[t.Union[Variant3, Variant4], Tagged('tag')], {'tag': 3, 'val1': 4, 'val2': 3.}, Variant3({'val1': 4, 'val2': 3.})),
+    (t.Annotated[t.Union[Variant3, Variant4], Tagged('tag')], {'tag': 5, 'v': 4}, WrongTypeError("tag 'tag' one of 3 or 4", 5)),
+    # regex patterns
+    (re.Pattern, 'abcde', re.compile('abcde')),
+    (re.Pattern[bytes], 'abcde', WrongTypeError('a bytes regex pattern', 'abcde')),
+    (re.Pattern[bytes], b'abcde', re.compile(b'abcde')),
+    (re.Pattern[str], '(', WrongTypeError('a string regex pattern', '(', cause=re.error('missing ), unterminated subpattern at position 0'))),
+    (re.Pattern[bytes], re.compile(b'abcde'), re.compile(b'abcde')),
+    # datetime (from str)
+    (datetime.datetime, "2023-09-05 11:11:11", datetime.datetime(2023, 9, 5, 11, 11, 11)),
+    (datetime.time, "11:11:11", datetime.time(11, 11, 11)),
+    (datetime.date, "2023-09-05", datetime.date(2023, 9, 5)),
+    (datetime.date, "11:11:11", WrongTypeError('a date', "11:11:11", cause=ValueError("Invalid isoformat string: '11:11:11'"))),
+    (datetime.date, "09/05/2023", WrongTypeError('a date', "09/05/2023", cause=ValueError("Invalid isoformat string: '09/05/2023'"))),
+    # TODO should we accept this?
+    (datetime.time, "2023-09-05 11:11:11", WrongTypeError('a time', "2023-09-05 11:11:11", cause=ValueError("Invalid isoformat string: '2023-09-05 11:11:11'"))),
 ])
 def test_convert(ty, val, result):
     if isinstance(result, ErrorNode):
@@ -215,6 +228,36 @@ def test_convert(ty, val, result):
         assert convert(val, ty) == result
         assert make_converter(ty).collect_errors(val) is None
 
+@pytest.mark.parametrize(('conv', 'val', 'result'), [
+    # to time
+    (datetime.time, datetime.time.fromisoformat("11:11:11"), datetime.time.fromisoformat("11:11:11")),
+    (datetime.time, datetime.date.fromisoformat("2023-09-01"), WrongTypeError('a time', datetime.date.fromisoformat("2023-09-01"))),
+    (datetime.time, datetime.datetime.fromisoformat("2023-09-01 11:11:11"), datetime.time.fromisoformat("11:11:11")),
+    # to date
+    (datetime.date, datetime.date.fromisoformat("2023-09-01"), datetime.date.fromisoformat("2023-09-01")),
+    (datetime.date, datetime.time.fromisoformat("11:11:11"), WrongTypeError('a date', datetime.time.fromisoformat("11:11:11"))),
+    (datetime.date, datetime.datetime.fromisoformat("2023-09-01 11:11:11"), datetime.date.fromisoformat("2023-09-01")),
+    # to datetime
+    (datetime.datetime, datetime.date.fromisoformat("2023-09-01"), datetime.datetime.fromisoformat("2023-09-01 00:00:00")),
+    (datetime.datetime, datetime.time.fromisoformat("12:05:23"), WrongTypeError('a datetime', datetime.time.fromisoformat("12:05:23"))),
+    (datetime.datetime, datetime.datetime.fromisoformat("2023-09-01 11:11:11"), datetime.datetime.fromisoformat("2023-09-01 11:11:11")),
+])
+def test_conv_convert(conv, val, result):
+    # this test is useful for testing how Converters respond to
+    # values other than data interchange values
+
+    if not isinstance(conv, Converter):
+        conv = make_converter(conv)
+
+    if isinstance(result, ErrorNode):
+        with pytest.raises(ConvertError) as exc_info:
+            conv.convert(val)
+        assert exc_info.value.tree == result
+    else:
+        assert conv.convert(val) == result
+        assert conv.collect_errors(val) is None
+
+# TODO test converter idempotence
 
 @pytest.mark.parametrize(('err', 's'), [
     (WrongTypeError('an int', 3.), "Expected an int, instead got `3.0` of type `float`"),
