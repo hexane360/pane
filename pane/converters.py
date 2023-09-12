@@ -7,6 +7,8 @@ import dataclasses
 import re
 import traceback
 import datetime
+from fractions import Fraction
+from decimal import Decimal
 import typing as t
 from typing_extensions import TypeGuard
 
@@ -124,10 +126,14 @@ class ScalarConverter(Converter[T]):
     """Singular form of expected value."""
     expect_plural: t.Optional[str] = None
     """Plural form of expected value."""
+    _into_data_f: t.Callable[[T], DataType] = lambda v: v  # type: ignore
 
     def __post_init__(self):
         self.expect = self.expect or self.ty.__name__
         self.expect_plural = self.expect_plural or self.expect
+
+    def into_data(self, val: t.Any) -> DataType:
+        return self._into_data_f(val)
 
     def expected(self, plural: bool = False) -> str:
         """See [`Converter.expected`][pane.converters.Converter.expected]"""
@@ -136,13 +142,22 @@ class ScalarConverter(Converter[T]):
     def try_convert(self, val: t.Any) -> T:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if isinstance(val, self.allowed):
-            return self.ty(val)  # type: ignore
+            try:
+                return self.ty(val)  # type: ignore
+            except Exception:
+                raise ParseInterrupt()
         raise ParseInterrupt()
 
     def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
         """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         if isinstance(val, self.allowed):
-            return None
+            try:
+                self.ty(val)
+                return None
+            except Exception as e:
+                tb = e.__traceback__.tb_next  # type: ignore
+                tb = traceback.TracebackException(type(e), e, tb)
+                return WrongTypeError(self.expected(), val, tb)
         return WrongTypeError(f'{self.expected()}', val)
 
 
@@ -599,13 +614,16 @@ class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDat
 class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
     """Converter for a homogenous sequence-like type"""
     ty: type
-    """Type to convert into. Must be constructible from a tuple/sequence."""
+    """Type to convert into. Must be constructible from an iterator."""
     v_conv: Converter[FromDataT]
     """Sub-converter for values"""
+    constructor: t.Callable[[t.Iterator[t.Any]], t.Sequence[t.Any]]
 
-    def __init__(self, ty: t.Type[t.Sequence[t.Any]], v: t.Type[FromDataT] = t.Any):
+    def __init__(self, ty: t.Type[t.Sequence[t.Any]], v: t.Type[FromDataT] = t.Any,
+                 constructor: t.Optional[t.Callable[[t.Iterator[t.Any]], t.Sequence[t.Any]]] = None):
         self.ty = ty
         self.v_conv = make_converter(v)
+        self.constructor = self.ty if constructor is None else constructor
 
     def into_data(self, val: t.Any) -> DataType:
         """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
@@ -623,7 +641,7 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
         if not data_is_sequence(val):
             raise ParseInterrupt
         try:
-            return self.ty(self.v_conv.try_convert(v) for v in val)  # type: ignore
+            return self.constructor(self.v_conv.try_convert(v) for v in val)  # type: ignore
         except Exception:
             raise ParseInterrupt()
 
@@ -644,7 +662,7 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
             return ProductErrorNode(self.expected(), nodes, val)
         # try to construct val
         try:
-            self.ty(iter(vals))
+            self.constructor(iter(vals))
             return None
         except Exception as e:
             tb = e.__traceback__.tb_next  # type: ignore
@@ -1017,6 +1035,8 @@ _BASIC_CONVERTERS: t.Dict[type, Converter[t.Any]] = {
     datetime.datetime: DatetimeConverter(datetime.datetime),
     datetime.time: DatetimeConverter(datetime.time),
     datetime.date: DatetimeConverter(datetime.date),
+    Decimal: ScalarConverter(Decimal, (int, str, float, Decimal), 'a decimal number', 'decimal numbers', str),
+    Fraction: ScalarConverter(Fraction, (int, str, float, Decimal, Fraction), 'a fraction', 'fractions', str),
 }
 """Built-in scalar converters for some basic types"""
 

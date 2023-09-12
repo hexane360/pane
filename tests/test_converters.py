@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 import datetime
 import collections
+from fractions import Fraction
+from decimal import Decimal
 import typing as t
 
 import pytest
@@ -229,6 +231,13 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
     (datetime.date, "09/05/2023", WrongTypeError('a date', "09/05/2023", cause=ValueError("Invalid isoformat string: '09/05/2023'"))),
     # TODO should we accept this?
     (datetime.time, "2023-09-05 11:11:11", WrongTypeError('a time', "2023-09-05 11:11:11", cause=ValueError("Invalid isoformat string: '2023-09-05 11:11:11'"))),
+    # fraction/decimal
+    (Decimal, 5, Decimal('5')),
+    (Decimal, '5.123', Decimal('5.123')),
+    (Decimal, 1.1, Decimal('1.100000000000000088817841970012523233890533447265625')),
+    (Fraction, '1/5', Fraction(1, 5)),
+    (Fraction, 5.1345, Fraction(5780933071683453, 1125899906842624)),
+    (Fraction, '1/0', WrongTypeError('a fraction', '1/0', cause=ZeroDivisionError('Fraction(1, 0)'))),
 ])
 def test_convert(ty, val, result):
     if isinstance(result, ErrorNode):
