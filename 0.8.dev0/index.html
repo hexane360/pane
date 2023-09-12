@@ -325,6 +325,40 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#supported-datatypes" class="md-nav__link">
+    Supported datatypes
+  </a>
+  
+    <nav class="md-nav" aria-label="Supported datatypes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#standard-library" class="md-nav__link">
+    Standard library
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#third-party-datatypes" class="md-nav__link">
+    Third-party datatypes
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supported-typing-constructs" class="md-nav__link">
+    Supported typing constructs
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#comparison-to-other-libraries" class="md-nav__link">
     Comparison to other libraries
   </a>
@@ -678,6 +712,40 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#supported-datatypes" class="md-nav__link">
+    Supported datatypes
+  </a>
+  
+    <nav class="md-nav" aria-label="Supported datatypes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#standard-library" class="md-nav__link">
+    Standard library
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#third-party-datatypes" class="md-nav__link">
+    Third-party datatypes
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supported-typing-constructs" class="md-nav__link">
+    Supported typing constructs
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#comparison-to-other-libraries" class="md-nav__link">
     Comparison to other libraries
   </a>
@@ -729,6 +797,63 @@ tagged &amp; untagged unions, and custom predicates.</p>
 <div class="language-sh highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>py-pane
 </span></code></pre></div>
 <p><code>pane</code> deliberately has very few depedencies, and has no binary dependencies.</p>
+<h2 id="supported-datatypes">Supported datatypes</h2>
+<p><code>pane</code> aims to support a broad range of standard library and third-party datatypes.
+Currently, the following datatypes are supported:</p>
+<h3 id="standard-library">Standard library</h3>
+<p>Sequence/collection types:
+- <code>list</code>/<code>typing.List</code>
+- <code>tuple</code>/<code>typing.Tuple</code>/<code>typing.Sequence</code>/<code>collections.abc.Sequence</code>
+- <code>set</code>/<code>typing.Set</code>/<code>collections.abc.Set</code>
+- <code>frozenset</code>/<code>typing.FrozenSet</code>/<code>collections.abc.FrozenSet</code>
+- <code>collections.deque</code>/<code>typing.Deque</code></p>
+<p>Tuple types:
+- Heterogeneous: <code>tuple[int, str]</code>/<code>t.Tuple[int, str]</code>
+- Homogeneous: <code>tuple[int, ...]</code>/<code>t.Tuple[int, ...]</code>
+- Empty: <code>tuple[()]</code>/<code>t.Tuple[()]</code></p>
+<p>Mapping types:
+- <code>dict</code>/<code>typing.Dict</code>/<code>typing.Mapping</code>/<code>typing.MutableMapping</code>/<code>collections.abc.Mapping</code>/<code>collections.abc.MutableMapping</code>
+- <code>collections.defaultdict</code>/<code>typing.DefaultDict</code>
+- <code>collections.OrderedDict</code>/<code>typing.OrderedDict</code>
+- <code>collections.Counter</code></p>
+<p>String/bytes types:
+- <code>str</code>
+- <code>bytes</code>
+- <code>bytearray</code></p>
+<p>Numeric types:
+- <code>int</code>
+- <code>float</code>
+- <code>complex</code>
+- <code>decimal.Decimal</code>
+- <code>fraction.Fraction</code></p>
+<p>Datetime types:
+- <code>datetime.datetime</code>
+- <code>datetime.date</code>
+- <code>datetime.time</code></p>
+<p>Path-like types:
+- <code>os.PathLike</code> (currently <code>str</code> only)
+- <code>pathlib.Path</code>/<code>pathlib.PurePath</code>
+- <code>pathlib.WindowsPath</code>/<code>pathlib.PureWindowsPath</code>
+- <code>pathlib.PosixPath</code>/<code>pathlib.PurePosixPath</code></p>
+<p>Other scalar types:
+- <code>bool</code>
+- <code>None</code>
+- <code>re.Pattern</code>/<code>typing.Pattern</code></p>
+<h3 id="third-party-datatypes">Third-party datatypes</h3>
+<ul>
+<li><code>numpy.ndarray</code>/<code>NDArray[]</code></li>
+</ul>
+<h3 id="supported-typing-constructs">Supported typing constructs</h3>
+<p>In addition, <code>pane</code> attempts to fully support modern Python type hints. This includes the following:</p>
+<ul>
+<li><code>typing.Union</code></li>
+<li><code>typing.Optional</code></li>
+<li><code>typing.TypeVar</code></li>
+<li><code>typing.Generic</code></li>
+<li><code>typing.Literal</code></li>
+<li><code>typing.Any</code></li>
+<li><code>typing.Annotated</code></li>
+</ul>
 <h2 id="comparison-to-other-libraries">Comparison to other libraries</h2>
 <p>Coming soon</p>
 
