@@ -40,42 +40,56 @@ Currently, the following datatypes are supported:
 
 ### Standard library
 
-Sequence/collection types:
+#### Sequence/collection types:
+
 - `list`/`typing.List`
 - `tuple`/`typing.Tuple`/`typing.Sequence`/`collections.abc.Sequence`
 - `set`/`typing.Set`/`collections.abc.Set`
 - `frozenset`/`typing.FrozenSet`/`collections.abc.FrozenSet`
 - `collections.deque`/`typing.Deque`
 
-Tuple types:
+#### Tuple types:
+
 - Heterogeneous: `tuple[int, str]`/`t.Tuple[int, str]`
 - Homogeneous: `tuple[int, ...]`/`t.Tuple[int, ...]`
 - Empty: `tuple[()]`/`t.Tuple[()]`
 
-Mapping types:
+#### Mapping types:
+
 - `dict`/`typing.Dict`/`typing.Mapping`/`typing.MutableMapping`/`collections.abc.Mapping`/`collections.abc.MutableMapping`
 - `collections.defaultdict`/`typing.DefaultDict`
 - `collections.OrderedDict`/`typing.OrderedDict`
 - `collections.Counter`
 
-String/bytes types:
+#### String/bytes types:
+
 - `str`
 - `bytes`
 - `bytearray`
 
-Numeric types:
+#### Numeric types:
+
 - `int`
 - `float`
 - `complex`
 - `decimal.Decimal`
 - `fraction.Fraction`
 
-Datetime types:
+#### Datetime types:
+
 - `datetime.datetime`
 - `datetime.date`
 - `datetime.time`
 
-Other scalar types:
+#### Path-like types:
+
+- `os.PathLike` (currently `str` only)
+- `pathlib.Path`/`pathlib.PurePath`
+- `pathlib.WindowsPath`/`pathlib.PureWindowsPath`
+- `pathlib.PosixPath`/`pathlib.PurePosixPath`
+
+#### Other scalar types:
+
 - `bool`
 - `None`
 - `re.Pattern`/`typing.Pattern`
@@ -83,6 +97,18 @@ Other scalar types:
 ### Third-party datatypes
 
 - `numpy.ndarray`/`NDArray[]`
+
+### Supported typing constructs
+
+In addition, `pane` attempts to fully support modern Python type hints. This includes the following:
+
+- `typing.Union`
+- `typing.Optional`
+- `typing.TypeVar`
+- `typing.Generic`
+- `typing.Literal`
+- `typing.Any`
+- `typing.Annotated`
 
 ## Comparison to other libraries
 
