@@ -3,13 +3,17 @@ import sys
 from pathlib import Path
 from io import TextIOBase, IOBase, TextIOWrapper, BufferedIOBase
 from contextlib import AbstractContextManager, nullcontext
+import functools
 from itertools import zip_longest
+import operator
 import typing as t
+from threading import RLock
 from typing_extensions import ParamSpec
 
 
 T = t.TypeVar('T')
 FileOrPath = t.Union[str, Path, TextIOBase, t.TextIO]
+P = ParamSpec('P')
 
 
 # mock KW_ONLY on python <3.10
@@ -130,6 +134,10 @@ def collect_typevars(args: t.Any) -> t.Tuple[t.Union[t.TypeVar, ParamSpec], ...]
     return tuple(d)
 
 
+def type_union(types: t.Iterable[type]) -> type:
+    return functools.reduce(operator.or_, types)
+
+
 def flatten_union_args(types: t.Iterable[T]) -> t.Iterator[T]:
     """Flatten nested unions, returning a single sequence of possible union types."""
     for ty in types:
@@ -228,6 +236,82 @@ def is_broadcastable(*args: t.Sequence[int]) -> bool:
         return True
     except ValueError:
         return False
+
+
+PREV, NEXT, KEY, RESULT = 0, 1, 2, 3
+
+class KeyCache(t.Generic[P, T]):
+    _missing = object()
+
+    def __init__(self, f: t.Callable[P, T], key_f: t.Callable[[t.Any], t.Any] = id, maxsize: t.Optional[int] = None):
+        self.maxsize: t.Optional[int] = maxsize
+        self.key_f = key_f
+        self.inner_f: t.Callable[P, T] = f
+        self.cache: t.Dict[t.Tuple[t.Tuple[t.Any, ...], t.Tuple[t.Tuple[str, t.Any], ...]], t.Any] = {}
+
+        self._root: t.List[t.Any] = []
+        self._root[:] = [self._root, self._root, None, None]
+        self._lock = RLock()
+
+        self.full = self.maxsize == 0
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T:
+        if self.maxsize is None:
+            key = (tuple(map(self.key_f, args)), tuple((k, self.key_f(v)) for (k, v) in kwargs.items()))
+            result = self.cache.get(key, self._missing)
+            if result is not self._missing:
+                return t.cast(T, result)
+            result = self.inner_f(*args, **kwargs)
+            self.cache[key] = result
+            return result
+
+        key = (tuple(map(self.key_f, args)), tuple((k, self.key_f(v)) for (k, v) in kwargs.items()))
+        with self._lock:
+            link = self.cache.get(key, None)
+            if link is not None:
+                # extract this link
+                prev_link, next_link, _key, result = link
+                prev_link[NEXT] = next_link
+                next_link[PREV] = prev_link
+
+                # and move it to the end of the list
+                last = self._root[PREV]
+                last[NEXT] = self._root[PREV] = link
+                link[PREV] = last
+                link[NEXT] = self._root
+                return t.cast(T, result)
+
+        result = self.inner_f(*args, **kwargs)
+        with self._lock:
+            if key in self.cache:
+                pass
+            elif self.full:
+                # turn the oldest link into the new root
+                # and reuse oldroot on the end of the list
+                oldroot = self._root
+                oldroot[KEY] = key
+                oldroot[RESULT] = result
+
+                self._root = oldroot[NEXT]
+                oldkey = self._root[KEY]
+                oldresult = self._root[RESULT]  # type: ignore (we want to keep this around for a bit)
+                self._root[KEY] = self._root[RESULT] = None
+                del self.cache[oldkey]
+                self.cache[key] = oldroot
+            else:
+                last = self._root[PREV]
+                link = [last, self._root, key, result]
+                last[NEXT] = self._root[PREV] = self.cache[key] = link
+                self.full = (self.maxsize is not None and len(self.cache) >= self.maxsize)
+        return result
+
+
+# TODO support maxsize
+def key_cache(key_f: t.Callable[[t.Any], t.Any] = id, *, maxsize: t.Optional[int] = None) -> t.Callable[[t.Callable[P, T]], KeyCache[P, T]]:
+    def inner(f: t.Callable[P, T]) -> KeyCache[P, T]:
+        return t.cast(KeyCache[P, T], functools.update_wrapper(KeyCache(f, key_f, maxsize), f))
+
+    return inner
 
 
 __all__ = [

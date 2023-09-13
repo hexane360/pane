@@ -7,6 +7,10 @@ from __future__ import annotations
 import warnings
 import collections
 import collections.abc
+import enum
+import datetime
+from decimal import Decimal
+from fractions import Fraction
 import inspect
 import os
 import pathlib
@@ -14,6 +18,7 @@ import typing as t
 
 from .errors import ConvertError, UnsupportedAnnotation
 from .addons import numpy as numpy
+from .util import key_cache
 
 if t.TYPE_CHECKING:
     from .converters import Converter
@@ -40,18 +45,33 @@ class HasConverter(t.Protocol):
 
 DataType = t.Union[str, bytes, int, bool, float, complex, None, t.Mapping['DataType', 'DataType'], t.Sequence['DataType'], numpy.NDArray[numpy.generic]]
 """Common data interchange type. [`into_data`][pane.convert.into_data] converts to this."""
+
 _DataType = (str, bytes, int, bool, float, complex, type(None), t.Mapping, t.Sequence, numpy.ndarray)  # type: ignore
 """[`DataType`][pane.convert.DataType] for use in [`isinstance`][isinstance]."""
-Convertible = t.Union[DataType, HasConverter]
-"""Types supported by [`from_data`][pane.convert.from_data]. [`DataType`][pane.convert.DataType] + [`HasConverter`][pane.convert.HasConverter]"""
+
+Convertible = t.Union[
+    DataType, HasConverter,
+    t.AbstractSet[DataType],
+    Fraction, Decimal,
+    datetime.datetime, datetime.date, datetime.time,
+    os.PathLike[str],
+    t.Pattern[str], t.Pattern[bytes],
+    enum.Enum
+]
+"""
+Types supported by [`from_data`][pane.convert.from_data].
+
+Consists of [`DataType`][pane.convert.DataType] + [`HasConverter`][pane.convert.HasConverter] + supported stdlib types.
+"""
+
 IntoConverter = t.Union[
-    t.Type[DataType], t.Type[HasConverter],
+    t.Type[Convertible],
     t.Mapping[str, 'IntoConverter'],
     t.Sequence['IntoConverter']
 ]
 """
-Types supported by [`make_converter`][pane.convert.make_converter].
-Consists of `t.Type[DataType]`, mappings (struct types), and sequences (tuple types).
+Inputs supported by [`make_converter`][pane.convert.make_converter].
+Consists of `t.Type[Convertible]`, mappings (struct types), and sequences (tuple types).
 """
 
 
@@ -85,6 +105,7 @@ def make_converter(ty: t.Type[T]) -> Converter[T]:
 def make_converter(ty: IntoConverter) -> Converter[t.Any]:
     ...
 
+@key_cache(id)
 def make_converter(ty: IntoConverter) -> Converter[t.Any]:
     """
     Make a [`Converter`][pane.convert.Converter] for `ty`.
@@ -94,7 +115,7 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
 
     from .converters import AnyConverter, StructConverter, SequenceConverter, UnionConverter
     from .converters import LiteralConverter, DictConverter, TupleConverter, ScalarConverter
-    from .converters import _BASIC_CONVERTERS, _BASIC_WITH_ARGS
+    from .converters import EnumConverter, _BASIC_CONVERTERS, _BASIC_WITH_ARGS
 
     if ty is t.Any:
         return AnyConverter()
@@ -160,6 +181,10 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
         except NotImplementedError:
             pass
 
+    if issubclass(base, enum.Enum):
+        return EnumConverter(base)
+
+    # pathlike converter
     if issubclass(base, os.PathLike):
         new_base = _ABSTRACT_MAPPING.get(base, base)  # type: ignore
         if inspect.isabstract(new_base):

@@ -7,6 +7,7 @@ import dataclasses
 import re
 import traceback
 import datetime
+import enum
 from fractions import Fraction
 from decimal import Decimal
 import typing as t
@@ -15,7 +16,7 @@ from typing_extensions import TypeGuard
 from pane.errors import ErrorNode
 
 from .convert import DataType, Convertible, IntoConverter, make_converter, into_data
-from .util import list_phrase, pluralize, flatten_union_args, KW_ONLY
+from .util import list_phrase, pluralize, flatten_union_args, type_union, KW_ONLY
 from .errors import ConvertError, ParseInterrupt, WrongTypeError, ConditionFailedError
 from .errors import ErrorNode, SumErrorNode, ProductErrorNode
 
@@ -808,6 +809,58 @@ class ConditionalConverter(t.Generic[FromDataT], Converter[FromDataT]):
             tb = traceback.TracebackException(type(e), e, tb)
             return ConditionFailedError(self.expected(), val, self.condition_name, tb)
         return None
+
+
+class EnumConverter(Converter[enum.Enum]):
+    def __init__(self, ty: t.Type[enum.Enum]):
+        from pane.convert import _DataType  # type: ignore
+        if issubclass(ty, enum.Flag):
+            raise TypeError("Flag enums are not currently supported")
+        self.ty: t.Type[enum.Enum] = ty
+
+        members = ty.__members__.values()
+        try:
+            self.val_map = {member.value: member for member in members}
+        except TypeError:
+            raise TypeError("All enum members must be hashable")
+
+        self.member_vals = tuple(self.val_map.keys())
+        if not all(isinstance(val, _DataType) for val in self.member_vals):
+            raise TypeError("All enum members must be data-interchange types")
+
+        self.inner_ty = type_union(map(type, self.member_vals))
+        self.inner_conv = make_converter(self.inner_ty)
+
+    def into_data(self, val: t.Any) -> DataType:
+        """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
+        if isinstance(val, self.ty):
+            return val.value  # guaranteed to be data-interchange type
+        return into_data(val)
+
+    def expected(self, plural: bool = False) -> str:
+        """See [`Converter.expected`][pane.converters.Converter.expected]"""
+        l = list_phrase(tuple(map(str, self.member_vals)))
+        return f"{pluralize('member', plural)} of enum '{self.ty.__name__}' ({l})"
+
+    def try_convert(self, val: t.Any) -> enum.Enum:
+        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
+        val = self.inner_conv.try_convert(val)
+        try:
+            return self.val_map[val]
+        except KeyError:
+            raise ParseInterrupt()
+
+    def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
+        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
+        try:
+            val = self.inner_conv.try_convert(val)
+        except ParseInterrupt:
+            return self.inner_conv.collect_errors(val)
+        try:
+            self.val_map[val]
+            return None
+        except KeyError:
+            return WrongTypeError(self.expected(), val)
 
 
 @dataclasses.dataclass
