@@ -10,14 +10,6 @@ import dataclasses
 import typing as t
 
 
-class ParseInterrupt(Exception):
-    """
-    Raised by [`Converter`][pane.converters.Converter]s to indicate that a given parsing path has failed
-    (without materializing a detailed error message).
-    """
-    ...
-
-
 class UnsupportedAnnotation(Exception):
     """
     Raised when a given [`t.Annotated`][typing.Annotated] isn't understood by `pane`.
@@ -236,5 +228,4 @@ class SumErrorNode(ErrorNode):
 __all__ = [
     'ErrorNode', 'ProductErrorNode', 'SumErrorNode',
     'DuplicateKeyError', 'WrongTypeError', 'ConvertError',
-    'ParseInterrupt',
 ]

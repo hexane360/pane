@@ -282,8 +282,8 @@ class PaneTagBase(pane.PaneBase):
 
 
 @pytest.mark.parametrize(('val', 'result'), [
-    ({'x': {'tag': 'tag1', 'x': 5, 'y': 5.0}}, PaneTagBase(x=PaneTag1(x=5, y=5.0))),
-    ({'x': {'tag': 'tag3', 'x': 8}}, PaneTagBase(x=PaneTag3(x=8))),
+    ({'x': {'tag': 'tag1', 'x': 5, 'y': 5.0}}, PaneTagBase.make_unchecked(x=PaneTag1.make_unchecked(x=5, y=5.0))),
+    ({'x': {'tag': 'tag3', 'x': 8}}, PaneTagBase.make_unchecked(x=PaneTag3.make_unchecked(x=8))),
 ])
 def test_pane_convert_tagged_union(val, result):
     cls = PaneTagBase

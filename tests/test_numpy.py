@@ -52,4 +52,3 @@ def test_convert_numpy(ty, val, result):
         assert exc_info.value.tree == result
     else:
         assert_array_equal(convert(val, ty), result)
-        assert make_converter(ty).collect_errors(val) is None

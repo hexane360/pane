@@ -13,9 +13,9 @@ from pane.errors import ConvertError, ProductErrorNode, SumErrorNode, WrongTypeE
     (PositiveInt, 5, 5),
     (PositiveInt, -5, ConditionFailedError('a positive int', -5, 'positive')),
     (ListNotEmpty[int], [], ConditionFailedError('sequence of ints with at least 1 elem', [], 'at least 1 elem')),
-    (Range[float], (2., 4., 2), Range[t.Any](2., 4., 2)),
+    (Range[float], (2., 4., 2), Range[t.Any].make_unchecked(2., 4., 2)),
     (Range[float], (2., 4., 2, 5, 8), WrongLenError('tuple Range', (2, 3), (2., 4., 2, 5, 8), 5)),
-    (Range[float], {'start': 2., 'end': 4., 'step': 1.}, Range[t.Any](start=2., end=4., step=1.)),
+    (Range[float], {'start': 2., 'end': 4., 'step': 1.}, Range[t.Any].make_unchecked(start=2., end=4., step=1.)),
     (Range[float], {'start': 2., 'end': 4.}, WrongTypeError('struct Range', {'start': 2., 'end': 4.}, cause=TypeError("Either 'n' or 'step' must be specified"))),
     (Range[float], {'start': 2., 'end': 4., 'n': 1, 'step': 3.}, WrongTypeError('struct Range', {'start': 2., 'end': 4., 'n': 1, 'step': 3.}, cause=TypeError("Either 'n' or 'step' may be specified, but not both"))),
     (ValueOrList[int], 5, ValueOrList.from_val(5)),
@@ -30,4 +30,3 @@ def test_convert_types(ty, val, result):
         assert exc_info.value.tree == result
     else:
         assert convert(val, ty) == result
-        assert make_converter(ty).collect_errors(val) is None

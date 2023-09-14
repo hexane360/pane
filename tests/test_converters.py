@@ -34,12 +34,10 @@ class TestConvertible():
 class TestConverter(Converter[TestConvertible]):
     def try_convert(self, val: t.Any):
         return TestConvertible()
+        yield  # make generator
 
     def expected(self, plural: bool = False) -> str:
         return "TestConvertible"
-
-    def collect_errors(self, val: t.Any) -> None:
-        return None
 
     def __hash__(self):
         return hash(self.__class__)
@@ -251,7 +249,6 @@ def test_convert(ty, val, result):
         assert exc_info.value.tree == result
     else:
         assert convert(val, ty) == result
-        assert make_converter(ty).collect_errors(val) is None
 
 @pytest.mark.parametrize(('conv', 'val', 'result'), [
     # to time
@@ -280,7 +277,6 @@ def test_conv_convert(conv, val, result):
         assert exc_info.value.tree == result
     else:
         assert conv.convert(val) == result
-        assert conv.collect_errors(val) is None
 
 # TODO test converter idempotence
 

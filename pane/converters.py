@@ -17,18 +17,19 @@ from pane.errors import ErrorNode
 
 from .convert import DataType, Convertible, IntoConverter, make_converter, into_data
 from .util import list_phrase, pluralize, flatten_union_args, type_union, KW_ONLY
-from .errors import ConvertError, ParseInterrupt, WrongTypeError, ConditionFailedError
+from .errors import ConvertError, WrongTypeError, ConditionFailedError
 from .errors import ErrorNode, SumErrorNode, ProductErrorNode
 
 
 T_co = t.TypeVar('T_co', covariant=True)
 T = t.TypeVar('T')
-U = t.TypeVar('U', bound=Convertible)
+U = t.TypeVar('U')
 FromDataT = t.TypeVar('FromDataT', bound=Convertible)
 FromDataK = t.TypeVar('FromDataK', bound=Convertible)
 FromDataV = t.TypeVar('FromDataV', bound=Convertible)
 NestedSequence = t.Union[T, t.Sequence['NestedSequence[T]']]
 DatetimeT = t.TypeVar('DatetimeT', bound=t.Union[datetime.datetime, datetime.date, datetime.time])
+Resumable = t.Generator[None, None, T]
 
 
 def data_is_sequence(val: t.Any) -> TypeGuard[t.Sequence[t.Any]]:
@@ -41,6 +42,20 @@ def data_is_mapping(val: t.Any) -> TypeGuard[t.Mapping[t.Any, t.Any]]:
     return isinstance(val, (dict, t.Mapping))
 
 
+def make_tb(exc: Exception) -> traceback.TracebackException:
+    tb = exc.__traceback__.tb_next  # type: ignore
+    return traceback.TracebackException(type(exc), exc, tb)
+
+
+def exhaust(gen: Resumable[T]) -> T:
+    """Exhaust a resumable generator `gen`, returning the result value."""
+    while True:
+        try:
+            next(gen)
+        except StopIteration as si:
+            return si.value
+
+
 class Converter(abc.ABC, t.Generic[T_co]):
     """
     Base class for a converter to a given type ``T_co``.
@@ -48,15 +63,10 @@ class Converter(abc.ABC, t.Generic[T_co]):
 
     def convert(self, val: t.Any) -> T_co:
         """Convert ``val`` to ``T_co``. Raises a ``ConvertError`` on failure."""
-        try:
-            return self.try_convert(val)
-        except ParseInterrupt:
-            pass
-        node = self.collect_errors(val)
-        if node is None:
-            raise RuntimeError("convert() raised but ``collect_errors`` returned ``None``."
-                               " This is a bug of the ``Converter`` implementation.")
-        raise ConvertError(node)
+        result = exhaust(self.try_convert(val))
+        if isinstance(result, ErrorNode):
+            raise ConvertError(result)
+        return result
 
     def into_data(self, val: t.Any) -> DataType:
         """
@@ -78,19 +88,15 @@ class Converter(abc.ABC, t.Generic[T_co]):
         ...
 
     @abc.abstractmethod
-    def try_convert(self, val: t.Any) -> T_co:
+    def try_convert(self, val: t.Any) -> Resumable[t.Union[T_co, ErrorNode]]:
         """
         Attempt to convert ``val`` to ``T``.
-        Should raise ``ParseInterrupt`` (and only ``ParseInterrupt``)
-        when a given parsing path reaches a dead end.
-        """
-        ...
 
-    @abc.abstractmethod
-    def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
-        """
-        Return an error tree caused by converting ``val`` to ``T``.
-        ``collect_errors`` should return ``None`` iff ``convert`` doesn't raise.
+        Return a resumable generator, which uses a `yield` to signal that
+        an error is unavoidable.
+        Implementations should either return `T_co` immediately, or
+        `yield` once before returning `ErrorNode`. Expensive error creation
+        should take place after the `yield` statement.
         """
         ...
 
@@ -98,9 +104,10 @@ class Converter(abc.ABC, t.Generic[T_co]):
 @dataclasses.dataclass
 class AnyConverter(Converter[t.Any]):
     """Converter for ``t.Any``."""
-    def try_convert(self, val: t.Any) -> t.Any:
+    def try_convert(self, val: t.Any) -> Resumable[t.Union[t.Any, ErrorNode]]:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         return val
+        yield  # ensure a generator
 
     def expected(self, plural: bool = False) -> str:
         """See [`Converter.expected`][pane.converters.Converter.expected]"""
@@ -140,25 +147,15 @@ class ScalarConverter(Converter[T]):
         """See [`Converter.expected`][pane.converters.Converter.expected]"""
         return t.cast(str, self.expect_plural if plural else self.expect)
 
-    def try_convert(self, val: t.Any) -> T:
+    def try_convert(self, val: t.Any) -> Resumable[t.Union[T, ErrorNode]]:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if isinstance(val, self.allowed):
             try:
                 return self.ty(val)  # type: ignore
-            except Exception:
-                raise ParseInterrupt()
-        raise ParseInterrupt()
-
-    def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
-        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
-        if isinstance(val, self.allowed):
-            try:
-                self.ty(val)
-                return None
             except Exception as e:
-                tb = e.__traceback__.tb_next  # type: ignore
-                tb = traceback.TracebackException(type(e), e, tb)
-                return WrongTypeError(self.expected(), val, tb)
+                yield
+                return WrongTypeError(self.expected(), val, make_tb(e))
+        yield
         return WrongTypeError(f'{self.expected()}', val)
 
 
@@ -168,21 +165,16 @@ class NoneConverter(Converter[None]):
     Converter which accepts only ``None``.
     """
 
-    def try_convert(self, val: t.Any) -> None:
+    def try_convert(self, val: t.Any) -> Resumable[t.Union[None, ErrorNode]]:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if val is None:
             return val
-        raise ParseInterrupt()
+        yield
+        return WrongTypeError(self.expected(), val)
 
     def expected(self, plural: bool = False) -> str:
         """See [`Converter.expected`][pane.converters.Converter.expected]"""
         return pluralize("null value", plural)
-
-    def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
-        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
-        if val is None:
-            return None
-        return WrongTypeError(self.expected(), val)
 
 
 @dataclasses.dataclass
@@ -193,22 +185,17 @@ class LiteralConverter(Converter[T_co]):
 
     vals: t.Sequence[T_co]
 
-    def try_convert(self, val: t.Any) -> T_co:
+    def try_convert(self, val: t.Any) -> Resumable[t.Union[T_co, ErrorNode]]:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if val in self.vals:
             return val
-        raise ParseInterrupt()
+        yield
+        return WrongTypeError(self.expected(), val)
 
     def expected(self, plural: bool = False) -> str:
         """See [`Converter.expected`][pane.converters.Converter.expected]"""
         l = list_phrase(tuple(map(repr, self.vals)))
         return f"({l})" if plural else l
-
-    def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
-        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
-        if val in self.vals:
-            return None
-        return WrongTypeError(self.expected(), val)
 
 
 @dataclasses.dataclass(init=False)
@@ -244,49 +231,56 @@ class UnionConverter(Converter[t.Any]):
         # this works because try_convert should be idempotent
         for conv in self.converters:
             try:
-                conv.try_convert(val)
-            except ParseInterrupt:
-                pass
-            else:
+                next(conv.try_convert(val))
+            except StopIteration:
                 return conv.into_data(val)
         # default to regular conversion
         return into_data(val)
 
-    def construct(self, val: t.Any, i: int) -> t.Any:
+    def _construct(self, val: t.Any, i: int) -> t.Any:
         if self.constructor is None:
             return val
         return self.constructor(val, i)
 
-    def try_convert(self, val: t.Any) -> t.Any:
-        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
-        for (i, conv) in enumerate(self.converters):
-            try:
-                val = conv.try_convert(val)
-                try:
-                    return self.construct(val, i)
-                except Exception:
-                    pass
-            except ParseInterrupt:
-                pass
-        raise ParseInterrupt
+    def _try_convert_child(self, conv: Converter[t.Any], val: t.Any, i: int) -> Resumable[t.Any]:
+        result = (yield from conv.try_convert(val))
+        if isinstance(result, ErrorNode):
+            return result
+        if self.constructor is None:
+            return result
+        try:
+            return self.constructor(result, i)
+        except Exception as e:
+            yield
+            return WrongTypeError(self.expected(), val, make_tb(e))
 
-    def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
-        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
-        failed_children: t.List[ErrorNode] = []
+    def try_convert(self, val: t.Any) -> Resumable[t.Union[t.Any, ErrorNode]]:
+        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
+
+        # list of gens to collect errors from
+        gens: t.List[Resumable[t.Union[t.Any, ErrorNode]]] = []
+
         for (i, conv) in enumerate(self.converters):
-            # if one branch is successful, the whole type is successful
+            gen = self._try_convert_child(conv, val, i)
             try:
-                conv_val = conv.try_convert(val)
-            except ParseInterrupt:
-                failed_children.append(t.cast(t.Union[ProductErrorNode, WrongTypeError], conv.collect_errors(val)))
-                continue
-            try:
-                self.construct(conv_val, i)
-                return None
-            except Exception as e:
-                tb = e.__traceback__.tb_next  # type: ignore
-                tb = traceback.TracebackException(type(e), e, tb)
-                failed_children.append(WrongTypeError(self.expected(), val, tb))
+                next(gen)
+            except StopIteration as si:
+                # well-behaved `try_convert` implementations
+                # should yield before returning an error
+                assert not isinstance(si.value, ErrorNode)
+                # child succeeded, return
+                return si.value
+            # otherwise add to list of failed generators
+            gens.append(gen)
+
+        # all branches failed, yield before collecting errors
+        yield
+
+        failed_children: t.List[ErrorNode] = []
+        for (i, gen) in enumerate(gens):
+            err = exhaust(gen)
+            assert isinstance(err, ErrorNode)
+            failed_children.append(err)
         return SumErrorNode(failed_children)
 
 
@@ -373,41 +367,10 @@ class TaggedUnionConverter(UnionConverter):
         (t_r, c_r) = self.external
         return {t_r: tag, c_r: inner_conv.into_data(val)}
 
-    def try_convert(self, val: t.Any) -> t.Any:
+    def try_convert(self, val: t.Any) -> Resumable[t.Union[t.Any, ErrorNode]]:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if not data_is_mapping(val):
-            raise ParseInterrupt()
-        val = t.cast(t.Dict[str, t.Any], val)
-        tag: t.Any
-
-        if self.external is False:
-            try:
-                # don't give 'tag' to variants
-                val = val.copy()
-                tag = val.pop(self.tag)
-            except KeyError:
-                raise ParseInterrupt()
-        elif self.external is True:
-            if len(val) != 1:
-                raise ParseInterrupt()
-            (tag, val) = next(iter(val.items()))
-        else:
-            (t_r, c_r) = self.external
-            try:
-                if len(val) != 2:
-                    raise ParseInterrupt()
-                tag, val = val[t_r], val[c_r]
-            except KeyError:
-                raise ParseInterrupt()
-        try:
-            i = self.tag_map[tag]
-        except KeyError:
-            raise ParseInterrupt()
-        return self.converters[i].try_convert(val)
-
-    def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
-        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
-        if not data_is_mapping(val):
+            yield
             return WrongTypeError(self.expected(), val)
         val = t.cast(t.Dict[str, t.Any], val)
         tag: t.Any
@@ -418,9 +381,11 @@ class TaggedUnionConverter(UnionConverter):
                 val = val.copy()
                 tag = val.pop(self.tag)
             except KeyError:
+                yield
                 return WrongTypeError(f"mapping with key '{self.tag}' => {self.tag_expected()}", val)
         elif self.external is True:
             if len(val) != 1:
+                yield
                 return WrongTypeError(self.expected(), val)
             (tag, val) = next(iter(val.items()))
         else:
@@ -430,12 +395,14 @@ class TaggedUnionConverter(UnionConverter):
                     raise KeyError()
                 tag, val = val[t_r], val[c_r]
             except KeyError:
+                yield
                 return WrongTypeError(f"mapping with keys '{t_r}' and '{c_r}'", val)
         try:
             i = self.tag_map[tag]
         except KeyError:
+            yield
             return WrongTypeError(f"tag '{self.tag}' one of {self.tag_expected()}", tag)
-        return self.converters[i].collect_errors(val)
+        return (yield from self.converters[i].try_convert(val))
 
 
 @dataclasses.dataclass
@@ -476,39 +443,47 @@ class StructConverter(Converter[T]):
                 d[k] = into_data(v)
         return d
 
-    def try_convert(self, val: t.Any) -> T:
+    def try_convert(self, val: t.Any) -> Resumable[t.Union[T, ErrorNode]]:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if not data_is_mapping(val):
-            raise ParseInterrupt()
-        val = t.cast(t.Dict[str, t.Any], val)
-        d: t.Dict[str, t.Any] = {}
-        for (k, v) in val.items():
-            if k not in self.fields:
-                raise ParseInterrupt()  # unknown field
-            d[k] = self.field_converters[k].try_convert(v)
-        missing = set(self.fields.keys()) - set(val.keys()) - self.opt_fields
-        if len(missing):
-            raise ParseInterrupt()
-        return self.ty(d)  # type: ignore
-
-    def collect_errors(self, val: t.Any) -> t.Union[WrongTypeError, ProductErrorNode, None]:
-        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
-        if not data_is_mapping(val):
+            yield
             return WrongTypeError(self.expected(), val)
         val = t.cast(t.Dict[str, t.Any], val)
 
+        errored: bool = False
         children: t.Dict[t.Union[str, int], t.Any] = {}
+        d: t.Dict[str, t.Any] = {}
         extra: t.Set[str] = set()
         for (k, v) in val.items():
             if k not in self.fields:
+                if not errored:
+                    errored = True
+                    yield
                 extra.add(k)
                 continue
-            if (node := self.field_converters[k].collect_errors(v)) is not None:
-                children[k] = node
+            gen = self.field_converters[k].try_convert(v)
+            try:
+                next(gen)
+            except StopIteration as si:
+                assert not isinstance(si.value, ErrorNode)
+                d[k] = si.value
+                continue
+            if not errored:
+                errored = True
+                yield
+            err = exhaust(gen)
+            assert isinstance(err, ErrorNode)
+            children[k] = err
         missing = set(self.fields.keys()) - set(val.keys()) - self.opt_fields
         if len(children) or len(missing) or len(extra):
+            if not errored:
+                yield
             return ProductErrorNode(self.expected(), children, val, missing, extra)
-        return None
+        try:
+            return self.ty(d)  # type: ignore
+        except Exception as e:
+            yield
+            return WrongTypeError(self.expected(), val, make_tb(e))
 
 
 @dataclasses.dataclass(init=False)
@@ -534,27 +509,39 @@ class TupleConverter(t.Generic[T], Converter[T]):
         """See [`Converter.expected`][pane.converters.Converter.expected]"""
         return f"{pluralize('tuple', plural)} of length {len(self.converters)}"
 
-    def try_convert(self, val: t.Any) -> T:
+    def try_convert(self, val: t.Any) -> Resumable[t.Union[T, ErrorNode]]:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
-        if not data_is_sequence(val):
-            raise ParseInterrupt
-        if len(val) != len(self.converters):
-            raise ParseInterrupt
-
-        return self.ty(conv.try_convert(v) for (conv, v) in zip(self.converters, val))
-
-    def collect_errors(self, val: t.Any) -> t.Union[None, ProductErrorNode, WrongTypeError]:
-        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         if not data_is_sequence(val) or len(val) != len(self.converters):
+            yield
             return WrongTypeError(self.expected(), val)
-        children = {}
-        for (i, (conv, v)) in enumerate(zip(self.converters, val)):
-            node = conv.collect_errors(v)
-            if node is not None:
-                children[i] = node
-        if len(children) == 0:
-            return None
-        return ProductErrorNode(self.expected(), children, val)
+
+        vs: t.List[t.Any] = []
+        children: t.Dict[t.Union[int, str], ErrorNode] = {}
+
+        for (i, (v, conv)) in enumerate(zip(val, self.converters)):
+            gen = conv.try_convert(v)
+            try:
+                next(gen)
+            except StopIteration as si:
+                result = si.value
+                assert not isinstance(result, ErrorNode)
+                vs.append(result)
+                continue
+
+            # yielded, pass yield upstream
+            if len(children) == 0:
+                yield
+            # and collect error
+            children[i] = t.cast(ErrorNode, exhaust(gen))
+
+        if len(children):
+            return ProductErrorNode(self.expected(), children, val)
+
+        try:
+            return self.ty(vs)
+        except Exception as e:
+            yield
+            return WrongTypeError(self.expected(), val, make_tb(e))
 
 
 @dataclasses.dataclass(init=False)
@@ -587,28 +574,57 @@ class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDat
         """See [`Converter.expected`][pane.converters.Converter.expected]"""
         return f"{pluralize('mapping', plural)} of {self.k_conv.expected(True)} => {self.v_conv.expected(True)}"
 
-    def try_convert(self, val: t.Any) -> t.Mapping[FromDataK, FromDataV]:
+    def try_convert(self, val: t.Any) -> Resumable[t.Union[t.Mapping[FromDataK, FromDataV], ErrorNode]]:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if not data_is_mapping(val):
-            raise ParseInterrupt()
-
-        d = {self.k_conv.try_convert(k): self.v_conv.try_convert(v) for (k, v) in val.items()}
-        # TODO catch errors here
-        return self.constructor(d)
-
-    def collect_errors(self, val: t.Any) -> t.Union[None, WrongTypeError, ProductErrorNode]:
-        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
-        if not data_is_mapping(val):
+            yield
             return WrongTypeError(self.expected(), val)
 
-        nodes: t.Dict[t.Union[str, int], ErrorNode] = {}
+        d: t.Dict[t.Any, t.Any] = {}
+        children: t.Dict[t.Union[int, str], ErrorNode] = {}
+
         for (k, v) in val.items():
-            if (node := self.k_conv.collect_errors(k)) is not None:
-                nodes[str(k)] = node  # TODO split bad fields from bad values
-            if (node := self.v_conv.collect_errors(v)) is not None:
-                nodes[str(k)] = node
-        if len(nodes):
-            return ProductErrorNode(self.expected(), nodes, val)
+            gen = self.k_conv.try_convert(k)
+            try:
+                next(gen)
+            except StopIteration as si:
+                result = si.value
+                assert not isinstance(result, ErrorNode)
+                k = result
+            else:
+                # yielded, pass yield upstream
+                if len(children) == 0:
+                    yield
+                # and collect error
+                # TODO differentiate between key and value error
+                err = exhaust(gen)
+                assert isinstance(err, ErrorNode)
+                children[str(k)] = err
+
+            gen = self.v_conv.try_convert(v)
+            try:
+                next(gen)
+            except StopIteration as si:
+                result = si.value
+                assert not isinstance(result, ErrorNode)
+                d[k] = result
+            else:
+                # yielded, pass yield upstream
+                if len(children) == 0:
+                    yield
+                # and collect error
+                err = exhaust(gen)
+                assert isinstance(err, ErrorNode)
+                children[str(k)] = err
+
+        if len(children):
+            return ProductErrorNode(self.expected(), children, val)
+
+        try:
+            return self.constructor(d)
+        except Exception as e:
+            yield
+            return WrongTypeError(self.expected(), val, make_tb(e))
 
 
 @dataclasses.dataclass(init=False)
@@ -637,38 +653,38 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
         """See [`Converter.expected`][pane.converters.Converter.expected]"""
         return f"{pluralize('sequence', plural)} of {self.v_conv.expected(True)}"
 
-    def try_convert(self, val: t.Any) -> t.Sequence[FromDataT]:
+    def try_convert(self, val: t.Any) -> Resumable[t.Union[t.Sequence[FromDataT], ErrorNode]]:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if not data_is_sequence(val):
-            raise ParseInterrupt
-        try:
-            return self.constructor(self.v_conv.try_convert(v) for v in val)  # type: ignore
-        except Exception:
-            raise ParseInterrupt()
-
-    def collect_errors(self, val: t.Any) -> t.Union[None, WrongTypeError, ProductErrorNode]:
-        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
-        if not data_is_sequence(val):
+            yield
             return WrongTypeError(self.expected(), val)
-
         nodes = {}
         vals: t.List[FromDataT] = []
         for (i, v) in enumerate(val):
+            gen = self.v_conv.try_convert(v)
             try:
-                vals.append(self.v_conv.convert(v))
-            except ConvertError as e:
-                nodes[i] = e.tree
+                next(gen)
+            except StopIteration as si:
+                result = si.value
+                assert not isinstance(result, ErrorNode)
+                vals.append(result)
+                continue
+
+            if len(nodes) == 0:
+                yield
+
+            err = exhaust(gen)
+            assert isinstance(err, ErrorNode)
+            nodes[i] = err
 
         if len(nodes):
             return ProductErrorNode(self.expected(), nodes, val)
-        # try to construct val
+
         try:
-            self.constructor(iter(vals))
-            return None
+            return self.constructor(iter(vals))
         except Exception as e:
-            tb = e.__traceback__.tb_next  # type: ignore
-            tb = traceback.TracebackException(type(e), e, tb)
-            return WrongTypeError(self.expected(), val, tb)
+            yield
+            return WrongTypeError(self.expected(), val, make_tb(e))
 
 
 @dataclasses.dataclass
@@ -708,49 +724,42 @@ class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
         new_shape = (len(shapes), *shape)
         return new_shape
 
-    def try_convert(self, val: t.Any) -> T:
+    def try_convert(self, val: t.Any) -> Resumable[t.Union[T, ErrorNode]]:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
-        result = self._try_convert(val)
+        result = (yield from self._try_convert(val))
+        if isinstance(result, ErrorNode):
+            return result
         if not self.ragged:
             try:
                 self._check_shape(result)
-            except ValueError:
-                raise ParseInterrupt()
-        return self.constructor(result)
-
-    def _try_convert(self, val: t.Any) -> NestedSequence[U]:
-        if not data_is_sequence(val):
-            # single value
-            return self.val_conv.try_convert(val)
-        vals = list(map(self._try_convert, val))
-        return t.cast(NestedSequence[U], vals)
-
-    def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
-        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
-        if (node := self._collect_errors(val)) is not None:
-            return node
-        val = self._try_convert(val)
-        if not self.ragged:
-            try:
-                self._check_shape(val)
             except ValueError as e:
+                yield
                 return WrongTypeError(self.expected(), val, info=e.args[0])
         try:
-            self.constructor(val)
+            return self.constructor(result)
         except Exception as e:
-            tb = e.__traceback__.tb_next  # type: ignore
-            tb = traceback.TracebackException(type(e), e, tb)
-            return WrongTypeError(self.expected(), val, tb)
+            yield
+            return WrongTypeError(self.expected(), val, make_tb(e))
 
-    def _collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
+    def _try_convert(self, val: t.Any) -> Resumable[t.Union[NestedSequence[U], ErrorNode]]:
         if not data_is_sequence(val):
-            return self.val_conv.collect_errors(val)
+            # single value
+            return (yield from self.val_conv.try_convert(val))
+
+        vals: t.List[NestedSequence[U]] = []
         nodes = {}
         for (i, v) in enumerate(val):
-            if (node := self._collect_errors(v)) is not None:
-                nodes[i] = node
+            # TODO prevent multiple yield froms here
+            result = (yield from self._try_convert(v))
+            if isinstance(result, ErrorNode):
+                nodes[i] = result
+            else:
+                vals.append(result)
+
         if len(nodes):
             return ProductErrorNode(self.expected(), nodes, val)
+
+        return vals
 
 
 @dataclasses.dataclass
@@ -783,32 +792,20 @@ class ConditionalConverter(t.Generic[FromDataT], Converter[FromDataT]):
         """See [`Converter.expected`][pane.converters.Converter.expected]"""
         return self.make_expected(self.inner.expected(plural), plural)
 
-    def try_convert(self, val: t.Any) -> FromDataT:
+    def try_convert(self, val: t.Any) -> Resumable[t.Union[FromDataT, ErrorNode]]:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
-        val = self.inner.try_convert(val)
-        try:
-            if self.condition(val):
-                return val
-        except Exception:
-            pass
-        raise ParseInterrupt()
-
-    def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
-        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
-        try:
-            conv_val = self.inner.try_convert(val)
-        except ParseInterrupt:
-            # TODO with_expected() here
-            return self.inner.collect_errors(val)
+        conv_val = (yield from self.inner.try_convert(val))
+        if isinstance(conv_val, ErrorNode):
+            return conv_val
         try:
             # condition failed
             if not self.condition(conv_val):
+                yield
                 return ConditionFailedError(self.expected(), val, self.condition_name)
         except Exception as e:
-            tb = e.__traceback__.tb_next  # type: ignore
-            tb = traceback.TracebackException(type(e), e, tb)
-            return ConditionFailedError(self.expected(), val, self.condition_name, tb)
-        return None
+            yield
+            return WrongTypeError(self.expected(), val, make_tb(e))
+        return conv_val
 
 
 class EnumConverter(Converter[enum.Enum]):
@@ -842,24 +839,15 @@ class EnumConverter(Converter[enum.Enum]):
         l = list_phrase(tuple(map(str, self.member_vals)))
         return f"{pluralize('member', plural)} of enum '{self.ty.__name__}' ({l})"
 
-    def try_convert(self, val: t.Any) -> enum.Enum:
+    def try_convert(self, val: t.Any) -> Resumable[t.Union[enum.Enum, ErrorNode]]:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
-        val = self.inner_conv.try_convert(val)
+        result = (yield from self.inner_conv.try_convert(val))
+        if isinstance(result, ErrorNode):
+            return WrongTypeError(self.expected(), val)
         try:
             return self.val_map[val]
         except KeyError:
-            raise ParseInterrupt()
-
-    def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
-        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
-        try:
-            val = self.inner_conv.try_convert(val)
-        except ParseInterrupt:
-            return self.inner_conv.collect_errors(val)
-        try:
-            self.val_map[val]
-            return None
-        except KeyError:
+            yield
             return WrongTypeError(self.expected(), val)
 
 
@@ -898,27 +886,16 @@ class DelegateConverter(t.Generic[T, U], Converter[T]):
         """See [`Converter.expected`][pane.converters.Converter.expected]"""
         return t.cast(str, self.expect_plural if plural else self.expect)
 
-    def try_convert(self, val: t.Any) -> T:
+    def try_convert(self, val: t.Any) -> Resumable[t.Union[T, ErrorNode]]:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
-        val = self.inner.try_convert(val)
+        result = (yield from self.inner.try_convert(val))
+        if isinstance(result, ErrorNode):
+            return WrongTypeError(self.expected(), val)
         try:
-            return self.constructor(val)
-        except Exception:
-            raise ParseInterrupt from None
-
-    def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
-        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
-        try:
-            conv_val = self.inner.try_convert(val)
-        except ParseInterrupt:
-            # TODO with_expected() here
-            return self.inner.collect_errors(val)
-        try:
-            self.constructor(conv_val)
+            return self.constructor(result)
         except Exception as e:
-            tb = e.__traceback__.tb_next  # type: ignore
-            tb = traceback.TracebackException(type(e), e, tb)
-            return WrongTypeError(self.expected(), val, tb)
+            yield
+            return WrongTypeError(self.expected(), val, make_tb(e))
 
 
 @dataclasses.dataclass(init=False)
@@ -942,29 +919,17 @@ class PatternConverter(t.Generic[t.AnyStr], Converter[re.Pattern[t.AnyStr]]):
         ty = 'bytes' if self.ty is bytes else 'string'
         return pluralize(f'{ty} regex pattern', plural, article='a')
 
-    def try_convert(self, val: t.Any) -> re.Pattern[t.AnyStr]:
+    def try_convert(self, val: t.Any) -> Resumable[t.Union[re.Pattern[t.AnyStr], ErrorNode]]:
         if isinstance(val, re.Pattern):
             val = t.cast(re.Pattern[t.Any], val).pattern
-        s = self.ty_conv.try_convert(val)
-        try:
-            return re.compile(s)
-        except Exception:
-            raise ParseInterrupt from None
-
-    def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
-        if isinstance(val, re.Pattern):
-            val = t.cast(re.Pattern[t.Any], val).pattern
-        try:
-            s = self.ty_conv.try_convert(val)
-        except ParseInterrupt:
+        result = (yield from self.ty_conv.try_convert(val))
+        if isinstance(result, ErrorNode):
             return WrongTypeError(self.expected(), val)
         try:
-            re.compile(s)
-        except re.error as e:
-            tb = e.__traceback__.tb_next  # type: ignore
-            tb = traceback.TracebackException(type(e), e, tb)
-            return WrongTypeError(self.expected(), val, tb)
-        return None
+            return re.compile(result)
+        except Exception as e:
+            yield
+            return WrongTypeError(self.expected(), val, make_tb(e))
 
 
 class DatetimeConverter(Converter[DatetimeT], t.Generic[DatetimeT]):
@@ -1033,14 +998,15 @@ class DatetimeConverter(Converter[DatetimeT], t.Generic[DatetimeT]):
         }
         return d[self.super_ty](dt)
 
-    def try_convert(self, val: t.Any) -> DatetimeT:
+    def try_convert(self, val: t.Any) -> Resumable[t.Union[DatetimeT, ErrorNode]]:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if isinstance(val, str):
             # parse string
             try:
                 return t.cast(DatetimeT, self.ty.fromisoformat(val))
-            except ValueError:
-                raise ParseInterrupt() from None
+            except ValueError as e:
+                yield
+                return WrongTypeError(self.expected(), val, make_tb(e))
         if isinstance(val, datetime.datetime):
             # from datetime, to datetime, date, or time
             return self.from_datetime(val)
@@ -1052,27 +1018,7 @@ class DatetimeConverter(Converter[DatetimeT], t.Generic[DatetimeT]):
             # from date, to date or datetime
             if self.super_ty != datetime.time:
                 return self.from_date(val)
-        raise ParseInterrupt()
-
-    def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
-        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
-        if isinstance(val, str):
-            # parse string
-            try:
-                self.ty.fromisoformat(val)
-                return None
-            except ValueError as e:
-                tb = e.__traceback__.tb_next  # type: ignore
-                tb = traceback.TracebackException(type(e), e, tb)
-                return WrongTypeError(self.expected(), val, tb)
-        if isinstance(val, datetime.datetime):
-            return None
-        elif isinstance(val, datetime.time):
-            if self.super_ty == datetime.time:
-                return None
-        elif isinstance(val, datetime.date):
-            if self.super_ty != datetime.time:
-                return None
+        yield
         return WrongTypeError(self.expected(), val)
 
 
