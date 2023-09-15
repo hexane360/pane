@@ -205,6 +205,10 @@ class PaneBase:
     def make_unchecked(cls, *args: t.Any, **kwargs: t.Any) -> Self:
         ...
 
+    @classmethod
+    def from_dict_unchecked(cls, d: t.Dict[str, t.Any]) -> Self:
+        ...
+
 
 @dataclasses.dataclass
 class PaneInfo:
@@ -292,6 +296,15 @@ def _make_init(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
     sig = Signature(params, return_annotation=None)
 
     def __init__(self: PaneBase, *args: t.Any, **kwargs: t.Any):
+        from_dict = kwargs.pop('_pane_from_dict', None)
+        if from_dict is not None:
+            for (k, v) in from_dict.items():
+                object.__setattr__(self, k, v)
+            object.__setattr__(self, PANE_SET_FIELDS, set(from_dict.keys()))
+            if hasattr(self, POST_INIT):
+                getattr(self, POST_INIT)()
+            return
+
         checked = kwargs.pop('_pane_checked', True)
         try:
             bound_args = sig.bind(*args, **kwargs).arguments
@@ -330,6 +343,14 @@ def _make_init(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
     sig2 = Signature([Parameter('cls', Parameter.POSITIONAL_OR_KEYWORD), *params], return_annotation=cls)
     make_unchecked.__func__.__signature__ = sig2  # type: ignore
     setattr(cls, 'make_unchecked', make_unchecked)
+
+    @classmethod
+    def from_dict_unchecked(cls, d):  # type: ignore
+        return cls(_pane_from_dict=d)  # type: ignore
+
+    sig2 = Signature([Parameter('cls', Parameter.POSITIONAL_OR_KEYWORD), Parameter('d', Parameter.POSITIONAL_OR_KEYWORD, annotation=t.Dict[str, t.Any])], return_annotation=cls)
+    from_dict_unchecked.__func__.__signature__ = sig2  # type: ignore
+    setattr(cls, 'from_dict_unchecked', from_dict_unchecked)
 
 
 def _make_eq(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
@@ -565,12 +586,16 @@ class PaneConverter(Converter[PaneBase]):
                 raise ParseInterrupt()  # multiple values for key
             values[field.name] = conv.try_convert(v)
 
-        for field in self.fields:
-            if field.name not in values and not field.has_default():
+        for field in filter(lambda field: field.name not in values, self.fields):
+            if field.default is not _MISSING:
+                values[field.name] = field.default
+            elif field.default_factory is not None:
+                values[field.name] = field.default_factory
+            else:
                 raise ParseInterrupt()  # missing field
 
         try:
-            return self.cls.make_unchecked(**values)
+            return self.cls.from_dict_unchecked(values)
         except Exception:  # error in __post_init__
             raise ParseInterrupt()
 
