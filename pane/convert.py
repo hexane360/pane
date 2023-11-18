@@ -45,11 +45,15 @@ class HasConverter(t.Protocol):
         ...
 
 
+ScalarType = t.Union[str, bytes, int, bool, float, complex, None]
+
 DataType = t.Union[str, bytes, int, bool, float, complex, None, t.Mapping['DataType', 'DataType'], t.Sequence['DataType'], numpy.NDArray[numpy.generic]]
 """Common data interchange type. [`into_data`][pane.convert.into_data] converts to this."""
 
-_DataType = (str, bytes, int, bool, float, complex, type(None), t.Mapping, t.Sequence, numpy.ndarray)  # type: ignore
-"""[`DataType`][pane.convert.DataType] for use in [`isinstance`][isinstance]."""
+_ScalarType = (str, bytes, int, bool, float, complex, type(None))  # type: ignore
+"""Scalar [`DataType`][pane.convert.DataType]s for use in [`isinstance`][isinstance] checks."""
+_DataType = (*_ScalarType, t.Mapping, t.Sequence, numpy.ndarray)  # type: ignore
+"""[`DataType`][pane.convert.DataType] for use in [`isinstance`][isinstance] checks."""
 
 Convertible = t.Union[
     DataType, HasConverter,
@@ -296,7 +300,8 @@ def into_data(val: Convertible, ty: t.Optional[IntoConverter] = None) -> DataTyp
     Convert `val` of type `ty` into a data interchange format.
     """
     if ty is None:
-        if isinstance(val, _DataType):
+        if isinstance(val, _ScalarType):
+            # we can bypass the converter for scalar types
             return val
         ty = type(val)
 

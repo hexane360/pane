@@ -620,20 +620,22 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
     """Type to convert into. Must be constructible from an iterator."""
     v_conv: Converter[FromDataT]
     """Sub-converter for values"""
-    constructor: t.Callable[[t.Iterator[t.Any]], t.Sequence[t.Any]]
+    constructor: t.Callable[[t.Iterable[t.Any]], t.Sequence[t.Any]]
 
     def __init__(self, ty: t.Type[t.Sequence[t.Any]], v: t.Type[FromDataT] = t.Any,
-                 constructor: t.Optional[t.Callable[[t.Iterator[t.Any]], t.Sequence[t.Any]]] = None):
+                 constructor: t.Optional[t.Callable[[t.Iterable[t.Any]], t.Sequence[t.Any]]] = None):
         self.ty = ty
         self.v_conv = make_converter(v)
         self.constructor = self.ty if constructor is None else constructor
 
     def into_data(self, val: t.Any) -> DataType:
         """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
-        return [
+        # construct tuple from a tuple, or a list otherwise
+        constructor = t.cast(t.Callable[[t.Iterable[t.Any]], t.Sequence[t.Any]], tuple if self.constructor is tuple else list)
+        return constructor(
             self.v_conv.into_data(v)
             for v in t.cast(t.Sequence[FromDataT], val)
-        ]
+        )
 
     def expected(self, plural: bool = False) -> str:
         """See [`Converter.expected`][pane.converters.Converter.expected]"""

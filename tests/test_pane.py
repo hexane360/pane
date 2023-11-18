@@ -46,7 +46,7 @@ def test_pane_required_kw_only():
             ...
 
 
-class TestClass(pane.PaneBase, out_format='tuple'):
+class TestClass(pane.PaneBase, in_format=('tuple, struct'), out_format='tuple'):
     x: int = 3
     y: float = 5.
 
@@ -124,6 +124,12 @@ class TestClass3(pane.PaneBase, kw_only=True, allow_extra=True):
     __test__ = False
 
 
+class NestedClass(pane.PaneBase, in_format=('tuple',), out_format='tuple'):
+    x: TestClass
+    y: int
+    z: TestClass
+
+
 @pytest.mark.parametrize(('cls', 'sig'), [
     (TestClass, '(x: int = 3, y: float = 5.0) -> None'),
     (TestClass2, '(x: int = 1, y: int = 2, *, z: int = 3, w: int = 4) -> None'),
@@ -155,7 +161,8 @@ def test_make_unchecked_signature(cls, sig):
     # extra fields, allow_extra=True
     (TestClass3, {'x': 2, 'y': 3, 'w': 4, 'zz': 5}, TestClass3(x=2, y=3, w=4)),
     # missing fields
-    (TestClass3, {}, ProductErrorNode('struct TestClass3', {}, {}, missing={'w'}))
+    (TestClass3, {}, ProductErrorNode('struct TestClass3', {}, {}, missing={'w'})),
+    (NestedClass, ({'x': 2, 'y': 4.}, 10, {'x': 4, 'y': 8.}), NestedClass(x=TestClass(x=2, y=4.0), y=10, z=TestClass(x=4, y=8.0))),
 ])
 def test_pane_convert(cls, val, result):
     if isinstance(result, ErrorNode):
@@ -171,9 +178,13 @@ def test_pane_convert(cls, val, result):
     (TestClass(x=3, y=5.), (3, 5.)),
     # out_format struct
     (TestClass2(x=3, w=3), {'x': 3, 'y': 2, 'w': 3, 'z': 3}),
+    (NestedClass(TestClass(2, 4.), 10, TestClass(4, 8.)), ((2, 4.), 10, (4, 8.))),
+    ({'x': 5, 'y': TestClass(2, 4.)}, {'x': 5, 'y': (2, 4.)}),
 ])
 def test_pane_into_data(val: pane.PaneBase, result: pane.DataType):
-    assert val.into_data() == result
+    if isinstance(val, pane.PaneBase):
+        assert val.into_data() == result
+    assert pane.into_data(val) == result
 
 
 T = t.TypeVar('T')
