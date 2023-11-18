@@ -15,7 +15,7 @@
         <link rel="next" href="../../api/">
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.1.21">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.1.21">
     
     
       
@@ -696,7 +696,7 @@
 the <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/typing.html#typing.Sequence"><code>t.Sequence</code></a>/<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/typing.html#typing.Mapping"><code>t.Mapping</code></a> protocol.</p>
 <p>However, <code>pane</code> can easily be extended to support additional types.
 The first step is to create a <a class="autorefs autorefs-internal" href="../../api/converters/#pane.converters.Converter"><code>Converter</code></a> which handles the type.
-The <a class="autorefs autorefs-internal" href="../../api/converters/#pane.converters.Converter"><code>Converter</code></a> interface is quite simple. Three functions are required: <a class="autorefs autorefs-internal" href="../../api/converters/#pane.converters.Converter.expected"><code>expected</code></a>, <a class="autorefs autorefs-internal" href="../../api/converters/#pane.converters.Converter.try_convert"><code>try_convert</code></a>, and [<code>collect_errors</code>][pane.converters.Converter.collect_errors].</p>
+The <a class="autorefs autorefs-internal" href="../../api/converters/#pane.converters.Converter"><code>Converter</code></a> interface is quite simple. Three functions are required: <a class="autorefs autorefs-internal" href="../../api/converters/#pane.converters.Converter.expected"><code>expected</code></a>, <a class="autorefs autorefs-internal" href="../../api/converters/#pane.converters.Converter.try_convert"><code>try_convert</code></a>, and <a class="autorefs autorefs-internal" href="../../api/converters/#pane.converters.Converter.collect_errors"><code>collect_errors</code></a>.</p>
 <p>Say we have a type <code>CountryCode</code>, which contains a standard country code. <code>CountryCodeConverter</code> should accept a string-like type and convert it to a <code>CountryCode</code>, making
 sure that the string really is a country code. (In reality, this type could be implemented as <code>t.Literal['gb', 'cn', ...]</code>)</p>
 <p>An example implementation of <code>CountryCodeConverter</code> is shown below:</p>
