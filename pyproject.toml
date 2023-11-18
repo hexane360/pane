@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "py-pane"
-version = "0.8"
+version = "0.8.1"
 authors = [
 	{name = "Colin Gilgenbach", email = "hexane@mit.edu"},
 ]
@@ -16,6 +16,7 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
   "Development Status :: 3 - Alpha",
   "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -44,7 +45,10 @@ docs = [
 Repository = "https://github.com/hexane360/pane.git"
 
 [tool.setuptools]
-packages = ["pane"]
+packages = [
+  "pane",
+  "pane.addons",
+]
 
 [tool.pyright]
 pythonVersion = "3.10"
