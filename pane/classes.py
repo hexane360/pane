@@ -22,6 +22,7 @@ from .util import FileOrPath, open_file, get_type_hints, list_phrase, KW_ONLY
 
 
 T = t.TypeVar('T')
+PaneBaseT = t.TypeVar('PaneBaseT', bound='PaneBase')
 
 
 @dataclass_transform(
@@ -102,10 +103,10 @@ class PaneBase:
         raise AttributeError(f"cannot delete field {name!r}")
 
     @classmethod
-    def _converter(cls: t.Type[T], *args: t.Type[Convertible]) -> Converter[T]:
+    def _converter(cls: t.Type[PaneBaseT], *args: t.Type[Convertible]) -> Converter[PaneBaseT]:
         if len(args) > 0:
-            cls = t.cast(t.Type[T], cls[tuple(args)])  # type: ignore
-        return t.cast(Converter[T], PaneConverter(cls))
+            cls = t.cast(t.Type[PaneBaseT], cls[tuple(args)])  # type: ignore
+        return PaneConverter(cls)
 
     @classmethod
     def from_obj(cls, obj: Convertible) -> Self:
@@ -483,11 +484,11 @@ def _process(cls: t.Type[PaneBase], opts: PaneOptions):
     return cls
 
 
-class PaneConverter(Converter[PaneBase]):
+class PaneConverter(Converter[PaneBaseT]):
     """
     [`Converter`][pane.converters.Converter] for `pane` dataclasses
     """
-    def __init__(self, cls: t.Type[PaneBase]):
+    def __init__(self, cls: t.Type[PaneBaseT]):
         self.cls = cls
         self.name = self.cls.__name__
         self.cls_info: PaneInfo = getattr(self.cls, PANE_INFO)
@@ -520,7 +521,7 @@ class PaneConverter(Converter[PaneBase]):
         """Expected value for this converter"""
         return f"{list_phrase(self.opts.in_format)} {self.name}"
 
-    def try_convert(self, val: t.Any) -> PaneBase:
+    def try_convert(self, val: t.Any) -> PaneBaseT:
         """
         See [`Converter.try_convert`][pane.converters.Converter.try_convert]
 
@@ -570,7 +571,7 @@ class PaneConverter(Converter[PaneBase]):
         """Expected value for the 'struct' data format"""
         return f"struct {self.name}"
 
-    def try_convert_struct(self, val: t.Mapping[str, t.Any]) -> PaneBase:
+    def try_convert_struct(self, val: t.Mapping[str, t.Any]) -> PaneBaseT:
         """[`Converter.try_convert`][pane.converters.Converter.try_convert] for the 'struct' data format"""
         # loop through values, and handle accordingly
         values: t.Dict[str, t.Any] = {}
@@ -646,7 +647,7 @@ class PaneConverter(Converter[PaneBase]):
         """Expected value for the 'tuple' data format"""
         return f"tuple {self.name}"
 
-    def try_convert_tuple(self, val: t.Sequence[t.Any]) -> PaneBase:
+    def try_convert_tuple(self, val: t.Sequence[t.Any]) -> PaneBaseT:
         """[`Converter.try_convert`][pane.converters.Converter.try_convert] for the 'tuple' data format"""
         (min_len, max_len) = self.cls_info.pos_args
         if min_len < len(val) > max_len:

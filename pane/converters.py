@@ -2,6 +2,8 @@
 Converter types, which do the hard work of recursive validation.
 """
 
+# pyright: reportUnknownMemberType=none
+
 import abc
 import dataclasses
 import re

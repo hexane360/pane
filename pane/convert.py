@@ -2,6 +2,8 @@
 High-level interface to `pane`.
 """
 
+# pyright: reportUnknownMemberType=none
+
 from __future__ import annotations
 
 import warnings
@@ -66,6 +68,7 @@ Consists of [`DataType`][pane.convert.DataType] + [`HasConverter`][pane.convert.
 
 IntoConverter = t.Union[
     t.Type[Convertible],
+    t.Type[t.Any],
     t.Mapping[str, 'IntoConverter'],
     t.Sequence['IntoConverter']
 ]
@@ -78,7 +81,7 @@ Consists of `t.Type[Convertible]`, mappings (struct types), and sequences (tuple
 _CONVERTER_HANDLERS: t.Sequence[t.Callable[[t.Any, t.Tuple[t.Any, ...]], Converter[t.Any]]] = []
 
 
-_ABSTRACT_MAPPING: t.Mapping[type, type] = {  # type: ignore
+_ABSTRACT_MAPPING: t.Mapping[type, type] = t.cast(t.Mapping[type, type], {
     t.Sequence: tuple,
     collections.abc.Sequence: tuple,
     t.MutableSequence: list,
@@ -93,7 +96,7 @@ _ABSTRACT_MAPPING: t.Mapping[type, type] = {  # type: ignore
     collections.abc.Set: frozenset,
 
     os.PathLike: pathlib.PurePath,
-}
+})
 """Mapping to attempt to choose a simple concrete type for abstract/base collection types"""
 
 

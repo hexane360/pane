@@ -1,6 +1,8 @@
 
 import typing as t
 
+# pyright: reportUnknownMemberType=none
+
 try:
     from numpy import generic, dtype, ndarray, array
     from numpy.typing import NDArray
