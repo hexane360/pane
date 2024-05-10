@@ -83,7 +83,7 @@ class Field:
     _: KW_ONLY = dataclasses.field(init=False, repr=False, compare=False)
     name: str
     """Name of field"""
-    type: type
+    type: t.Any
     """Type of field. Must be [`Convertible`][pane.convert.Convertible]."""
     in_names: t.Sequence[str]
     """List of names which convert to this field."""
@@ -138,7 +138,7 @@ class FieldSpec:
     """Default value factory for field"""
     kw_only: bool = False
     """Whether field is keyword only"""
-    ty: t.Union[type, _Missing] = _MISSING
+    ty: t.Union[t.Any, _Missing] = _MISSING
     """Type of field, if known. Must be Convertible."""
 
     def __post_init__(self):

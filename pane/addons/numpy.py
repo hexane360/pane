@@ -17,7 +17,7 @@ try:
         # TODO add conditions to some types
         # e.g. unsigned int -> NonNegativeInt
         if ty in (_numpy.generic, _numpy.object_, t.Any):
-            return t.Any
+            return type(t.Any)
         if issubclass(ty, (_numpy.integer, int)):
             return int
         if issubclass(ty, (_numpy.floating, float)):
@@ -60,7 +60,7 @@ try:
 
         from ..converters import NestedSequenceConverter
 
-        return NestedSequenceConverter(dtype, array, ragged=False)
+        return NestedSequenceConverter(dtype, array, ragged=False)  # type: ignore
 
 except ImportError:
     if not t.TYPE_CHECKING:

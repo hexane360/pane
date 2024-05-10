@@ -13,7 +13,7 @@ import enum
 from fractions import Fraction
 from decimal import Decimal
 import typing as t
-from typing_extensions import TypeGuard
+from typing_extensions import TypeGuard, TypeAlias
 
 from pane.errors import ErrorNode
 
@@ -29,8 +29,9 @@ U = t.TypeVar('U', bound=Convertible)
 FromDataT = t.TypeVar('FromDataT', bound=Convertible)
 FromDataK = t.TypeVar('FromDataK', bound=Convertible)
 FromDataV = t.TypeVar('FromDataV', bound=Convertible)
-NestedSequence = t.Union[T, t.Sequence['NestedSequence[T]']]
+NestedSequence: TypeAlias = t.Union[T, t.Sequence['NestedSequence[T]']]
 DatetimeT = t.TypeVar('DatetimeT', bound=t.Union[datetime.datetime, datetime.date, datetime.time])
+_ProductErrorChildren: TypeAlias = t.Dict[t.Union[int, str], ErrorNode]
 
 
 def data_is_sequence(val: t.Any) -> TypeGuard[t.Sequence[t.Any]]:
@@ -155,7 +156,7 @@ class ScalarConverter(Converter[T]):
         """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         if isinstance(val, self.allowed):
             try:
-                self.ty(val)
+                self.ty(val)  # type: ignore
                 return None
             except Exception as e:
                 tb = e.__traceback__.tb_next  # type: ignore
@@ -517,7 +518,7 @@ class StructConverter(Converter[T]):
 class TupleConverter(t.Generic[T], Converter[T]):
     """Converter for a simple, heterogeneous tuple-like type"""
     ty: t.Type[T]
-    """Type to convert into. Must be constructible from a sequence/tuple"""
+    """Type to convert into. Must be constructible from an iterable"""
     converters: t.Tuple[Converter[t.Any], ...]
     """List of sub-converters for each field"""
 
@@ -543,13 +544,13 @@ class TupleConverter(t.Generic[T], Converter[T]):
         if len(val) != len(self.converters):
             raise ParseInterrupt
 
-        return self.ty(conv.try_convert(v) for (conv, v) in zip(self.converters, val))
+        return self.ty(conv.try_convert(v) for (conv, v) in zip(self.converters, val))  # type: ignore
 
     def collect_errors(self, val: t.Any) -> t.Union[None, ProductErrorNode, WrongTypeError]:
         """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         if not data_is_sequence(val) or len(val) != len(self.converters):
             return WrongTypeError(self.expected(), val)
-        children = {}
+        children: _ProductErrorChildren = {}
         for (i, (conv, v)) in enumerate(zip(self.converters, val)):
             node = conv.collect_errors(v)
             if node is not None:
@@ -571,7 +572,7 @@ class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDat
     constructor: t.Callable[[t.Dict[t.Any, t.Any]], t.Mapping[FromDataK, FromDataV]]
 
     def __init__(self, ty: t.Type[t.Dict[t.Any, t.Any]],
-                 k: t.Type[FromDataK] = t.Any, v: t.Type[FromDataV] = t.Any,
+                 k: t.Type[FromDataK] = type(t.Any), v: t.Type[FromDataV] = type(t.Any),
                  constructor: t.Optional[t.Callable[[t.Dict[t.Any, t.Any]], t.Mapping[FromDataK, FromDataV]]] = None):
         self.ty = ty
         self.k_conv = make_converter(k)
@@ -603,7 +604,7 @@ class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDat
         if not data_is_mapping(val):
             return WrongTypeError(self.expected(), val)
 
-        nodes: t.Dict[t.Union[str, int], ErrorNode] = {}
+        nodes: _ProductErrorChildren = {}
         for (k, v) in val.items():
             if (node := self.k_conv.collect_errors(k)) is not None:
                 nodes[str(k)] = node  # TODO split bad fields from bad values
@@ -622,7 +623,7 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
     """Sub-converter for values"""
     constructor: t.Callable[[t.Iterable[t.Any]], t.Sequence[t.Any]]
 
-    def __init__(self, ty: t.Type[t.Sequence[t.Any]], v: t.Type[FromDataT] = t.Any,
+    def __init__(self, ty: t.Type[t.Sequence[t.Any]], v: t.Type[FromDataT] = type(t.Any),
                  constructor: t.Optional[t.Callable[[t.Iterable[t.Any]], t.Sequence[t.Any]]] = None):
         self.ty = ty
         self.v_conv = make_converter(v)
@@ -655,7 +656,7 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
         if not data_is_sequence(val):
             return WrongTypeError(self.expected(), val)
 
-        nodes = {}
+        nodes: t.Dict[t.Union[int, str], ErrorNode] = {}
         vals: t.List[FromDataT] = []
         for (i, v) in enumerate(val):
             try:
@@ -749,7 +750,7 @@ class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
     def _collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
         if not data_is_sequence(val):
             return self.val_conv.collect_errors(val)
-        nodes = {}
+        nodes: _ProductErrorChildren = {}
         for (i, v) in enumerate(val):
             if (node := self._collect_errors(v)) is not None:
                 nodes[i] = node
@@ -987,7 +988,7 @@ class DatetimeConverter(Converter[DatetimeT], t.Generic[DatetimeT]):
         self.ty = ty
         self.super_ty: t.Type[DatetimeT]
         if ty in self._date_types:
-            self.super_ty = ty
+            self.super_ty = t.cast(t.Type[DatetimeT], ty)
             return
         for date_ty in self._date_types:
             if issubclass(ty, date_ty):

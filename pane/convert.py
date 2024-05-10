@@ -72,7 +72,7 @@ Consists of [`DataType`][pane.convert.DataType] + [`HasConverter`][pane.convert.
 
 IntoConverter = t.Union[
     t.Type[Convertible],
-    t.Type[t.Any],
+    t.Any, t.Type[t.Any],
     t.Mapping[str, 'IntoConverter'],
     t.Sequence['IntoConverter']
 ]
@@ -82,7 +82,7 @@ Consists of `t.Type[Convertible]`, mappings (struct types), and sequences (tuple
 """
 
 
-_CONVERTER_HANDLERS: t.Sequence[t.Callable[[t.Any, t.Tuple[t.Any, ...]], Converter[t.Any]]] = []
+_CONVERTER_HANDLERS: t.List[t.Callable[[t.Any, t.Tuple[t.Any, ...]], Converter[t.Any]]] = []
 
 
 _ABSTRACT_MAPPING: t.Mapping[type, type] = t.cast(t.Mapping[type, type], {
@@ -124,9 +124,11 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
     from .converters import LiteralConverter, DictConverter, TupleConverter, ScalarConverter
     from .converters import EnumConverter, _BASIC_CONVERTERS, _BASIC_WITH_ARGS
 
-    if ty is t.Any:
+    if ty is t.Any or ty is type(t.Any):
         return AnyConverter()
     if isinstance(ty, t.TypeVar):
+        var_ty: IntoConverter
+
         if ty.__bound__ is not None:  # type: ignore
             # bound typevar
             var_ty = ty.__bound__
@@ -226,7 +228,8 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
             raise TypeError(f"No converter for abstract type '{ty}'")
         if issubclass(new_base, collections.Counter):
             # counter takes one type argument, handle it specially
-            return DictConverter(new_base, args[0] if len(args) > 0 else t.Any, int)
+            return DictConverter(new_base, # type: ignore
+                                 args[0] if len(args) > 0 else t.Any, int)
 
         # defaultdict needs a special constructor
         constructor: t.Optional[t.Callable[[t.Mapping[t.Any, t.Any]], collections.defaultdict[t.Any, t.Any]]]

@@ -187,7 +187,7 @@ class PaneBase:
             from yaml import SafeLoader as Loader
 
         with open_file(f) as f:
-            obj = list(yaml.load_all(f, Loader))
+            obj: t.Any = list(yaml.load_all(f, Loader))  # type: ignore
 
         return cls.from_data(obj)
 
@@ -270,7 +270,7 @@ def _make_subclass(cls: t.Any, params: t.Tuple[t.Any, ...]) -> type:
     if not hasattr(sup, '__class_getitem__'):
         raise TypeError(f"type '{cls}' is not subscriptable")
     alias: t.Type[PaneBase] = sup.__class_getitem__(params)  # type: ignore
-    typevars = getattr(cls, '__parameters__', ())
+    typevars: t.Tuple[Parameter, ...] = getattr(cls, '__parameters__', ())
 
     # return subclass with bound type variables
     bound_vars = dict(zip(typevars, params))
@@ -416,7 +416,7 @@ def _process(cls: t.Type[PaneBase], opts: PaneOptions):
 
     annotations = get_type_hints(cls)
     kw_only = opts.kw_only  # current kw_only state
-    cls_specs = {}
+    cls_specs: t.Dict[str, FieldSpec] = {}
 
     for name, ty in annotations.items():
         if ty is KW_ONLY:

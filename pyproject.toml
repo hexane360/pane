@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "py-pane"
-version = "0.9.dev0"
+version = "0.8.2"
 authors = [
 	{name = "Colin Gilgenbach", email = "hexane@mit.edu"},
 ]
@@ -38,11 +38,13 @@ docs = [
   'mkdocs>=1.5.2',
   'mkdocs-material==9.1.21',
   'mkdocstrings[python]==0.22.0',
+  'markdown-include==0.8.1',
   'mike==1.1.2',
 ]
 
 [project.urls]
 Repository = "https://github.com/hexane360/pane.git"
+Documentation = "https://hexane360.github.io/pane/"
 
 [tool.setuptools]
 packages = [

@@ -302,7 +302,7 @@ class KeyCache(t.Generic[P, T]):
                 last = self._root[PREV]
                 link = [last, self._root, key, result]
                 last[NEXT] = self._root[PREV] = self.cache[key] = link
-                self.full = (self.maxsize is not None and len(self.cache) >= self.maxsize)
+                self.full = (len(self.cache) >= self.maxsize)
         return result
 
 
