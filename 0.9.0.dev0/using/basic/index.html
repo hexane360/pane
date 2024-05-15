@@ -360,7 +360,7 @@
   
     <li class="md-nav__item">
       <a href="../dataclasses/" class="md-nav__link">
-        Dataclasses: The ultimate product type
+        Dataclasses
       </a>
     </li>
   
@@ -651,7 +651,7 @@
  - Scalar types: <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#bytes">bytes</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#complex">complex</a>, and <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/constants.html#None">None</a>
  - Sequences: <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#list">list</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#tuple">tuple</a> and <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/typing.html#typing.Sequence"><code>t.Sequence</code></a>
  - Mappings: <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#dict">dict</a> and <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/typing.html#typing.Mapping"><code>t.Mapping</code></a></p>
-<p>All implementations of <a class="autorefs autorefs-internal" href="../../api/converters/#pane.converters.Converter.into_data"><code>Converter.into_data</code></a> must output a data interchange type, and all implementations of <a class="autorefs autorefs-internal" href="../../api/converters/#pane.converters.Converter.convert"><code>Converter.convert</code></a> must handle any data interchange type (even if 'handle' just means raising an error message).
+<p>All implementations of <a class="autorefs autorefs-internal" href="../../api/converters/#pane.converters.Converter.into_data"><code>Converter.into_data</code></a> must output a data interchange type, and all implementations of <a class="autorefs autorefs-internal" href="../../api/converters/#pane.converters.Converter"><code>Converter</code></a> must handle any data interchange type (even if 'handle' just means returning an error).
 Data interchange types may be added in major releases, so <a class="autorefs autorefs-internal" href="../../api/converters/#pane.converters.Converter"><code>Converter</code></a> implementations should be made robust to new types.</p>
 
 

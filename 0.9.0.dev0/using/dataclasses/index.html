@@ -19,7 +19,7 @@
     
     
       
-        <title>Dataclasses: The ultimate product type - py-pane Documentation</title>
+        <title>Dataclasses - py-pane Documentation</title>
       
     
     
@@ -71,7 +71,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#dataclasses-the-ultimate-product-type" class="md-skip">
+        <a href="#dataclasses" class="md-skip">
           Skip to content
         </a>
       
@@ -110,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Dataclasses: The ultimate product type
+              Dataclasses
             
           </span>
         </div>
@@ -359,12 +359,12 @@
       
       
         <label class="md-nav__link md-nav__link--active" for="__toc">
-          Dataclasses: The ultimate product type
+          Dataclasses
           <span class="md-nav__icon md-icon"></span>
         </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
-        Dataclasses: The ultimate product type
+        Dataclasses
       </a>
       
         
@@ -399,6 +399,20 @@
         <li class="md-nav__item">
   <a href="#index-of-methods" class="md-nav__link">
     Index of methods
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#class-arguments" class="md-nav__link">
+    Class arguments
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#generic-classes" class="md-nav__link">
+    Generic classes
   </a>
   
 </li>
@@ -686,6 +700,20 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#class-arguments" class="md-nav__link">
+    Class arguments
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#generic-classes" class="md-nav__link">
+    Generic classes
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -704,7 +732,7 @@
   
 
 
-<h1 id="dataclasses-the-ultimate-product-type">Dataclasses: The ultimate product type</h1>
+<h1 id="dataclasses">Dataclasses</h1>
 <p><code>pane</code> dataclasses work similarly to many other libraries.
 They aim to have a superset of the features of the standard library dataclasses.
 A dataclass can be made by subclassing <code>pane.PaneBase</code>:</p>
@@ -718,6 +746,8 @@ A dataclass can be made by subclassing <code>pane.PaneBase</code>:</p>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">_</span><span class="p">:</span> <span class="n">pane</span><span class="o">.</span><span class="n">KW_ONLY</span>  
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="c1"># advanced field specification</span>
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">z</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">pane</span><span class="o">.</span><span class="n">field</span><span class="p">(</span><span class="n">aliases</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;w&#39;</span><span class="p">,),</span> <span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="c1"># apply custom logic to a field</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">w</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">pane</span><span class="o">.</span><span class="n">field</span><span class="p">(</span><span class="n">converter</span><span class="o">=</span><span class="n">CustomConverter</span><span class="p">())</span>
 </span></code></pre></div>
 <h2 id="constructors">Constructors</h2>
 <p><code>pane</code> automatically makes constructors for you:</p>
@@ -739,6 +769,7 @@ A dataclass can be made by subclassing <code>pane.PaneBase</code>:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">MyDataclass</span><span class="o">.</span><span class="n">make_unchecked</span><span class="p">(</span><span class="n">z</span><span class="o">=</span><span class="p">[</span><span class="mf">5.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="s1">&#39;s&#39;</span><span class="p">])</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">MyDataclass</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="p">[</span><span class="mf">5.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="s1">&#39;s&#39;</span><span class="p">])</span>
 </span></code></pre></div>
+<p>Like regular dataclasses, <code>__post_init__</code> is called on construction, allowing extra validation logic and initializing <code>init=False</code> fields.</p>
 <p><code>MyDataclass.from_obj</code>, <code>MyDataclass.from_data</code>, <code>MyDataclass.from_json</code>, and <code>MyDataclass.from_yaml</code> perform conversion from an object:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># note the use of an alias for &#39;z&#39;</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">MyDataclass</span><span class="o">.</span><span class="n">from_data</span><span class="p">({</span><span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="mf">10.</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">10.</span><span class="p">]})</span>
@@ -754,6 +785,8 @@ A dataclass can be made by subclassing <code>pane.PaneBase</code>:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">MyDataclass</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="p">[</span><span class="mf">10.0</span><span class="p">])</span><span class="o">.</span><span class="n">into_data</span><span class="p">()</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="p">{</span><span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">10.0</span><span class="p">]}</span>
 </span></code></pre></div>
+<p><code>MyDataclass.dict</code> returns a dictionary containing the fields, using their Python names. <code>set_only</code> may be specified
+to return only explicitly set fields, and <code>rename</code> may be specified to return using differently-styled names:</p>
 <h2 id="index-of-methods">Index of methods</h2>
 <table>
 <thead>
@@ -816,6 +849,27 @@ A dataclass can be made by subclassing <code>pane.PaneBase</code>:</p>
 </tr>
 </tbody>
 </table>
+<h2 id="class-arguments">Class arguments</h2>
+<p>Dataclass behavior can be customized using arguments passed to the class constructor. The following arguments are supported:</p>
+<p>Args:</p>
+<ul>
+<li>name (<code>str</code>): Name of the class, used in error messages.</li>
+<li><code>out_format</code> (<a class="autorefs autorefs-internal" href="../../api/classes/#pane.classes.ClassLayout"><code>ClassLayout</code></a>): Format to serialize class in (default: <code>struct</code>)</li>
+<li><code>in_format</code> (<code>t.Sequence[ClassLayout]</code>): Formats class may be serialized from (default: <code>['struct', 'tuple']</code> if no keyword arguments, else <code>['struct']</code>)</li>
+<li><code>eq</code> (<code>bool</code>): Whether to add <code>__eq__</code> method</li>
+<li><code>order</code> (<code>bool</code>): Whether to add <code>__ord__</code> method</li>
+<li><code>frozen</code> (<code>bool</code>): Whether to freeze dataclass</li>
+<li><code>init</code> (<code>bool</code>): Whether to add <code>__init__</code> method</li>
+<li><code>kw_only</code> (<code>bool</code>): If true, make all parameters keyword-only</li>
+<li><code>rename</code> (<a class="autorefs autorefs-internal" href="../../api/field/#pane.field.RenameStyle"><code>RenameStyle</code></a>): How to rename parameters upon conversion to data. Cannot be specified with <code>in_rename</code> or <code>out_rename</code></li>
+<li><code>in_rename</code> (<code>RenameStyle</code> or <code>t.Sequence[RenameStyle]</code>): Allow inputs renamed from these formats</li>
+<li><code>out_rename</code> (<code>RenameStyle</code>): Output renamed to this format</li>
+<li><code>allow_extra</code> (bool): Whether to allow (and ignore) extra parameters</li>
+<li><code>custom</code> (<a class="autorefs autorefs-internal" href="../../api/convert/#pane.convert.IntoConverterHandlers"><code>IntoConverterHandlers</code></a>): Custom handlers to apply to members of this class. Can be a handler, a list of handlers, or a dict mapping types to converters.</li>
+</ul>
+<p>In general, these arguments are inherited by subclasses, unless overridden.</p>
+<h2 id="generic-classes">Generic classes</h2>
+<p>Generic classes are supported natively, with proper inheritance.</p>
 
 
 
