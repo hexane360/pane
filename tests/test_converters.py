@@ -12,7 +12,7 @@ import typing as t
 import pytest
 
 from pane.errors import ErrorNode, SumErrorNode, ProductErrorNode, WrongTypeError, ConditionFailedError
-from pane.convert import convert, from_data, make_converter, ConvertError
+from pane.convert import convert, from_data, into_data, make_converter, ConvertError
 from pane.converters import Converter, ScalarConverter, TupleConverter, SequenceConverter, TaggedUnionConverter, AnyConverter
 from pane.converters import StructConverter, UnionConverter, LiteralConverter, ConditionalConverter, NestedSequenceConverter
 from pane.converters import PatternConverter, DatetimeConverter
@@ -21,7 +21,7 @@ from pane.annotations import Condition, Tagged, val_range, len_range
 
 class TestConvertible():
     @classmethod
-    def _converter(cls, *args) -> Converter[TestConvertible]:
+    def _converter(cls, *args, handlers=None) -> Converter[TestConvertible]:
         return TestConverter()  # type: ignore
 
     def __hash__(self):
@@ -49,7 +49,7 @@ class TestConverter(Converter[TestConvertible]):
 
 
 @pytest.mark.parametrize(('input', 'conv'), [
-    (int, ScalarConverter(int, int, 'an int', 'ints')),
+    (int, ScalarConverter(int, int, 'an int', 'ints', int)),
     ({'x': int, 'y': float}, StructConverter(dict, {'x': int, 'y': float})),
     (t.Tuple[int, ...], SequenceConverter(tuple, int)),
     (list[str], SequenceConverter(list, str)),
@@ -108,7 +108,7 @@ class Variant4(dict):
 
 def test_make_converter_annotated():
     inner = int
-    inner_conv = ScalarConverter(int, int, 'an int', 'ints')
+    inner_conv = ScalarConverter(int, int, 'an int', 'ints', int)
 
     conv = make_converter(t.Annotated[int, cond1])
     assert conv == ConditionalConverter(
@@ -243,6 +243,9 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
     # path
     (pathlib.PurePosixPath, "/test/path", pathlib.PurePosixPath("/test/path")),
     (os.PathLike, "test/path", pathlib.PurePath("test/path")),
+    # subclasses
+    (Variant1, 5, Variant1(5)),
+    (Variant1, '5', WrongTypeError('an int', '5')),
 ])
 def test_convert(ty, val, result):
     if isinstance(result, ErrorNode):
@@ -290,3 +293,68 @@ def test_conv_convert(conv, val, result):
 ])
 def test_error_print(err, s):
     assert str(err) == s
+
+
+class DoubleIntConverter(Converter[int]):
+    def into_data(self, val: t.Any) -> t.Any:
+        return val // 2
+
+    def expected(self, plural: bool = False) -> str:
+        return 'ints' if plural else 'an int'
+
+    def try_convert(self, val: t.Any) -> int:
+        if isinstance(val, int):
+            return val * 2
+        raise ParseInterrupt()
+
+    def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
+        if isinstance(val, int):
+            return None
+        return WrongTypeError(self.expected(), val)
+
+
+class DoubleStrConverter(Converter[str]):
+    def into_data(self, val: t.Any) -> t.Any:
+        return val[:len(val)//2]
+
+    def expected(self, plural: bool = False) -> str:
+        return 'strings' if plural else 'a string'
+
+    def try_convert(self, val: t.Any) -> str:
+        if isinstance(val, str):
+            return val * 2
+        raise ParseInterrupt()
+
+    def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
+        if isinstance(val, str):
+            return None
+        return WrongTypeError(self.expected(), val)
+
+
+def manual_handler(ty: t.Any, args, handlers) -> Converter[t.Any]:
+    if issubclass(ty, int):
+        return DoubleIntConverter()
+
+    return NotImplemented
+
+
+def other_handler(ty: t.Any, args, handlers) -> Converter[t.Any]:
+    if issubclass(ty, int):
+        return make_converter(int, handlers=handlers)
+
+    return NotImplemented
+
+
+@pytest.mark.parametrize('custom', [
+    manual_handler,
+    (manual_handler, other_handler),
+    {int: DoubleIntConverter()},
+])
+def test_custom_converter(custom):
+    assert from_data(5, int, custom=custom) == 10
+    assert into_data(10, custom=custom) == 5
+    assert convert(10, int, custom=custom) == 10
+
+    # make sure it works nested
+    assert from_data([5, 10, 15], t.Set[int], custom=custom) == {10, 20, 30}
+    assert into_data([10], list[int], custom=custom) == [5]

@@ -13,7 +13,7 @@ except ImportError:
     pytest.skip("skipping numpy tests", allow_module_level=True)
 
 from pane.errors import WrongTypeError, ProductErrorNode, ErrorNode, ConditionFailedError
-from pane.convert import convert, make_converter, ConvertError
+from pane.convert import convert, into_data, make_converter, ConvertError
 from pane.converters import Converter, NestedSequenceConverter
 from pane.annotations import broadcastable
 
@@ -53,3 +53,19 @@ def test_convert_numpy(ty, val, result):
     else:
         assert_array_equal(convert(val, ty), result)
         assert make_converter(ty).collect_errors(val) is None
+
+
+@pytest.mark.parametrize(('ty', 'val', 'result'), [
+    (NDArray[int], numpy.array([1, 2, 3, 4]), [1, 2, 3, 4]),
+    (int, numpy.int32(5), 5),
+    (complex, numpy.complex128(5.+3.j), 5.+3.j),
+])
+def test_into_data_numpy(ty, val, result):
+    if isinstance(result, ErrorNode):
+        with pytest.raises(ConvertError) as exc_info:
+            into_data(val, ty)
+        assert exc_info.value.tree == result
+    else:
+        actual = into_data(val, ty)
+        assert actual == result
+        assert type(actual) == type(result)

@@ -243,9 +243,9 @@ PREV, NEXT, KEY, RESULT = 0, 1, 2, 3
 class KeyCache(t.Generic[P, T]):
     _missing = object()
 
-    def __init__(self, f: t.Callable[P, T], key_f: t.Callable[[t.Any], t.Any] = id, maxsize: t.Optional[int] = None):
+    def __init__(self, f: t.Callable[P, T], key_f: t.Callable[P, t.Any], maxsize: t.Optional[int] = None):
         self.maxsize: t.Optional[int] = maxsize
-        self.key_f = key_f
+        self.key_f: t.Callable[P, t.Any] = key_f
         self.inner_f: t.Callable[P, T] = f
         self.cache: t.Dict[t.Tuple[t.Tuple[t.Any, ...], t.Tuple[t.Tuple[str, t.Any], ...]], t.Any] = {}
 
@@ -257,7 +257,7 @@ class KeyCache(t.Generic[P, T]):
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T:
         if self.maxsize is None:
-            key = (tuple(map(self.key_f, args)), tuple((k, self.key_f(v)) for (k, v) in kwargs.items()))
+            key = self.key_f(*args, **kwargs)
             result = self.cache.get(key, self._missing)
             if result is not self._missing:
                 return t.cast(T, result)
@@ -265,7 +265,7 @@ class KeyCache(t.Generic[P, T]):
             self.cache[key] = result
             return result
 
-        key = (tuple(map(self.key_f, args)), tuple((k, self.key_f(v)) for (k, v) in kwargs.items()))
+        key = self.key_f(*args, **kwargs)
         with self._lock:
             link = self.cache.get(key, None)
             if link is not None:
@@ -307,7 +307,7 @@ class KeyCache(t.Generic[P, T]):
 
 
 # TODO support maxsize
-def key_cache(key_f: t.Callable[[t.Any], t.Any] = id, *, maxsize: t.Optional[int] = None) -> t.Callable[[t.Callable[P, T]], KeyCache[P, T]]:
+def key_cache(key_f: t.Callable[P, t.Any], *, maxsize: t.Optional[int] = None) -> t.Callable[[t.Callable[P, T]], KeyCache[P, T]]:
     def inner(f: t.Callable[P, T]) -> KeyCache[P, T]:
         return t.cast(KeyCache[P, T], functools.update_wrapper(KeyCache(f, key_f, maxsize), f))
 

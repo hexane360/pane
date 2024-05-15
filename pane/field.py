@@ -8,6 +8,7 @@ import typing as t
 from typing_extensions import ParamSpec, Self
 
 from .util import replace_typevars, KW_ONLY
+from .converters import Converter
 
 
 class _Missing:
@@ -97,6 +98,8 @@ class Field:
     """Default value factory for field"""
     kw_only: bool = False
     """Whether field is keyword only"""
+    converter: t.Optional[Converter[t.Any]] = None
+    """Custom converter to use for this field."""
 
     @classmethod
     def make(cls, name: str, ty: type,
@@ -140,6 +143,8 @@ class FieldSpec:
     """Whether field is keyword only"""
     ty: t.Union[t.Any, _Missing] = _MISSING
     """Type of field, if known. Must be Convertible."""
+    converter: t.Optional[Converter[t.Any]] = None
+    """Custom converter to use for this field."""
 
     def __post_init__(self):
         if isinstance(self.aliases, str):
@@ -182,7 +187,7 @@ class FieldSpec:
         ty = t.cast(type, t.Any if self.ty is _MISSING else self.ty)
         return Field(name=name, type=ty, out_name=out_name, in_names=in_names,
                      init=self.init, default=self.default, default_factory=self.default_factory,
-                     kw_only=self.kw_only)
+                     kw_only=self.kw_only, converter=self.converter)
 
 
 # only allow one of rename, in_names, and aliases
@@ -196,6 +201,7 @@ def field(*,
     default: t.Union[T, _Missing] = _MISSING,
     default_factory: t.Optional[t.Callable[[], T]] = None,
     kw_only: bool = False,
+    converter: t.Optional[Converter[t.Any]] = None,
 ) -> t.Any:
     ...
 
@@ -209,6 +215,7 @@ def field(*,
     default: t.Union[T, _Missing] = _MISSING,
     default_factory: t.Optional[t.Callable[[], T]] = None,
     kw_only: bool = False,
+    converter: t.Optional[Converter[t.Any]] = None,
 ) -> t.Any:
     ...
 
@@ -222,6 +229,7 @@ def field(*,
     default: t.Union[T, _Missing] = _MISSING,
     default_factory: t.Optional[t.Callable[[], T]] = None,
     kw_only: bool = False,
+    converter: t.Optional[Converter[t.Any]] = None,
 ) -> t.Any:
     ...
 
@@ -235,6 +243,7 @@ def field(*,
     default: t.Union[T, _Missing] = _MISSING,
     default_factory: t.Optional[t.Callable[[], T]] = None,
     kw_only: bool = False,
+    converter: t.Optional[Converter[t.Any]] = None,
 ) -> t.Any:
     ...
 
@@ -247,6 +256,7 @@ def field(*,
     default: t.Union[T, _Missing] = _MISSING,
     default_factory: t.Optional[t.Callable[[], T]] = None,
     kw_only: bool = False,
+    converter: t.Optional[Converter[t.Any]] = None,
 ) -> t.Any:
     """
     Annotate a dataclass field.
@@ -263,7 +273,8 @@ def field(*,
     """
     return FieldSpec(
         rename=rename, in_names=in_names, aliases=aliases, out_name=out_name,
-        init=init, default=default, default_factory=default_factory, kw_only=kw_only
+        init=init, default=default, default_factory=default_factory, kw_only=kw_only,
+        converter=converter
     )
 
 

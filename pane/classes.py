@@ -14,6 +14,7 @@ import typing as t
 from typing_extensions import dataclass_transform, ParamSpec, Self
 
 from .convert import DataType, Convertible, from_data, into_data, convert
+from .convert import ConverterHandler, ConverterHandlers, IntoConverterHandlers
 from .converters import Converter, make_converter
 from .errors import ConvertError, ParseInterrupt, ErrorNode
 from .errors import WrongTypeError, WrongLenError, ProductErrorNode, DuplicateKeyError
@@ -58,6 +59,7 @@ class PaneBase:
         in_rename: t.Optional[t.Union[RenameStyle, t.Sequence[RenameStyle]]] = None,
         out_rename: t.Optional[RenameStyle] = None,
         allow_extra: t.Optional[bool] = None,
+        custom: t.Optional[IntoConverterHandlers] = None,
         **kwargs: t.Any,
     ):
         old_params = getattr(cls, '__parameters__', ())
@@ -78,6 +80,7 @@ class PaneBase:
             name=name, out_format=out_format, in_format=in_format,
             eq=eq, order=order, frozen=frozen, init=init, allow_extra=allow_extra,
             kw_only=kw_only, in_rename=in_rename, out_rename=out_rename,
+            class_handlers=ConverterHandlers._process(custom),
         )
 
         _process(cls, opts)
@@ -103,34 +106,37 @@ class PaneBase:
         raise AttributeError(f"cannot delete field {name!r}")
 
     @classmethod
-    def _converter(cls: t.Type[PaneBaseT], *args: t.Type[Convertible]) -> Converter[PaneBaseT]:
+    def _converter(cls: t.Type[PaneBaseT], *args: t.Type[Convertible],
+                   handlers: ConverterHandlers) -> Converter[PaneBaseT]:
         if len(args) > 0:
             cls = t.cast(t.Type[PaneBaseT], cls[tuple(args)])  # type: ignore
-        return PaneConverter(cls)
+        return PaneConverter(cls, handlers=handlers)
 
     @classmethod
-    def from_obj(cls, obj: Convertible) -> Self:
+    def from_obj(cls, obj: Convertible, *,
+                 custom: t.Optional[IntoConverterHandlers] = None) -> Self:
         """
         Convert `obj` into `cls`. Equivalent to `convert(obj, cls)`
 
         Parameters:
           obj: Object to convert. Must be convertible.
         """
-        return convert(obj, cls)
+        return convert(obj, cls, custom=custom)
 
     @classmethod
-    def from_data(cls, data: DataType) -> Self:
+    def from_data(cls, data: DataType, *,
+                  custom: t.Optional[IntoConverterHandlers] = None) -> Self:
         """
         Convert `data` into `cls`. Equivalent to `from_data(data, cls)`
 
         Parameters:
           data: Data to convert. Must be a data interchange type.
         """
-        return from_data(data, cls)
+        return from_data(data, cls, custom=custom)
 
-    def into_data(self) -> DataType:
+    def into_data(self, *, custom: t.Optional[IntoConverterHandlers] = None) -> DataType:
         """Convert `self` into interchange data"""
-        return into_data(self, self.__class__)
+        return into_data(self, self.__class__, custom=custom)
 
     def dict(self, set_only: bool = False) -> t.Dict[str, t.Any]:
         """
@@ -148,7 +154,8 @@ class PaneBase:
         }
 
     @classmethod
-    def from_json(cls, f: FileOrPath) -> Self:
+    def from_json(cls, f: FileOrPath, *,
+                  custom: t.Optional[IntoConverterHandlers] = None) -> Self:
         """
         Load `cls` from a JSON file `f`
 
@@ -158,10 +165,11 @@ class PaneBase:
         import json
         with open_file(f) as f:
             obj = json.load(f)
-        return cls.from_data(obj)
+        return cls.from_data(obj, custom=custom)
 
     @classmethod
-    def from_jsons(cls, s: str) -> Self:
+    def from_jsons(cls, s: str, *,
+                   custom: t.Optional[IntoConverterHandlers] = None) -> Self:
         """
         Load `cls` from a JSON string `s`
 
@@ -170,10 +178,11 @@ class PaneBase:
         """
         import json
         obj = json.loads(s)
-        return cls.from_data(obj)
+        return cls.from_data(obj, custom=custom)
 
     @classmethod
-    def from_yaml(cls, f: FileOrPath) -> Self:
+    def from_yaml(cls, f: FileOrPath, *,
+                  custom: t.Optional[IntoConverterHandlers] = None) -> Self:
         """
         Load `cls` from a YAML file `f`
 
@@ -189,10 +198,11 @@ class PaneBase:
         with open_file(f) as f:
             obj: t.Any = list(yaml.load_all(f, Loader))  # type: ignore
 
-        return cls.from_data(obj)
+        return cls.from_data(obj, custom=custom)
 
     @classmethod
-    def from_yamls(cls, s: str) -> Self:
+    def from_yamls(cls, s: str, *,
+                   custom: t.Optional[IntoConverterHandlers] = None) -> Self:
         """
         Load `cls` from a YAML string `s`
 
@@ -200,7 +210,7 @@ class PaneBase:
           s: YAML string to load from
         """
         from io import StringIO
-        return cls.from_yaml(StringIO(s))
+        return cls.from_yaml(StringIO(s), custom=custom)
 
     @classmethod
     def make_unchecked(cls, *args: t.Any, **kwargs: t.Any) -> Self:
@@ -257,6 +267,8 @@ class PaneOptions:
     """Rename style to convert class into"""
     allow_extra: bool = False
     """Whether extra fields are allowed in conversion"""
+    class_handlers: t.Tuple[ConverterHandler, ...] = ()
+    """Custom converters to use for field datatypes"""
 
     def replace(self, **changes: t.Any):
         """Return `self` with the given changes applied"""
@@ -488,13 +500,27 @@ class PaneConverter(Converter[PaneBaseT]):
     """
     [`Converter`][pane.converters.Converter] for `pane` dataclasses
     """
-    def __init__(self, cls: t.Type[PaneBaseT]):
+    def __init__(self, cls: t.Type[PaneBaseT], *,
+                 handlers: ConverterHandlers):
+        super().__init__()
+
         self.cls = cls
         self.name = self.cls.__name__
         self.cls_info: PaneInfo = getattr(self.cls, PANE_INFO)
         self.opts: PaneOptions = self.cls_info.opts
         self.fields: t.Sequence[Field] = self.cls_info.fields
-        self.field_converters: t.Sequence[Converter[t.Any]] = [make_converter(field.type) for field in self.fields]
+
+        # prioritize:
+        # - field converter
+        # - custom passed to make_converter (handlers.globals)
+        # - custom passed to this class (which inherits from superclasses) (self.opts.class_handlers)
+        # - custom passed to parent (by composition) class (handlers.opts.class_handlers)
+        handlers = ConverterHandlers(handlers.globals, (*self.opts.class_handlers, *handlers.class_local))
+
+        self.field_converters: t.Sequence[Converter[t.Any]] = [
+            field.converter if field.converter is not None else make_converter(field.type, handlers)
+            for field in self.fields
+        ]
         self.field_map: t.Dict[str, int] = {}
 
         for (i, field) in enumerate(self.fields):

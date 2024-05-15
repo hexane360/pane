@@ -10,6 +10,7 @@ try:
 
     if t.TYPE_CHECKING:
         from ..converters import Converter
+        from ..convert import ConverterHandlers
 
 
     def _dtype_map(ty: t.Union[t.Type[t.Any], t.Type[generic]]) -> type:
@@ -33,12 +34,13 @@ try:
         raise TypeError(f"Don't know how to handle numpy dtype '{ty}'")
 
 
-    def numpy_converter_handler(ty: t.Any, args: t.Sequence[t.Any]) -> 'Converter[t.Any]':
+    def numpy_converter_handler(ty: t.Any, args: t.Sequence[t.Any], *,
+                                handlers: 'ConverterHandlers') -> 'Converter[t.Any]':
         from ..convert import make_converter
 
         if issubclass(ty, generic):
             # dtype converters
-            return make_converter(_dtype_map(ty))
+            return make_converter(_dtype_map(ty), handlers=handlers)
 
         if not (issubclass(ty, ndarray) or ty is NDArray):
             return NotImplemented
@@ -60,7 +62,7 @@ try:
 
         from ..converters import NestedSequenceConverter
 
-        return NestedSequenceConverter(dtype, array, ragged=False)  # type: ignore
+        return NestedSequenceConverter(dtype, array, ragged=False, handlers=handlers)  # type: ignore
 
 except ImportError:
     if not t.TYPE_CHECKING:
@@ -82,5 +84,6 @@ except ImportError:
         NDArray = ndarray[t.Any, dtype[ScalarType]]
 
         # dummy handler
-        def numpy_converter_handler(ty: t.Any, args: t.Sequence[t.Any]):
+        def numpy_converter_handler(ty: t.Any, args: t.Sequence[t.Any], *,
+                                    custom: t.Optional[ConverterHandler] = None):
             return NotImplemented

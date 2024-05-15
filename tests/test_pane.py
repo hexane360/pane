@@ -7,7 +7,10 @@ import pytest
 
 import pane
 from pane.errors import ErrorNode, ProductErrorNode, DuplicateKeyError, WrongTypeError
+from pane.convert import make_converter
 from pane.annotations import Tagged
+
+from test_converters import DoubleIntConverter, DoubleStrConverter
 
 
 def check_ord(obj, other, ordering: t.Literal[-1, 0, 1]):
@@ -315,3 +318,36 @@ def test_manual_slots():
     obj.z = 8
     with pytest.raises(AttributeError, match="'SlotsClass' object has no attribute 'y'"):
         obj.y = 8
+
+
+class PaneCustomParent(pane.PaneBase, custom={int: DoubleIntConverter()}):
+    x: int
+    y: str
+
+
+class PaneCustomMember(pane.PaneBase, custom={str: make_converter(str)}):
+    inner: str
+
+
+class PaneCustomChild(PaneCustomParent, custom={str: DoubleStrConverter()}):
+    z: str = pane.field(converter=make_converter(str))
+    member: PaneCustomMember
+
+
+def test_pane_custom_converters():
+    # custom from class definition
+    assert PaneCustomParent.from_data({'x': 5, 'y': 'test'}) == PaneCustomParent.make_unchecked(x=10, y='test')
+
+    # parent custom definition is overridden by child custom definition 
+    # outer custom definition is overridden by inner custom definition
+    # field definition overrides class definitions
+    assert PaneCustomChild.from_data(
+        {'x': 5, 'y': 'test', 'z': 'str', 'member': {'inner': 'str'}}
+    ) == PaneCustomChild.make_unchecked(x=5, y='testtest', z='str', member=PaneCustomMember.make_unchecked('str'))
+
+    # custom passed to from_data takes precedence over everything except field converters
+    # this also tests that make_converter is memoized correctly
+    assert pane.from_data(
+        {'x': 5, 'y': 'str', 'z': 'str', 'member': {'inner': 'str'}},
+        PaneCustomChild, custom={int: make_converter(int), str: DoubleStrConverter()}
+    ) == PaneCustomChild.make_unchecked(x=5, y='strstr', z='str', member=PaneCustomMember.make_unchecked('strstr'))

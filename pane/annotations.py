@@ -13,7 +13,7 @@ from .util import flatten_union_args, is_broadcastable
 from .util import list_phrase, pluralize, remove_article
 
 if t.TYPE_CHECKING:
-    from .convert import IntoConverter
+    from .convert import IntoConverter, ConverterHandlers
     from .converters import Converter, ConditionalConverter
 
 
@@ -22,7 +22,8 @@ class ConvertAnnotation(abc.ABC, t.Hashable):
     Abstract annotation supported by `pane`.
     """
     @abc.abstractmethod
-    def _converter(self, inner_type: t.Union[Converter[t.Any], IntoConverter]) -> Converter[t.Any]:
+    def _converter(self, inner_type: t.Union[Converter[t.Any], IntoConverter], *,
+                   handlers: ConverterHandlers) -> Converter[t.Any]:
         ...
 
 
@@ -44,13 +45,15 @@ class Tagged(ConvertAnnotation):
     def __hash__(self):
         return hash((self.__class__.__name__, self.tag, self.external))
 
-    def _converter(self, inner_type: t.Union[Converter[t.Any], IntoConverter]) -> Converter[t.Any]:
+    def _converter(self, inner_type: t.Union[Converter[t.Any], IntoConverter], *,
+                   handlers: ConverterHandlers) -> Converter[t.Any]:
+
         from .converters import TaggedUnionConverter
         origin = t.get_origin(inner_type)
         if origin is not t.Union:
             raise TypeError(f"'Tagged' must surround a 'Union' type.")
         types = tuple(flatten_union_args(t.get_args(inner_type)))
-        return TaggedUnionConverter(types, tag=self.tag, external=self.external)
+        return TaggedUnionConverter(types, tag=self.tag, external=self.external, handlers=handlers)
 
 
 @dataclass(frozen=True)
@@ -123,11 +126,13 @@ class Condition(ConvertAnnotation):
         """Get the name of this condition"""
         return self.name or self.f.__name__
 
-    def _converter(self, inner_type: t.Union[Converter[t.Any], IntoConverter]) -> ConditionalConverter[t.Any]:
+    def _converter(self, inner_type: t.Union[Converter[t.Any], IntoConverter], *,
+                   handlers: ConverterHandlers) -> ConditionalConverter[t.Any]:
         from .converters import ConditionalConverter
         return ConditionalConverter(
             inner_type, self.f, self.cond_name(),
             self.make_expected or (lambda conv, plural: f"{conv} satisfying {self.cond_name()}"),
+            handlers=handlers,
         )
 
 

@@ -6,7 +6,7 @@ import typing as t
 
 from pane.classes import PaneBase, field
 from pane.converters import UnionConverter
-from pane.convert import Convertible, DataType, into_data
+from pane.convert import Convertible, DataType, into_data, ConverterHandlers
 from pane.annotations import *
 
 
@@ -98,9 +98,10 @@ class ValueOrList(t.Generic[T]):
         return self._is_val == other._is_val and self._inner == other._inner
 
     @classmethod
-    def _converter(cls: t.Type[T], *args: t.Type[Convertible]) -> ValueOrListConverter:
+    def _converter(cls: t.Type[T], *args: t.Type[Convertible],
+                   handlers: ConverterHandlers) -> ValueOrListConverter:
         arg = args[0] if len(args) > 0 else t.Any
-        return ValueOrListConverter(arg)
+        return ValueOrListConverter(arg, handlers=handlers)
 
     def __len__(self) -> int:
         return 1 if self._is_val else len(t.cast(t.List[T], self._inner))
@@ -118,9 +119,9 @@ class ValueOrList(t.Generic[T]):
 
 
 class ValueOrListConverter(UnionConverter):
-    def __init__(self, ty: t.Type[Convertible]):
+    def __init__(self, ty: t.Type[Convertible], handlers: ConverterHandlers):
         types = t.cast(t.Sequence[t.Type[Convertible]], (ty, t.List[ty]))
-        super().__init__(types, lambda v, i: ValueOrList(v, i == 0))
+        super().__init__(types, constructor=lambda v, i: ValueOrList(v, i == 0), handlers=handlers)
         self.ty = ty
 
     def expected(self, plural: bool = False) -> str:

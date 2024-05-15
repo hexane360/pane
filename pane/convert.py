@@ -9,14 +9,18 @@ from __future__ import annotations
 import warnings
 import collections
 import collections.abc
-import enum
+from dataclasses import dataclass
 import datetime
 from decimal import Decimal
+import enum
 from fractions import Fraction
+import itertools
 import inspect
 import os
 import pathlib
 import typing as t
+
+from typing_extensions import Self
 
 from .errors import ConvertError, UnsupportedAnnotation
 from .addons import numpy as numpy
@@ -35,12 +39,15 @@ class HasConverter(t.Protocol):
     """
 
     @classmethod
-    def _converter(cls: t.Type[T], *args: t.Type[Convertible]) -> Converter[T]:
+    def _converter(cls: t.Type[T], *args: t.Type[Convertible],
+                   handlers: ConverterHandlers) -> Converter[T]:
         """
         Return a [`Converter`][pane.converters.Converter] capable of constructing `cls`.
 
         Any given type arguments are passed as positional arguments.
         This function should error when passed unknown type arguments.
+
+        `handlers` must be passed through to any sub-calls to `make_converter`.
         """
         ...
 
@@ -57,6 +64,8 @@ _DataType = (*_ScalarType, t.Mapping, t.Sequence, numpy.ndarray)  # type: ignore
 
 Convertible = t.Union[
     DataType, HasConverter,
+    t.Mapping['Convertible', 'Convertible'],
+    t.Sequence['Convertible'],
     t.AbstractSet[DataType],
     Fraction, Decimal,
     datetime.datetime, datetime.date, datetime.time,
@@ -71,8 +80,7 @@ Consists of [`DataType`][pane.convert.DataType] + [`HasConverter`][pane.convert.
 """
 
 IntoConverter = t.Union[
-    t.Type[Convertible],
-    t.Any, t.Type[t.Any],
+    t.Type[Convertible], t.Type[t.Any],
     t.Mapping[str, 'IntoConverter'],
     t.Sequence['IntoConverter']
 ]
@@ -82,8 +90,58 @@ Consists of `t.Type[Convertible]`, mappings (struct types), and sequences (tuple
 """
 
 
-_CONVERTER_HANDLERS: t.List[t.Callable[[t.Any, t.Tuple[t.Any, ...]], Converter[t.Any]]] = []
+class ConverterHandler(t.Protocol):
+    """
+    Function which may be called to create a converter.
+    Receives two arguments, and one keyword argument `handlers`.
+    The first argument is the base type, the second argument is a tuple of any type arguments,
+    and the keyword argument `handlers` must be passed through to any nested calls to `make_converter`.
 
+    May return `NotImplemented`, in which case handling will be passed to other handlers
+    (including the default handlers).
+    """
+
+    def __call__(self, ty: type, args: t.Tuple[t.Any, ...], /, *,
+                 handlers: ConverterHandlers) -> 'Converter[t.Any]':
+        ...
+
+
+IntoConverterHandlers = t.Union[ConverterHandler, t.Tuple[ConverterHandler, ...], t.Dict[type, 'Converter[t.Any]']]
+
+
+@dataclass(frozen=True)
+class ConverterHandlers:
+    globals: t.Tuple[ConverterHandler, ...] = ()
+    """Converters passed globally to convert, into_data, or from_data."""
+    class_local: t.Tuple[ConverterHandler, ...] = ()
+    """Converters local to a given class. These will be overriden by inner classes."""
+
+    @classmethod
+    def make(cls, handlers: t.Optional[IntoConverterHandlers]) -> Self:
+        return cls(globals=cls._process(handlers))
+
+    @staticmethod
+    def _process(handlers: t.Optional[IntoConverterHandlers]) -> t.Tuple[ConverterHandler, ...]:
+        if handlers is None:
+            return ()
+
+        if isinstance(handlers, dict):
+            conv_map = handlers
+
+            def inner(ty: type, args: t.Tuple[t.Any, ...] = (), *, handlers: ConverterHandlers):
+                if ty in conv_map and len(args) == 0:
+                    return conv_map[ty]
+                return NotImplemented
+
+            return (inner,)
+
+        return handlers if isinstance(handlers, tuple) else (handlers,)
+
+    def __iter__(self) -> t.Iterator[ConverterHandler]:
+        return itertools.chain(self.globals, self.class_local)
+
+
+_GLOBAL_HANDLERS: t.List[ConverterHandler] = []
 
 _ABSTRACT_MAPPING: t.Mapping[type, type] = t.cast(t.Mapping[type, type], {
     t.Sequence: tuple,
@@ -104,16 +162,20 @@ _ABSTRACT_MAPPING: t.Mapping[type, type] = t.cast(t.Mapping[type, type], {
 """Mapping to attempt to choose a simple concrete type for abstract/base collection types"""
 
 
+def _make_converter_key_f(ty: IntoConverter, handlers: ConverterHandlers = ConverterHandlers()) -> t.Any:
+    return (id(ty), handlers)
+
+
 @t.overload
-def make_converter(ty: t.Type[T]) -> Converter[T]:
+def make_converter(ty: t.Type[T], handlers: ConverterHandlers = ...) -> Converter[T]:
     ...
 
 @t.overload
-def make_converter(ty: IntoConverter) -> Converter[t.Any]:
+def make_converter(ty: IntoConverter, handlers: ConverterHandlers = ...) -> Converter[t.Any]:
     ...
 
-@key_cache(id)
-def make_converter(ty: IntoConverter) -> Converter[t.Any]:
+@key_cache(_make_converter_key_f)
+def make_converter(ty: IntoConverter, handlers: ConverterHandlers = ConverterHandlers()) -> Converter[t.Any]:
     """
     Make a [`Converter`][pane.convert.Converter] for `ty`.
 
@@ -122,7 +184,7 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
 
     from .converters import AnyConverter, StructConverter, SequenceConverter, UnionConverter
     from .converters import LiteralConverter, DictConverter, TupleConverter, ScalarConverter
-    from .converters import EnumConverter, _BASIC_CONVERTERS, _BASIC_WITH_ARGS
+    from .converters import EnumConverter, DelegateConverter, _BASIC_CONVERTERS, _BASIC_WITH_ARGS
 
     if ty is t.Any or ty is type(t.Any):
         return AnyConverter()
@@ -140,14 +202,14 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
             var_ty = t.Union[ty.__constraints__]  # type: ignore
         else:
             # unbound typevar
-            var_ty = t.Any
+            var_ty = t.Any  # type: ignore
 
         warnings.warn(f"Unbound TypeVar '{ty}'. Will be interpreted as '{var_ty}'.")
-        return make_converter(var_ty)
+        return make_converter(var_ty, handlers)
     if isinstance(ty, (dict, t.Mapping)):
-        return StructConverter(type(ty), ty)
+        return StructConverter(type(ty), ty, handlers=handlers)
     if isinstance(ty, (tuple, t.Tuple)):
-        return TupleConverter(type(ty), ty)
+        return TupleConverter(type(ty), ty, handlers=handlers)
     if isinstance(ty, t.ForwardRef) or isinstance(ty, str):
         raise TypeError(f"Unresolved forward reference '{ty}'")
 
@@ -158,11 +220,11 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
 
     # handle annotations
     if base is t.Annotated:
-        return _annotated_converter(args[0], args[1:])
+        return _annotated_converter(args[0], args[1:], handlers=handlers)
 
     # union converter
     if base is t.Union:
-        return UnionConverter(args)
+        return UnionConverter(args, handlers=handlers)
     # literal converter
     if base is t.Literal:
         return LiteralConverter(args)
@@ -170,9 +232,18 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
     if not isinstance(base, type):
         raise TypeError(f"Unsupported special type '{base}'")
 
+    # passed converter handler
+    for handler in handlers:
+        try:
+            result = handler(base, args, handlers=ConverterHandlers())
+            if result is not NotImplemented:
+                return result
+        except NotImplementedError:
+            pass
+
     # custom converter
     if issubclass(base, HasConverter):
-        return base._converter(*args)
+        return base._converter(*args, handlers=handlers)
 
     # simple/scalar converters
     if base in _BASIC_CONVERTERS:
@@ -182,16 +253,16 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
         return _BASIC_WITH_ARGS[base](*args)
 
     # add-on handlers
-    for handler in _CONVERTER_HANDLERS:
+    for handler in _GLOBAL_HANDLERS:
         try:
-            result = handler(base, args)
+            result = handler(base, args, handlers=handlers)
             if result is not NotImplemented:
                 return result
         except NotImplementedError:
             pass
 
     if issubclass(base, enum.Enum):
-        return EnumConverter(base)
+        return EnumConverter(base, handlers=handlers)
 
     # pathlike converter
     if issubclass(base, os.PathLike):
@@ -207,7 +278,7 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
               or args == () and hasattr(ty, '__args__'):
             if args == ((),):  # tuple[()] on python <3.11
                 args = ()
-            return TupleConverter(base, args)
+            return TupleConverter(base, args, handlers=handlers)
         # fall through to sequence converter
 
     # homogenous sequence converter
@@ -217,7 +288,11 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
         new_base = _ABSTRACT_MAPPING.get(base, base)  # type: ignore
         if inspect.isabstract(new_base):
             raise TypeError(f"No converter for abstract type '{ty}'")
-        return SequenceConverter(new_base, args[0] if len(args) > 0 else t.Any)  # type: ignore
+        return SequenceConverter(
+            new_base,
+            args[0] if len(args) > 0 else t.Any,
+            handlers=handlers
+        )  # type: ignore
 
     # homogenous mapping converter
     # this also handles dict subclasses like Counter & OrderedDict
@@ -228,26 +303,31 @@ def make_converter(ty: IntoConverter) -> Converter[t.Any]:
             raise TypeError(f"No converter for abstract type '{ty}'")
         if issubclass(new_base, collections.Counter):
             # counter takes one type argument, handle it specially
-            return DictConverter(new_base, # type: ignore
-                                 args[0] if len(args) > 0 else t.Any, int)
+            return DictConverter(
+                new_base, # type: ignore
+                args[0] if len(args) > 0 else t.Any,
+                int, handlers=handlers
+            )
 
         # defaultdict needs a special constructor
         constructor: t.Optional[t.Callable[[t.Mapping[t.Any, t.Any]], collections.defaultdict[t.Any, t.Any]]]
         constructor = (lambda d: collections.defaultdict(None, d)) if issubclass(new_base, collections.defaultdict) else None
-        return DictConverter(new_base,  # type: ignore
-                             args[0] if len(args) > 0 else t.Any,
-                             args[1] if len(args) > 1 else t.Any,
-                             constructor)
+        return DictConverter(
+            new_base,  # type: ignore
+            args[0] if len(args) > 0 else t.Any,
+            args[1] if len(args) > 1 else t.Any,
+            constructor, handlers=handlers
+        )
 
     # after we've handled common cases, look for subclasses of basic types
-    for (conv_ty, conv) in _BASIC_CONVERTERS.items():
+    for conv_ty in _BASIC_CONVERTERS.keys():
         if issubclass(base, conv_ty):
-            return conv
+            return DelegateConverter(conv_ty, base, handlers=handlers)  # type: ignore
 
     raise TypeError(f"No converter for type '{ty}'")
 
 
-def register_converter_handler(handler: t.Callable[[t.Any, t.Tuple[t.Any, ...]], Converter[t.Any]]) -> None:
+def register_converter_handler(handler: ConverterHandler) -> None:
     """
     Register a handler for make_converter.
 
@@ -255,10 +335,11 @@ def register_converter_handler(handler: t.Callable[[t.Any, t.Tuple[t.Any, ...]],
     defined by your code or by `pane`. Use sparingly, as this will
     add runtime to [`make_converter`][pane.convert.make_converter].
     """
-    _CONVERTER_HANDLERS.append(handler)
+    _GLOBAL_HANDLERS.append(handler)
 
 
-def _annotated_converter(ty: IntoConverter, args: t.Sequence[t.Any]) -> Converter[t.Any]:
+def _annotated_converter(ty: IntoConverter, args: t.Sequence[t.Any], *,
+                         handlers: ConverterHandlers) -> Converter[t.Any]:
     """
     Make an annotated converter.
 
@@ -282,41 +363,44 @@ def _annotated_converter(ty: IntoConverter, args: t.Sequence[t.Any]) -> Converte
         # dump list of conditions
         if len(conditions):
             if len(conditions) > 1:
-                conv = Condition.all(*conditions)._converter(conv)
+                conv = Condition.all(*conditions)._converter(conv, handlers=handlers)
             else:
-                conv = conditions[0]._converter(conv)
+                conv = conditions[0]._converter(conv, handlers=handlers)
 
-        conv = arg._converter(conv)
+        conv = arg._converter(conv, handlers=handlers)
 
     # dump list of conditions
     if len(conditions):
         if len(conditions) > 1:
-            conv = Condition.all(*conditions)._converter(conv)
+            conv = Condition.all(*conditions)._converter(conv, handlers=handlers)
         else:
-            conv = conditions[0]._converter(conv)
+            conv = conditions[0]._converter(conv, handlers=handlers)
 
-    return conv if isinstance(conv, Converter) else make_converter(conv)
+    return conv if isinstance(conv, Converter) else make_converter(conv, handlers=handlers)
 
 
-def into_data(val: Convertible, ty: t.Optional[IntoConverter] = None) -> DataType:
+def into_data(val: Convertible, ty: t.Optional[IntoConverter] = None, *,
+              custom: t.Optional[IntoConverterHandlers] = None) -> DataType:
     """
     Convert `val` of type `ty` into a data interchange format.
     """
     if ty is None:
-        if isinstance(val, _ScalarType):
+        if isinstance(val, _ScalarType) and custom is None:
             # we can bypass the converter for scalar types
             return val
         ty = type(val)
 
     try:
-        conv = make_converter(ty)
-    except TypeError:
+        conv = make_converter(ty, ConverterHandlers.make(custom))
+        assert not hasattr(conv.into_data, '_original')  # hack to not use the default into_data implementation here
+    except (TypeError, AssertionError):
         raise TypeError(f"Can't convert type '{type(val)}' into data.") from None
 
     return conv.into_data(val)
 
 
-def from_data(val: DataType, ty: t.Type[T]) -> T:
+def from_data(val: DataType, ty: t.Type[T], *,
+              custom: t.Optional[IntoConverterHandlers] = None) -> T:
     """
     Convert `val` from a data interchange format into type `ty`.
     """
@@ -324,16 +408,17 @@ def from_data(val: DataType, ty: t.Type[T]) -> T:
     if not isinstance(val, _DataType):
         raise TypeError(f"Type {type(val)} is not a valid data interchange type.")
 
-    converter = make_converter(ty)
+    converter = make_converter(ty, ConverterHandlers.make(custom))
     return converter.convert(val)
 
 
-def convert(val: Convertible, ty: t.Type[T]) -> T:
+def convert(val: Convertible, ty: t.Type[T], *,
+            custom: t.Optional[IntoConverterHandlers] = None) -> T:
     """
     Convert `val` into type `ty`, passing through a data interchange format.
     """
-    data = into_data(val)
-    return from_data(data, ty)
+    data = into_data(val, custom=custom)
+    return from_data(data, ty, custom=custom)
 
 
 # register some handlers
