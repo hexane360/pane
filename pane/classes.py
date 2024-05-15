@@ -18,7 +18,7 @@ from .convert import ConverterHandler, ConverterHandlers, IntoConverterHandlers
 from .converters import Converter, make_converter
 from .errors import ConvertError, ParseInterrupt, ErrorNode
 from .errors import WrongTypeError, WrongLenError, ProductErrorNode, DuplicateKeyError
-from .field import Field, FieldSpec, field, RenameStyle, _MISSING
+from .field import Field, FieldSpec, field, RenameStyle, rename_field, _MISSING
 from .util import FileOrPath, open_file, get_type_hints, list_phrase, KW_ONLY
 
 
@@ -138,19 +138,20 @@ class PaneBase:
         """Convert `self` into interchange data"""
         return into_data(self, self.__class__, custom=custom)
 
-    def dict(self, set_only: bool = False) -> t.Dict[str, t.Any]:
+    def dict(self, *, set_only: bool = False, rename: t.Optional[RenameStyle] = None) -> t.Dict[str, t.Any]:
         """
         Return a dict of the fields in `self`
 
         Parameters:
           set_only: If `True`, return only the fields which have been set
+          rename: Rename fields to match the given style
         """
         if set_only:
             return {
-                k : getattr(self, k) for k in getattr(self, PANE_SET_FIELDS)
+                rename_field(k, rename): getattr(self, k) for k in getattr(self, PANE_SET_FIELDS)
             }
         return {
-            field.name: getattr(self, field.name) for field in self.__pane_info__.fields
+            rename_field(field.name, rename): getattr(self, field.name) for field in self.__pane_info__.fields
         }
 
     @classmethod

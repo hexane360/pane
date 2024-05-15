@@ -83,7 +83,7 @@ Currently, the following datatypes are supported:
 
 #### Path-like types:
 
-- `os.PathLike` (currently `str` only)
+- `os.PathLike` (currently `str` only, not `bytes`)
 - `pathlib.Path`/`pathlib.PurePath`
 - `pathlib.WindowsPath`/`pathlib.PureWindowsPath`
 - `pathlib.PosixPath`/`pathlib.PurePosixPath`

@@ -1,4 +1,4 @@
-# Dataclasses: The ultimate product type
+# Dataclasses
 
 `pane` dataclasses work similarly to many other libraries.
 They aim to have a superset of the features of the standard library dataclasses.
@@ -15,6 +15,8 @@ class MyDataclass(pane.PaneBase):
     _: pane.KW_ONLY  
     # advanced field specification
     z: t.List[float] = pane.field(aliases=('w',), default_factory=list)
+    # apply custom logic to a field
+    w: str = pane.field(converter=CustomConverter())
 ```
 
 ## Constructors
@@ -47,6 +49,8 @@ To bypass conversion, use `Mydataclass.make_unchecked` instead:
 MyDataclass(x=5, y=None, z=[5.0, 10.0, 's'])
 ```
 
+Like regular dataclasses, `__post_init__` is called on construction, allowing extra validation logic and initializing `init=False` fields.
+
 `MyDataclass.from_obj`, `MyDataclass.from_data`, `MyDataclass.from_json`, and `MyDataclass.from_yaml` perform conversion from an object:
 
 ```python
@@ -70,6 +74,9 @@ MyDataclass(x=10, y=10.0, z=[10.0])
 {'x': 10, 'y': 10.0, 'z': [10.0]}
 ```
 
+`MyDataclass.dict` returns a dictionary containing the fields, using their Python names. `set_only` may be specified
+to return only explicitly set fields, and `rename` may be specified to return using differently-styled names:
+
 ## Index of methods
 
 | Method name | Method type | Description                     |
@@ -84,3 +91,29 @@ MyDataclass(x=10, y=10.0, z=[10.0])
 | [`from_yamls`][pane.classes.PaneBase.from_yamls] | classmethod | Instantiate a dataclass from a YAML string |
 | [`into_data`][pane.classes.PaneBase.into_data] | instance method | Convert dataclass into interchange data |
 | [`dict`][pane.classes.PaneBase.dict] | instance method | Return dataclass fields as a dict (optionally, return only set fields) |
+
+## Class arguments
+
+Dataclass behavior can be customized using arguments passed to the class constructor. The following arguments are supported:
+
+Args:
+
+   - name (`str`): Name of the class, used in error messages.
+   - `out_format` ([`ClassLayout`][pane.classes.ClassLayout]): Format to serialize class in (default: `struct`)
+   - `in_format` (`t.Sequence[ClassLayout]`): Formats class may be serialized from (default: `['struct', 'tuple']` if no keyword arguments, else `['struct']`)
+   - `eq` (`bool`): Whether to add `__eq__` method
+   - `order` (`bool`): Whether to add `__ord__` method
+   - `frozen` (`bool`): Whether to freeze dataclass
+   - `init` (`bool`): Whether to add `__init__` method
+   - `kw_only` (`bool`): If true, make all parameters keyword-only
+   - `rename` ([`RenameStyle`][pane.field.RenameStyle]): How to rename parameters upon conversion to data. Cannot be specified with `in_rename` or `out_rename`
+   - `in_rename` (`RenameStyle` or `t.Sequence[RenameStyle]`): Allow inputs renamed from these formats
+   - `out_rename` (`RenameStyle`): Output renamed to this format
+   - `allow_extra` (bool): Whether to allow (and ignore) extra parameters
+   - `custom` ([`IntoConverterHandlers`][pane.convert.IntoConverterHandlers]): Custom handlers to apply to members of this class. Can be a handler, a list of handlers, or a dict mapping types to converters.
+
+In general, these arguments are inherited by subclasses, unless overridden.
+
+## Generic classes
+
+Generic classes are supported natively, with proper inheritance.

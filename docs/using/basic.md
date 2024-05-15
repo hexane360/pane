@@ -25,5 +25,5 @@ Currently, the data interchange types are:
  - Sequences: [list][], [tuple][] and [`t.Sequence`][typing.Sequence]
  - Mappings: [dict][] and [`t.Mapping`][typing.Mapping]
 
-All implementations of [`Converter.into_data`][pane.converters.Converter.into_data] must output a data interchange type, and all implementations of [`Converter.convert`][pane.converters.Converter.convert] must handle any data interchange type (even if 'handle' just means raising an error message).
+All implementations of [`Converter.into_data`][pane.converters.Converter.into_data] must output a data interchange type, and all implementations of [`Converter`][pane.converters.Converter] must handle any data interchange type (even if 'handle' just means returning an error).
 Data interchange types may be added in major releases, so [`Converter`][pane.converters.Converter] implementations should be made robust to new types.

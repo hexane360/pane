@@ -106,7 +106,7 @@ class ConverterHandler(t.Protocol):
         ...
 
 
-IntoConverterHandlers = t.Union[ConverterHandler, t.Tuple[ConverterHandler, ...], t.Dict[type, 'Converter[t.Any]']]
+IntoConverterHandlers = t.Union[ConverterHandler, t.Sequence[ConverterHandler], t.Dict[type, 'Converter[t.Any]']]
 
 
 @dataclass(frozen=True)
@@ -135,7 +135,7 @@ class ConverterHandlers:
 
             return (inner,)
 
-        return handlers if isinstance(handlers, tuple) else (handlers,)
+        return tuple(handlers) if isinstance(handlers, t.Sequence) else (handlers,)
 
     def __iter__(self) -> t.Iterator[ConverterHandler]:
         return itertools.chain(self.globals, self.class_local)

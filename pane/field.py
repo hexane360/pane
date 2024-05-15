@@ -62,7 +62,7 @@ def _split_field_name(field: str) -> t.Sequence[str]:
     return tuple(itertools.chain.from_iterable(map(split_case, parts)))
 
 
-def rename_field(field: str, style: RenameStyle) -> str:
+def rename_field(field: str, style: t.Optional[RenameStyle] = None) -> str:
     """
     Rename `field` to match style `style`.
 
@@ -70,6 +70,9 @@ def rename_field(field: str, style: RenameStyle) -> str:
         field: Field name to rename
         style: Style to match
     """
+    if style is None:
+        return field
+
     return _CONVERT_FNS[style](_split_field_name(field))
 
 
@@ -201,7 +204,7 @@ def field(*,
     default: t.Union[T, _Missing] = _MISSING,
     default_factory: t.Optional[t.Callable[[], T]] = None,
     kw_only: bool = False,
-    converter: t.Optional[Converter[t.Any]] = None,
+    converter: t.Optional[Converter[T]] = None,
 ) -> t.Any:
     ...
 
@@ -215,7 +218,7 @@ def field(*,
     default: t.Union[T, _Missing] = _MISSING,
     default_factory: t.Optional[t.Callable[[], T]] = None,
     kw_only: bool = False,
-    converter: t.Optional[Converter[t.Any]] = None,
+    converter: t.Optional[Converter[T]] = None,
 ) -> t.Any:
     ...
 
@@ -229,7 +232,7 @@ def field(*,
     default: t.Union[T, _Missing] = _MISSING,
     default_factory: t.Optional[t.Callable[[], T]] = None,
     kw_only: bool = False,
-    converter: t.Optional[Converter[t.Any]] = None,
+    converter: t.Optional[Converter[T]] = None,
 ) -> t.Any:
     ...
 
@@ -243,7 +246,7 @@ def field(*,
     default: t.Union[T, _Missing] = _MISSING,
     default_factory: t.Optional[t.Callable[[], T]] = None,
     kw_only: bool = False,
-    converter: t.Optional[Converter[t.Any]] = None,
+    converter: t.Optional[Converter[T]] = None,
 ) -> t.Any:
     ...
 
@@ -256,7 +259,7 @@ def field(*,
     default: t.Union[T, _Missing] = _MISSING,
     default_factory: t.Optional[t.Callable[[], T]] = None,
     kw_only: bool = False,
-    converter: t.Optional[Converter[t.Any]] = None,
+    converter: t.Optional[Converter[T]] = None,
 ) -> t.Any:
     """
     Annotate a dataclass field.

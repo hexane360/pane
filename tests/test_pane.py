@@ -274,6 +274,10 @@ def test_pane_rename():
     assert PaneRenameKebab.from_data(obj) == PaneRenameKebab(1, 2., 3, 4.)
     assert PaneRenameKebab(1, 2., 3, 4.).into_data() == obj
 
+    assert PaneRename(1, 2., 3, 4.).dict(rename='scream') == {
+        'SNAKE_CASE': 1, 'SCREAM_CASE': 2., 'CAMEL_CASE': 3, 'PASCAL_CASE': 4.
+    }
+
 
 class PaneTag1(pane.PaneBase, kw_only=True):
     tag: t.Literal['tag1'] = 'tag1'

@@ -59,25 +59,32 @@ class CountryCodeConverter:
         return None
 ```
 
-There are a couple ways to inform `pane` of the presence of `CountryCodeConverter`. The simplest is through the [`HasConverter`][pane.convert.HasConverter] protocol. Just add a class method to `CountryCode`:
+`expected` returns a brief string description of what values were expected by the converter. `try_convert` and `collect_errors` work together to perform parsing. When called with the same value, whenever `try_convert` succeeds, `collect_errors` should return `None`. Conversely, whenever `try_convert` raises a [`ParseInterrupt`][pane.errors.ParseInterrupt], `collect_errors` should return an [`ErrorNode`][pane.errors.ErrorNode]. This means much of the same control flow should be present in both functions. However, `try_convert` is on the fast path; it should do as little work as possible, including avoiding constructing errors.
+
+With that said, There are a couple ways to inform `pane` of the presence of `CountryCodeConverter`. The simplest is through the [`HasConverter`][pane.convert.HasConverter] protocol. Just add a class method to `CountryCode`:
 
 ```python
 class CountryCode:
     ...
 
     @classmethod
-    def _converter(cls: t.Type[T], *args: type) -> CountryCodeConverter:
+    def _converter(cls: t.Type[T], *args: type,
+                   handlers: ConverterHandlers) -> CountryCodeConverter:
         if len(args):
             raise TypeError("'CountryCode' doesn't support type arguments")
         return CountryCodeConverter(cls)
 ```
 
-Now, `convert()`, `from_data()` and dataclasses will work seamlessly with `CountryCode`.
+In this protocol, any type arguments are passed to `args`. `handlers` contains
+a invocation-specific set of custom handlers. If you call `make_converter` inside
+of your `Converter`, you must pass `handlers` through to it.
+
+With that defined, `convert()`, `from_data()` and dataclasses will work seamlessly with `CountryCode`.
 
 ## Supporting third-party datatypes
 
 Sometimes you don't have access to a type to add a method to it.
-In these instances, you may instead add a custom handler to [`make_converter`][pane.convert.make_converter] using [`register_converter_handler`][pane.convert.register_converter_handler].
+In these instances, you may instead add a global custom handler to [`make_converter`][pane.convert.make_converter] using [`register_converter_handler`][pane.convert.register_converter_handler].
 Say there's a type `Foo` that we'd like to support.
 First, we need to make a `FooConverter` (see [Custom converters](#custom-converters) above).
 Next, we make a function called `foo_converter_handler`, and register it:
@@ -86,7 +93,8 @@ Next, we make a function called `foo_converter_handler`, and register it:
 from pane.convert import register_converter_handler
 
 # called with the type to make a converter for, and any type arguments
-def foo_converter_handler(ty: t.Any, args: t.Tuple[t.Any, ...]) -> FooConverter:
+def foo_converter_handler(ty: t.Any, args: t.Tuple[t.Any, ...], /, *
+                          handlers: ConverterHandlers) -> FooConverter:
     if not issubclass(ty, Foo):
         return NotImplemented  # not a foo type, can't handle it
     return FooConverter(ty, args)
@@ -94,4 +102,17 @@ def foo_converter_handler(ty: t.Any, args: t.Tuple[t.Any, ...]) -> FooConverter:
 register_converter_handler(foo_converter_handler)
 ```
 
-Converter handlers are applied after basic type handlers and the [`HasConverter`][pane.convert.HasConverter] protocol (to increase performance), but before handlers for subclasses, `tuple`s, or `dict`s.
+Converter handlers can also be passed to [`convert`][pane.convert.convert], [`into_data`][pane.convert.into_data], and [`from_data`][pane.convert.from_data] using the `custom` option:
+
+```python
+foo = from_data({'foo': 'bar'}, Foo, custom=foo_converter_handler)
+```
+
+`custom` may be a handler, a sequence of handlers (called in order), or a dict mapping types to `Converter`s.
+
+Local converter handlers are applied after special forms (e.g. `t.Union`), but before anything else.
+Global converter handlers are applied after basic type handlers and the [`HasConverter`][pane.convert.HasConverter] protocol (to increase performance), but before handlers for subclasses, `tuple`s, or `dict`s.
+
+## Custom annotations
+
+Custom annotations are also supported. To create a custom annotation, subclass [`ConvertAnnotation`][pane.annotations.ConvertAnnotation]. `_converter` will be called to construct a converter, with `inner_type` containing the type inside the annotation (or a `Converter` in the case of nested annotations). Raise a `TypeError` if `inner_type` isn't supported or understood by the annotation. `handlers` is a set of local converter handlers, which again must be passed through to any calls to `make_converter`.
