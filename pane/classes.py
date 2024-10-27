@@ -331,7 +331,7 @@ def _make_init(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
             if field.name in bound_args:
                 val = bound_args[field.name]
                 if checked:
-                    val = convert(val, field.type)  # type: ignore
+                    val = convert(val, field.type)
                 set_fields.add(field.name)
             elif field.default is not _MISSING:
                 val = field.default

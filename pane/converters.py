@@ -15,8 +15,6 @@ from decimal import Decimal
 import typing as t
 from typing_extensions import TypeGuard, TypeAlias
 
-from pane.errors import ErrorNode
-
 from .convert import DataType, Convertible, IntoConverter, make_converter, into_data, ConverterHandlers
 from .util import list_phrase, pluralize, flatten_union_args, type_union, KW_ONLY
 from .errors import ConvertError, ParseInterrupt, WrongTypeError, ConditionFailedError
@@ -211,8 +209,8 @@ class LiteralConverter(Converter[T_co]):
 
     def expected(self, plural: bool = False) -> str:
         """See [`Converter.expected`][pane.converters.Converter.expected]"""
-        l = list_phrase(tuple(map(repr, self.vals)))
-        return f"({l})" if plural else l
+        lits = list_phrase(tuple(map(repr, self.vals)))
+        return f"({lits})" if plural else lits
 
     def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
         """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
@@ -485,10 +483,11 @@ class StructConverter(Converter[T]):
         assert data_is_mapping(val)
         d: t.Dict[DataType, DataType] = {}
         for (k, v) in t.cast(t.Mapping[str, t.Any], val).items():
-            if (conv := self.field_converters.get(k)) is not None:
-                d[k] = conv.into_data(v)
-            else:
-                d[k] = into_data(v)
+            if (ty := self.fields.get(k)) is not None and ty not in (t.Any, type(t.Any)):
+                if (conv := self.field_converters.get(k)) is not None:
+                    d[k] = conv.into_data(v)
+                    continue
+            d[k] = make_converter(t.cast(t.Type[t.Any], type(v)), self.handlers).into_data(v)
         return d
 
     def try_convert(self, val: t.Any) -> T:
@@ -583,20 +582,36 @@ class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDat
     v_conv: Converter[FromDataV]
     """Sub-converter for values"""
     constructor: t.Callable[[t.Dict[t.Any, t.Any]], t.Mapping[FromDataK, FromDataV]]
+    handlers: ConverterHandlers
 
     def __init__(self, ty: t.Type[t.Dict[t.Any, t.Any]],
-                 k: t.Type[FromDataK] = type(t.Any), v: t.Type[FromDataV] = type(t.Any),
+                 k: t.Type[FromDataK] = type(t.Any), v: t.Type[FromDataV] = type(t.Any),  # type: ignore
                  constructor: t.Optional[t.Callable[[t.Dict[t.Any, t.Any]], t.Mapping[FromDataK, FromDataV]]] = None,
                  *, handlers: ConverterHandlers = ConverterHandlers()):
         self.ty = ty
         self.k_conv = make_converter(k, handlers)
         self.v_conv = make_converter(v, handlers)
         self.constructor = self.ty if constructor is None else constructor
+        self.handlers = handlers
 
     def into_data(self, val: t.Any) -> DataType:
         """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
+        if isinstance(self.k_conv, AnyConverter):
+            def _k_into_data(k: t.Any) -> DataType:
+                return make_converter(t.cast(t.Type[t.Any], type(k)), self.handlers).into_data(k)
+        else:
+            def _k_into_data(k: t.Any) -> DataType:
+                return self.k_conv.into_data(k)
+
+        if isinstance(self.v_conv, AnyConverter):
+            def _v_into_data(v: t.Any) -> DataType:
+                return make_converter(t.cast(t.Type[t.Any], type(v)), self.handlers).into_data(v)
+        else:
+            def _v_into_data(v: t.Any) -> DataType:
+                return self.v_conv.into_data(v)
+
         return {
-            self.k_conv.into_data(k): self.v_conv.into_data(v)
+            _k_into_data(k): _v_into_data(v)
             for (k, v) in t.cast(t.Mapping[FromDataK, FromDataV], val).items()
         }
 
@@ -636,18 +651,26 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
     v_conv: Converter[FromDataT]
     """Sub-converter for values"""
     constructor: t.Callable[[t.Iterable[t.Any]], t.Sequence[t.Any]]
+    handlers: ConverterHandlers
 
-    def __init__(self, ty: t.Type[t.Sequence[t.Any]], v: t.Type[FromDataT] = type(t.Any), *,
+    def __init__(self, ty: t.Type[t.Sequence[t.Any]], v: t.Type[FromDataT] = t.cast(t.Type[t.Any], type(t.Any)), *,
                  handlers: ConverterHandlers = ConverterHandlers(),
                  constructor: t.Optional[t.Callable[[t.Iterable[t.Any]], t.Sequence[t.Any]]] = None):
         self.ty = ty
         self.v_conv = make_converter(v, handlers)
+        self.handlers = handlers
         self.constructor = self.ty if constructor is None else constructor
 
     def into_data(self, val: t.Any) -> DataType:
         """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
         # construct tuple from a tuple, or a list otherwise
         constructor = t.cast(t.Callable[[t.Iterable[t.Any]], t.Sequence[t.Any]], tuple if self.constructor is tuple else list)
+        if self.ty in (t.Any, type(t.Any)):
+            # also need to infer member types
+            return constructor(
+                make_converter(type(v), self.handlers).into_data(v)
+                for v in t.cast(t.Sequence[FromDataT], val)
+            )
         return constructor(
             self.v_conv.into_data(v)
             for v in t.cast(t.Sequence[FromDataT], val)
@@ -727,6 +750,8 @@ class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
     def _into_data(self, val: t.Any) -> DataType:
         if data_is_iterable(val):
             return list(map(self._into_data, val))
+        if self.val_type in (t.Any, t.cast(t.Type[t.Any], type(t.Any))):
+            return make_converter(t.cast(t.Type[t.Any], type(val)), self.handlers).into_data(val)
         return self.val_conv.into_data(val)
 
     @staticmethod
@@ -793,7 +818,7 @@ class ConditionalConverter(t.Generic[FromDataT], Converter[FromDataT]):
     """
     Converter which applies an arbitrary pre-condition to the converted value.
     """
-    inner_type: t.Union[t.Type[FromDataT], Converter[FromDataT]]
+    inner_type: t.Union[Converter[FromDataT], IntoConverter]
     """Inner type to apply condition to"""
     condition: t.Callable[[FromDataT], bool]
     """Function to evaluate condition"""
@@ -876,8 +901,8 @@ class EnumConverter(Converter[enum.Enum]):
 
     def expected(self, plural: bool = False) -> str:
         """See [`Converter.expected`][pane.converters.Converter.expected]"""
-        l = list_phrase(tuple(map(str, self.member_vals)))
-        return f"{pluralize('member', plural)} of enum '{self.ty.__name__}' ({l})"
+        vs = list_phrase(tuple(map(str, self.member_vals)))
+        return f"{pluralize('member', plural)} of enum '{self.ty.__name__}' ({vs})"
 
     def try_convert(self, val: t.Any) -> enum.Enum:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
@@ -1034,7 +1059,7 @@ class DatetimeConverter(Converter[DatetimeT], t.Generic[DatetimeT]):
         raise TypeError(f"Only types {list_phrase([repr(str(ty)) for ty in self._date_types])} are supported")
 
     def __eq__(self, other: t.Any) -> bool:
-        return type(self) == type(other) and self.ty == other.ty
+        return type(self) is type(other) and self.ty is other.ty
 
     def expected(self, plural: bool = False) -> str:
         """See [`Converter.expected`][pane.converters.Converter.expected]"""

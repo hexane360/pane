@@ -40,7 +40,7 @@ try:
 
         if issubclass(ty, generic):
             # dtype converters
-            return make_converter(_dtype_map(ty), handlers=handlers)
+            return t.cast('Converter[t.Any]', make_converter(_dtype_map(ty), handlers=handlers))
 
         if not (issubclass(ty, ndarray) or ty is NDArray):
             return NotImplemented
@@ -85,5 +85,5 @@ except ImportError:
 
         # dummy handler
         def numpy_converter_handler(ty: t.Any, args: t.Sequence[t.Any], *,
-                                    custom: t.Optional[ConverterHandler] = None):
+                                    custom: t.Optional[ConverterHandlers] = None):
             return NotImplemented

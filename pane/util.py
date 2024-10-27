@@ -64,8 +64,8 @@ def open_file(f: FileOrPath,
     elif isinstance(f, (BufferedIOBase, t.BinaryIO)):
         f = TextIOWrapper(t.cast(t.BinaryIO, f), newline=newline, encoding=encoding)
 
-    _validate_file(f, mode)
-    return nullcontext(f)  # don't close a f we didn't open
+    _validate_file(t.cast(TextIOBase, f), mode)
+    return nullcontext(t.cast(TextIOBase, f))  # don't close a f we didn't open
 
 
 def partition(f: t.Callable[[T], bool], iter: t.Iterable[T]) -> t.Tuple[t.Tuple[T, ...], t.Tuple[T, ...]]:
@@ -294,7 +294,7 @@ class KeyCache(t.Generic[P, T]):
 
                 self._root = oldroot[NEXT]
                 oldkey = self._root[KEY]
-                oldresult = self._root[RESULT]  # type: ignore (we want to keep this around for a bit)
+                oldresult = self._root[RESULT]  # type: ignore # noqa: F841 (we want to keep this around for a bit)
                 self._root[KEY] = self._root[RESULT] = None
                 del self.cache[oldkey]
                 self.cache[key] = oldroot

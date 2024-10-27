@@ -207,7 +207,7 @@ def make_converter(ty: IntoConverter, handlers: ConverterHandlers = ConverterHan
         warnings.warn(f"Unbound TypeVar '{ty}'. Will be interpreted as '{var_ty}'.")
         return make_converter(var_ty, handlers)
     if isinstance(ty, (dict, t.Mapping)):
-        return StructConverter(type(ty), ty, handlers=handlers)
+        return StructConverter(type(ty), ty, handlers=handlers)  # type: ignore
     if isinstance(ty, (tuple, t.Tuple)):
         return TupleConverter(type(ty), ty, handlers=handlers)
     if isinstance(ty, t.ForwardRef) or isinstance(ty, str):
@@ -278,7 +278,7 @@ def make_converter(ty: IntoConverter, handlers: ConverterHandlers = ConverterHan
               or args == () and hasattr(ty, '__args__'):
             if args == ((),):  # tuple[()] on python <3.11
                 args = ()
-            return TupleConverter(base, args, handlers=handlers)
+            return TupleConverter(base, args, handlers=handlers)  # type: ignore
         # fall through to sequence converter
 
     # homogenous sequence converter
@@ -290,7 +290,7 @@ def make_converter(ty: IntoConverter, handlers: ConverterHandlers = ConverterHan
             raise TypeError(f"No converter for abstract type '{ty}'")
         return SequenceConverter(
             new_base,
-            args[0] if len(args) > 0 else t.Any,
+            args[0] if len(args) > 0 else t.Any,  # type: ignore
             handlers=handlers
         )  # type: ignore
 
@@ -305,7 +305,7 @@ def make_converter(ty: IntoConverter, handlers: ConverterHandlers = ConverterHan
             # counter takes one type argument, handle it specially
             return DictConverter(
                 new_base, # type: ignore
-                args[0] if len(args) > 0 else t.Any,
+                args[0] if len(args) > 0 else t.Any,  # type: ignore
                 int, handlers=handlers
             )
 

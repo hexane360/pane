@@ -11,10 +11,10 @@ import typing as t
 
 import pytest
 
-from pane.errors import ErrorNode, SumErrorNode, ProductErrorNode, WrongTypeError, ConditionFailedError
+from pane.errors import ErrorNode, SumErrorNode, ProductErrorNode, WrongTypeError, ConditionFailedError, ParseInterrupt
 from pane.convert import convert, from_data, into_data, make_converter, ConvertError
 from pane.converters import Converter, ScalarConverter, TupleConverter, SequenceConverter, TaggedUnionConverter, AnyConverter
-from pane.converters import StructConverter, UnionConverter, LiteralConverter, ConditionalConverter, NestedSequenceConverter
+from pane.converters import StructConverter, UnionConverter, LiteralConverter, ConditionalConverter
 from pane.converters import PatternConverter, DatetimeConverter
 from pane.annotations import Condition, Tagged, val_range, len_range
 
@@ -107,7 +107,6 @@ class Variant4(dict):
 
 
 def test_make_converter_annotated():
-    inner = int
     inner_conv = ScalarConverter(int, int, 'an int', 'ints', int)
 
     conv = make_converter(t.Annotated[int, cond1])

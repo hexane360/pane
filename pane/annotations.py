@@ -51,7 +51,7 @@ class Tagged(ConvertAnnotation):
         from .converters import TaggedUnionConverter
         origin = t.get_origin(inner_type)
         if origin is not t.Union:
-            raise TypeError(f"'Tagged' must surround a 'Union' type.")
+            raise TypeError("'Tagged' must surround a 'Union' type.")
         types = tuple(flatten_union_args(t.get_args(inner_type)))
         return TaggedUnionConverter(types, tag=self.tag, external=self.external, handlers=handlers)
 
