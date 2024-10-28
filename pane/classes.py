@@ -197,9 +197,29 @@ class PaneBase:
             from yaml import SafeLoader as Loader
 
         with open_file(f) as f:
-            obj: t.Any = list(yaml.load_all(f, Loader))  # type: ignore
+            obj: t.Any = yaml.load(f, Loader)  # type: ignore
 
         return cls.from_data(obj, custom=custom)
+
+    @classmethod
+    def from_yaml_all(cls, f: FileOrPath, *,
+                  custom: t.Optional[IntoConverterHandlers] = None) -> t.List[Self]:
+        """
+        Load a list of `cls` from a YAML file `f`
+
+        Parameters:
+          f: File-like or path-like to load from
+        """
+        import yaml
+        try:
+            from yaml import CSafeLoader as Loader
+        except ImportError:
+            from yaml import SafeLoader as Loader
+
+        with open_file(f) as f:
+            objs: t.Any = list(yaml.load_all(f, Loader))  # type: ignore
+
+        return from_data(objs, t.List[cls], custom=custom)
 
     @classmethod
     def from_yamls(cls, s: str, *,
