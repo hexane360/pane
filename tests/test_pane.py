@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import io
 import typing as t
 
 import pytest
@@ -93,6 +94,9 @@ def test_pane_ord():
     check_ord(TestClass(x=2, y=1.), TestClass(x=2, y=1.), 0)
     with pytest.raises(TypeError):
         check_ord(TestClass(x=1, y=3.), 5, -1)
+
+
+
 
 
 class TestClassInherit(TestClass, out_format='struct'):
@@ -188,6 +192,32 @@ def test_pane_into_data(val: pane.PaneBase, result: pane.DataType):
     if isinstance(val, pane.PaneBase):
         assert val.into_data() == result
     assert pane.into_data(val) == result
+
+
+def test_pane_write_json():
+    val = TestClassInherit(x=5, y=10., z=5.0)
+
+    expected = """{"x": 5, "y": 10.0, "z": 5.0}"""
+
+    buf = io.StringIO()
+    val.write_json(buf)
+    assert buf.getvalue() == expected
+    assert val.into_json() == expected
+
+
+def test_pane_write_yaml():
+    val = TestClassInherit(x=5, y=10., z=5.0)
+
+    expected = """---
+x: 5
+y: 10.0
+z: 5.0
+"""
+
+    buf = io.StringIO()
+    val.write_yaml(buf, default_flow_style=False)
+    assert buf.getvalue() == expected
+    assert val.into_yaml(default_flow_style=False) == expected
 
 
 T = t.TypeVar('T')

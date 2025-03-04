@@ -7,7 +7,10 @@ import typing as t
 from pane.classes import PaneBase, field
 from pane.converters import UnionConverter
 from pane.convert import Convertible, DataType, into_data, ConverterHandlers
-from pane.annotations import *
+from pane.annotations import (
+    Positive, NonNegative, Negative, NonPositive, Finite,
+    len_range,
+)
 
 
 T = t.TypeVar('T', bound=Convertible)
@@ -83,8 +86,8 @@ class ValueOrList(t.Generic[T]):
         return cls(val, True)
 
     @classmethod
-    def from_list(cls, l: t.List[T]) -> ValueOrList[T]:
-        return cls(l, False)
+    def from_list(cls, list_val: t.List[T]) -> ValueOrList[T]:
+        return cls(list_val, False)
 
     def __repr__(self) -> str:
         return f"ValueOrList({self._inner!r})"
@@ -100,7 +103,7 @@ class ValueOrList(t.Generic[T]):
     @classmethod
     def _converter(cls: t.Type[T], *args: t.Type[Convertible],
                    handlers: ConverterHandlers) -> ValueOrListConverter:
-        arg = args[0] if len(args) > 0 else t.Any
+        arg = t.cast(t.Type[Convertible], args[0] if len(args) > 0 else t.Any)
         return ValueOrListConverter(arg, handlers=handlers)
 
     def __len__(self) -> int:

@@ -255,7 +255,7 @@ def make_converter(ty: IntoConverter, handlers: ConverterHandlers = ConverterHan
     # add-on handlers
     for handler in _GLOBAL_HANDLERS:
         try:
-            result = handler(base, args, handlers=handlers)
+            result = handler(t.cast(type, base), args, handlers=handlers)
             if result is not NotImplemented:
                 return result
         except NotImplementedError:

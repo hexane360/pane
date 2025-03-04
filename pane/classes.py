@@ -113,6 +113,14 @@ class PaneBase:
         return PaneConverter(cls, handlers=handlers)
 
     @classmethod
+    def make_unchecked(cls, *args: t.Any, **kwargs: t.Any) -> Self:
+        ...
+
+    @classmethod
+    def from_dict_unchecked(cls, d: t.Dict[str, t.Any]) -> Self:
+        ...
+
+    @classmethod
     def from_obj(cls, obj: Convertible, *,
                  custom: t.Optional[IntoConverterHandlers] = None) -> Self:
         """
@@ -162,6 +170,7 @@ class PaneBase:
 
         Parameters:
           f: File-like or path-like to load from
+          custom: Custom converters to use
         """
         import json
         with open_file(f) as f:
@@ -176,6 +185,7 @@ class PaneBase:
 
         Parameters:
           s: JSON string to load from
+          custom: Custom converters to use
         """
         import json
         obj = json.loads(s)
@@ -189,6 +199,7 @@ class PaneBase:
 
         Parameters:
           f: File-like or path-like to load from
+          custom: Custom converters to use
         """
         import yaml
         try:
@@ -209,6 +220,7 @@ class PaneBase:
 
         Parameters:
           f: File-like or path-like to load from
+          custom: Custom converters to use
         """
         import yaml
         try:
@@ -229,17 +241,126 @@ class PaneBase:
 
         Parameters:
           s: YAML string to load from
+          custom: Custom converters to use
         """
         from io import StringIO
         return cls.from_yaml(StringIO(s), custom=custom)
 
-    @classmethod
-    def make_unchecked(cls, *args: t.Any, **kwargs: t.Any) -> Self:
-        ...
+    def write_json(self, f: FileOrPath, *,
+                   indent: t.Union[str, int, None] = None,
+                   sort_keys: bool = False,
+                   custom: t.Optional[IntoConverterHandlers] = None):
+        """
+        Write data to a JSON file `f`
 
-    @classmethod
-    def from_dict_unchecked(cls, d: t.Dict[str, t.Any]) -> Self:
-        ...
+        Parameters:
+          f: File-like or path-like to write to
+          indent: Indent to format JSON with. Defaults to None (no indentation)
+          sort_keys: Whether to sort keys prior to serialization.
+          custom: Custom converters to use
+        """
+        import json
+
+        with open_file(f, 'w') as f:
+            json.dump(self.into_data(custom=custom), f, indent=indent, sort_keys=sort_keys)
+
+    def write_yaml(self, f: FileOrPath, *,
+                   indent: t.Optional[int] = None, width: t.Optional[int] = None,
+                   allow_unicode: bool = True,
+                   explicit_start: bool = True, explicit_end: bool = False,
+                   default_style: t.Optional[t.Literal['"', '|', '>']] = None,
+                   default_flow_style: t.Optional[bool] = None,
+                   sort_keys: bool = False,
+                   custom: t.Optional[IntoConverterHandlers] = None):
+        """
+        Write data to a YAML file `f`
+
+        Parameters:
+          f: File-like or path-like to write to
+          indent: Number of spaces to indent blocks with
+          width: Maximum width of file created
+          allow_unicode: Whether to output unicode characters or escape them
+          explicit_start: Whether to include a YAML document start "---"
+          explicit_end: Whether to include a YAML document end "..."
+          default_style: Default style to use for scalar nodes.
+              See YAML documentation for more information.
+          default_flow_style: Whether to default to flow style or block style for collections.
+              See YAML documentation for more information.
+          sort_keys: Whether to sort keys prior to serialization.
+          custom: Custom converters to use
+        """
+        import yaml
+        try:
+            from yaml import CSafeDumper as Dumper
+        except ImportError:
+            from yaml import SafeDumper as Dumper
+
+        with open_file(f, 'w') as f:
+            yaml.dump(  # type: ignore
+                self.into_data(custom=custom), f, Dumper=Dumper,
+                indent=indent, width=width, allow_unicode=allow_unicode,
+                explicit_start=explicit_start, explicit_end=explicit_end,
+                default_style=default_style, default_flow_style=default_flow_style,
+                sort_keys=sort_keys
+            )
+
+    def into_json(self, *,
+                  indent: t.Union[str, int, None] = None,
+                  sort_keys: bool = False,
+                  custom: t.Optional[IntoConverterHandlers] = None) -> str:
+        """
+        Write data to a JSON string.
+
+        Parameters:
+          indent: Indent to format JSON with. Defaults to None (no indentation)
+          sort_keys: Whether to sort keys prior to serialization.
+          custom: Custom converters to use
+        """
+        from io import StringIO
+
+        buf = StringIO()
+        self.write_json(
+            buf, indent=indent, sort_keys=sort_keys, custom=custom
+        )
+        return buf.getvalue()
+
+    def into_yaml(self, *,
+                  indent: t.Optional[int] = None, width: t.Optional[int] = None,
+                  allow_unicode: bool = True,
+                  explicit_start: bool = True, explicit_end: bool = False,
+                  default_style: t.Optional[t.Literal['"', '|', '>']] = None,
+                  default_flow_style: t.Optional[bool] = None,
+                  sort_keys: bool = False,
+                  custom: t.Optional[IntoConverterHandlers] = None) -> str:
+        """
+        Write data to a YAML string.
+
+        Parameters:
+          indent: Number of spaces to indent blocks with
+          width: Maximum width of file created
+          allow_unicode: Whether to output unicode characters or escape them
+          explicit_start: Whether to include a YAML document start "---"
+          explicit_end: Whether to include a YAML document end "..."
+          default_style: Default style to use for scalar nodes.
+              See YAML documentation for more information.
+          default_flow_style: Whether to default to flow style or block style for collections.
+              See YAML documentation for more information.
+          sort_keys: Whether to sort keys prior to serialization.
+          custom: Custom converters to use
+        """
+        from io import StringIO
+
+        buf = StringIO()
+        self.write_yaml(
+            buf, 
+            indent=indent, width=width, allow_unicode=allow_unicode,
+            explicit_start=explicit_start, explicit_end=explicit_end,
+            default_style=default_style, default_flow_style=default_flow_style,
+            sort_keys=sort_keys, custom=custom
+        )
+        return buf.getvalue()
+
+    
 
 
 @dataclasses.dataclass
@@ -316,16 +437,16 @@ def _make_subclass(cls: t.Any, params: t.Tuple[t.Any, ...]) -> type:
 
 def _make_init(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
     params: t.List[Parameter] = []
-    for field in fields:
-        if field.default is not _MISSING:
-            default = field.default
-        elif field.default_factory is not None:
-            default = field.default_factory()
+    for f in fields:
+        if f.default is not _MISSING:
+            default = f.default
+        elif f.default_factory is not None:
+            default = f.default_factory()
         else:
             default = Parameter.empty
-        kind = Parameter.KEYWORD_ONLY if field.kw_only else Parameter.POSITIONAL_OR_KEYWORD
-        annotation = field.type if field.type is not _MISSING else Parameter.empty
-        params.append(Parameter(field.name, kind, default=default, annotation=annotation))
+        kind = Parameter.KEYWORD_ONLY if f.kw_only else Parameter.POSITIONAL_OR_KEYWORD
+        annotation = f.type if f.type is not _MISSING else Parameter.empty
+        params.append(Parameter(f.name, kind, default=default, annotation=annotation))
 
     sig = Signature(params, return_annotation=None)
 
@@ -347,19 +468,19 @@ def _make_init(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
 
         set_fields: t.Set[str] = set()
 
-        for field in self.__pane_info__.fields:
-            if field.name in bound_args:
-                val = bound_args[field.name]
+        for f in self.__pane_info__.fields:
+            if f.name in bound_args:
+                val = bound_args[f.name]
                 if checked:
-                    val = convert(val, field.type)
-                set_fields.add(field.name)
-            elif field.default is not _MISSING:
-                val = field.default
-            elif field.default_factory is not None:
-                val = field.default_factory()
+                    val = convert(val, f.type)
+                set_fields.add(f.name)
+            elif f.default is not _MISSING:
+                val = f.default
+            elif f.default_factory is not None:
+                val = f.default_factory()
             else:
                 raise RuntimeError("Mismatch between fields and signature. This shouldn't happen")
-            object.__setattr__(self, field.name, val)
+            object.__setattr__(self, f.name, val)
 
         object.__setattr__(self, PANE_SET_FIELDS, set_fields)
 
@@ -406,10 +527,10 @@ def _make_ord(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
     def _pane_ord(self: PaneBase, other: t.Any) -> t.Literal[-1, 0, 1]:
         if self.__class__ != other.__class__:
             return NotImplemented  # type: ignore
-        for field in fields:
-            if getattr(self, field.name) == getattr(other, field.name):
+        for f in fields:
+            if getattr(self, f.name) == getattr(other, f.name):
                 continue
-            return 1 if getattr(self, field.name) > getattr(other, field.name) else -1
+            return 1 if getattr(self, f.name) > getattr(other, f.name) else -1
         return 0
 
     def __lt__(self: PaneBase, other: t.Any) -> bool:
@@ -481,31 +602,31 @@ def _process(cls: t.Type[PaneBase], opts: PaneOptions):
     # positional argument lengths
     min_len, max_len = (0, 0)
     seen_opt = False
-    for field in fields:
-        if field.kw_only:
-            if not field.has_default() and 'tuple' in opts.in_format:
-                raise TypeError(f"Field '{field.name}' is kw_only but mandatory. This is incompatible with the 'tuple' in_format.")
+    for f in fields:
+        if f.kw_only:
+            if not f.has_default() and 'tuple' in opts.in_format:
+                raise TypeError(f"Field '{f.name}' is kw_only but mandatory. This is incompatible with the 'tuple' in_format.")
             continue
         max_len += 1
-        if field.has_default():
+        if f.has_default():
             seen_opt = True
         else:
             if seen_opt:
-                raise TypeError(f"Mandatory field '{field.name}' follows optional field")
+                raise TypeError(f"Mandatory field '{f.name}' follows optional field")
             min_len = max_len  # expand min length
 
     cls.__pane_info__ = PaneInfo(
         opts=opts, specs=cls_specs, fields=tuple(fields), pos_args=(min_len, max_len)
     )
 
-    for field in fields:
-        name = str(field.name)
+    for f in fields:
+        name = str(f.name)
         # remove Fields from class, and set defaults
-        if field.default is _MISSING:
+        if f.default is _MISSING:
             if isinstance(getattr(cls, name, None), Field):
                 delattr(cls, name)
         else:
-            setattr(cls, name, field.default)
+            setattr(cls, name, f.default)
 
     if opts.init:
         _make_init(cls, fields)
@@ -544,9 +665,9 @@ class PaneConverter(Converter[PaneBaseT]):
         ]
         self.field_map: t.Dict[str, int] = {}
 
-        for (i, field) in enumerate(self.fields):
-            self.field_map[field.name] = i
-            for alias in field.in_names:
+        for (i, f) in enumerate(self.fields):
+            self.field_map[f.name] = i
+            for alias in f.in_names:
                 self.field_map[alias] = i
 
     def into_data(self, val: t.Any) -> DataType:

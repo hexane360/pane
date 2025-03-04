@@ -224,7 +224,7 @@ class SumErrorNode(ErrorNode):
                 else:
                     yield child
 
-        print(f"Expected one of:", file=file)
+        print("Expected one of:", file=file)
         actual = None
         for child in _flatten_sum(self.children):
             print(f"{indent}- ", end="", file=file)
