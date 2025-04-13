@@ -20,7 +20,7 @@ import os
 import pathlib
 import typing as t
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeAlias
 
 from .errors import ConvertError, UnsupportedAnnotation
 from .addons import numpy as numpy
@@ -52,9 +52,9 @@ class HasConverter(t.Protocol):
         ...
 
 
-ScalarType = t.Union[str, bytes, int, bool, float, complex, None]
+ScalarType: TypeAlias = t.Union[str, bytes, int, bool, float, complex, None]
 
-DataType = t.Union[str, bytes, int, bool, float, complex, None, t.Mapping['DataType', 'DataType'], t.Sequence['DataType'], numpy.NDArray[numpy.generic]]
+DataType: TypeAlias = t.Union[str, bytes, int, bool, float, complex, None, t.Mapping['DataType', 'DataType'], t.Sequence['DataType'], numpy.NDArray[numpy.generic]]
 """Common data interchange type. [`into_data`][pane.convert.into_data] converts to this."""
 
 _ScalarType = (str, bytes, int, bool, float, complex, type(None))  # type: ignore
@@ -62,7 +62,7 @@ _ScalarType = (str, bytes, int, bool, float, complex, type(None))  # type: ignor
 _DataType = (*_ScalarType, t.Mapping, t.Sequence, numpy.ndarray)  # type: ignore
 """[`DataType`][pane.convert.DataType] for use in [`isinstance`][isinstance] checks."""
 
-Convertible = t.Union[
+Convertible: TypeAlias = t.Union[
     DataType, HasConverter,
     t.Mapping['Convertible', 'Convertible'],
     t.Sequence['Convertible'],
@@ -79,7 +79,7 @@ Types supported by [`from_data`][pane.convert.from_data].
 Consists of [`DataType`][pane.convert.DataType] + [`HasConverter`][pane.convert.HasConverter] + supported stdlib types.
 """
 
-IntoConverter = t.Union[
+IntoConverter: TypeAlias = t.Union[
     t.Type[Convertible], t.Type[t.Any],
     t.Mapping[str, 'IntoConverter'],
     t.Sequence['IntoConverter']
@@ -106,7 +106,7 @@ class ConverterHandler(t.Protocol):
         ...
 
 
-IntoConverterHandlers = t.Union[ConverterHandler, t.Sequence[ConverterHandler], t.Dict[type, 'Converter[t.Any]']]
+IntoConverterHandlers: TypeAlias = t.Union[ConverterHandler, t.Sequence[ConverterHandler], t.Dict[type, 'Converter[t.Any]']]
 
 
 @dataclass(frozen=True)

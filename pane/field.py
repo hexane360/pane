@@ -5,7 +5,7 @@ import itertools
 import re
 import typing as t
 
-from typing_extensions import ParamSpec, Self
+from typing_extensions import ParamSpec, Self, TypeAlias
 
 from .util import replace_typevars, KW_ONLY
 from .converters import Converter
@@ -19,7 +19,7 @@ T = t.TypeVar('T')
 _MISSING = _Missing()
 
 
-RenameStyle = t.Literal['snake', 'camel', 'pascal', 'kebab', 'scream']
+RenameStyle: TypeAlias = t.Literal['snake', 'camel', 'pascal', 'kebab', 'scream']
 """List of supported field-renaming styles"""
 
 

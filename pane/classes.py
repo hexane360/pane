@@ -11,7 +11,7 @@ from inspect import Signature, Parameter
 import traceback
 import typing as t
 
-from typing_extensions import dataclass_transform, ParamSpec, Self
+from typing_extensions import dataclass_transform, ParamSpec, Self, TypeAlias
 
 from .convert import DataType, Convertible, from_data, into_data, convert
 from .convert import ConverterHandler, ConverterHandlers, IntoConverterHandlers
@@ -832,7 +832,7 @@ class PaneConverter(Converter[PaneBaseT]):
             return WrongTypeError(f'tuple {self.name}', val, tb)
 
 
-ClassLayout = t.Literal['tuple', 'struct']
+ClassLayout: TypeAlias = t.Literal['tuple', 'struct']
 """Set of known class layouts for 'in_formats' and 'out_format'."""
 PANE_INFO = '__pane_info__'  # class information
 """Name of dunder attribute holding [`PaneInfo`][pane.classes.PaneInfo]"""

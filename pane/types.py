@@ -4,6 +4,8 @@ from __future__ import annotations
 import math
 import typing as t
 
+from typing_extensions import TypeAlias
+
 from pane.classes import PaneBase, field
 from pane.converters import UnionConverter
 from pane.convert import Convertible, DataType, into_data, ConverterHandlers
@@ -17,18 +19,18 @@ T = t.TypeVar('T', bound=Convertible)
 U = t.TypeVar('U', bound=Convertible)
 Num = t.TypeVar('Num', bound=t.Union[int, float])
 
-PositiveInt = t.Annotated[int, Positive]
-NonNegativeInt = t.Annotated[int, NonNegative]
-NegativeInt = t.Annotated[int, Negative]
-NonPositiveInt = t.Annotated[int, NonPositive]
+PositiveInt: TypeAlias = t.Annotated[int, Positive]
+NonNegativeInt: TypeAlias = t.Annotated[int, NonNegative]
+NegativeInt: TypeAlias = t.Annotated[int, Negative]
+NonPositiveInt: TypeAlias = t.Annotated[int, NonPositive]
 
-PositiveFloat = t.Annotated[float, Positive]
-NonNegativeFloat = t.Annotated[float, NonNegative]
-NegativeFloat = t.Annotated[float, Negative]
-NonPositiveFloat = t.Annotated[float, NonPositive]
-FiniteFloat = t.Annotated[float, Finite]
+PositiveFloat: TypeAlias = t.Annotated[float, Positive]
+NonNegativeFloat: TypeAlias = t.Annotated[float, NonNegative]
+NegativeFloat: TypeAlias = t.Annotated[float, Negative]
+NonPositiveFloat: TypeAlias = t.Annotated[float, NonPositive]
+FiniteFloat: TypeAlias = t.Annotated[float, Finite]
 
-ListNotEmpty = t.Annotated[t.List[T], len_range(min=1)]
+ListNotEmpty: TypeAlias = t.Annotated[t.List[T], len_range(min=1)]
 
 
 class Range(PaneBase, t.Generic[Num],

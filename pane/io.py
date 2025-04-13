@@ -3,6 +3,8 @@ from io import TextIOBase, IOBase, TextIOWrapper, BufferedIOBase
 from pathlib import Path
 import typing as t
 
+from typing_extensions import TypeAlias
+
 from .convert import (
     from_data, into_data, IntoConverterHandlers,
     Convertible, IntoConverter
@@ -10,7 +12,7 @@ from .convert import (
 
 
 T = t.TypeVar('T', bound='Convertible')
-FileOrPath: t.TypeAlias = t.Union[str, Path, TextIOBase, t.TextIO]
+FileOrPath: TypeAlias = t.Union[str, Path, TextIOBase, t.TextIO]
 
 
 def from_json(f: FileOrPath, ty: t.Type[T], *,
