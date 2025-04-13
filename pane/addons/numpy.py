@@ -34,13 +34,30 @@ try:
         raise TypeError(f"Don't know how to handle numpy dtype '{ty}'")
 
 
+    def _check_shape_typevar(ty: t.Any):
+        if ty is t.Any:
+            return
+
+        base = t.get_origin(ty) or ty
+        args = t.get_args(ty)
+
+        # let tuple[int, ...] through
+        if issubclass(base, (tuple, t.Tuple)) and args == (int, Ellipsis):
+            return
+
+        raise TypeError("Numpy shape types are currently unsupported.")
+
+
     def numpy_converter_handler(ty: t.Any, args: t.Sequence[t.Any], *,
                                 handlers: 'ConverterHandlers') -> 'Converter[t.Any]':
         from ..convert import make_converter
 
         if issubclass(ty, generic):
             # dtype converters
-            return t.cast('Converter[t.Any]', make_converter(_dtype_map(ty), handlers=handlers))
+            return t.cast('Converter[t.Any]', make_converter(
+                _dtype_map(t.cast('type[generic[t.Any]]', ty)),
+                handlers=handlers
+            ))
 
         if not (issubclass(ty, ndarray) or ty is NDArray):
             return NotImplemented
@@ -49,8 +66,8 @@ try:
             arg1 = t.Any if len(args) < 1 else args[0]
             dtype = t.Any if len(args) < 2 else args[1]
 
-            if arg1 is not t.Any:
-                raise TypeError("Numpy shape types are currently unsupported.")
+            _check_shape_typevar(arg1)
+            print(f"arg1: {arg1} dtype: {dtype}")
 
             if dtype is not t.Any:
                 dtype_ty, dtype_args = t.get_origin(dtype), t.get_args(dtype)
