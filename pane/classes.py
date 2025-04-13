@@ -106,6 +106,22 @@ class PaneBase:
     def __delattr__(self, name: str) -> None:
         raise AttributeError(f"cannot delete field {name!r}")
 
+    def __copy__(self):
+        return self.from_dict_unchecked(
+            {field.name: getattr(self, field.name) for field in self.__pane_info__.fields}
+        )
+
+    def __deepcopy__(self, memo: t.Any):
+        from copy import deepcopy
+        return self.from_dict_unchecked(
+            {field.name: deepcopy(getattr(self, field.name), memo) for field in self.__pane_info__.fields}
+        )
+
+    def __replace__(self, /, **changes: t.Any) -> Self:
+        d = {field.name: getattr(self, field.name) for field in self.__pane_info__.fields}
+        d.update(**changes)
+        return self.__class__(**d)
+
     @classmethod
     def _converter(cls: t.Type[PaneBaseT], *args: t.Type[Convertible],
                    handlers: ConverterHandlers) -> Converter[PaneBaseT]:
