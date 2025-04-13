@@ -465,7 +465,7 @@ class StructConverter(Converter[T]):
 
     handlers: ConverterHandlers = ConverterHandlers()
 
-    opt_fields: t.Set[str] = dataclasses.field(default_factory=set)
+    opt_fields: t.Set[str] = dataclasses.field(default_factory=set[str])
     """Set of fields which are optional"""
     field_converters: t.Dict[str, Converter[t.Any]] = dataclasses.field(init=False)
     """Dict of sub-converters for each field"""
@@ -891,7 +891,7 @@ class EnumConverter(Converter[enum.Enum]):
             raise TypeError("All enum members must be data-interchange types")
 
         self.inner_ty = type_union(map(type, self.member_vals))
-        self.inner_conv = make_converter(self.inner_ty, handlers)
+        self.inner_conv: Converter[t.Any] = make_converter(self.inner_ty, handlers)
 
     def into_data(self, val: t.Any) -> DataType:
         """See [`Converter.into_data`][pane.converters.Converter.into_data]"""

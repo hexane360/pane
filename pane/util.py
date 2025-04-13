@@ -1,8 +1,5 @@
-
 import sys
-from pathlib import Path
-from io import TextIOBase, IOBase, TextIOWrapper, BufferedIOBase
-from contextlib import AbstractContextManager, nullcontext
+
 import functools
 from itertools import zip_longest
 import operator
@@ -12,7 +9,6 @@ from typing_extensions import ParamSpec
 
 
 T = t.TypeVar('T')
-FileOrPath = t.Union[str, Path, TextIOBase, t.TextIO]
 P = ParamSpec('P')
 
 
@@ -23,49 +19,6 @@ except ImportError:
     class _KW_ONLY_TYPE:
         pass
     KW_ONLY = _KW_ONLY_TYPE()
-
-
-def _validate_file(f: t.Union[t.IO[t.AnyStr], IOBase], mode: t.Union[t.Literal['r'], t.Literal['w']]):
-    if f.closed:
-        raise IOError("Error: Provided file is closed.")
-
-    if mode == 'r':
-        if not f.readable():
-            raise IOError("Error: Provided file not readable.")
-    elif mode == 'w':
-        if not f.writable():
-            raise IOError("Error: Provided file not writable.")
-
-
-def open_file(f: FileOrPath,
-              mode: t.Literal['r', 'w'] = 'r',
-              newline: t.Optional[str] = None,
-              encoding: t.Optional[str] = 'utf-8') -> AbstractContextManager[TextIOBase]:
-    """
-    Open the given file for text I/O.
-
-    If given a path-like, opens it with the specified settings.
-    Otherwise, make an effort to reconfigure the encoding, and
-    check that it is readable/writable as specified.
-
-    Parameters:
-      f: File to open/reconfigure
-      mode: Mode file should be opened in
-      newline: Newline mode file should be opened in
-      encoding: Encoding file should be opened in
-    """
-    if not isinstance(f, (IOBase, t.BinaryIO, t.TextIO)):
-        return open(f, mode, newline=newline, encoding=encoding)
-
-    if isinstance(f, TextIOWrapper):
-        f.reconfigure(newline=newline, encoding=encoding)
-    elif isinstance(f, t.TextIO):
-        f = TextIOWrapper(f.buffer, newline=newline, encoding=encoding)
-    elif isinstance(f, (BufferedIOBase, t.BinaryIO)):
-        f = TextIOWrapper(t.cast(t.BinaryIO, f), newline=newline, encoding=encoding)
-
-    _validate_file(t.cast(TextIOBase, f), mode)
-    return nullcontext(t.cast(TextIOBase, f))  # don't close a f we didn't open
 
 
 def partition(f: t.Callable[[T], bool], iter: t.Iterable[T]) -> t.Tuple[t.Tuple[T, ...], t.Tuple[T, ...]]:
@@ -315,7 +268,7 @@ def key_cache(key_f: t.Callable[P, t.Any], *, maxsize: t.Optional[int] = None) -
 
 
 __all__ = [
-    'open_file', 'list_phrase', 'pluralize', 'remove_article',
+    'list_phrase', 'pluralize', 'remove_article',
     'flatten_union_args', 'collect_typevars', 'replace_typevars', 'get_type_hints',
     'KW_ONLY',
 ]

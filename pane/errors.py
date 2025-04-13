@@ -181,9 +181,9 @@ class ProductErrorNode(ErrorNode):
     """Map containing errors parsing subfields, if any"""
     actual: t.Any
     """Actual value received"""
-    missing: t.AbstractSet[t.Union[t.Sequence[str], str]] = dataclasses.field(default_factory=set)
+    missing: t.AbstractSet[t.Union[t.Sequence[str], str]] = dataclasses.field(default_factory=set[t.Union[t.Sequence[str], str]])
     """List of missing fields/equivalent aliases to fields"""
-    extra: t.AbstractSet[str] = dataclasses.field(default_factory=set)
+    extra: t.AbstractSet[str] = dataclasses.field(default_factory=set[str])
     """List of extra, unexpected fields"""
 
     def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):

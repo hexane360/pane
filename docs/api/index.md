@@ -2,4 +2,4 @@
 
 Top-level exports:
 
-::: pane
+::: pane.__all__

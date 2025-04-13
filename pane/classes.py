@@ -19,7 +19,8 @@ from .converters import Converter, make_converter
 from .errors import ConvertError, ParseInterrupt, ErrorNode
 from .errors import WrongTypeError, WrongLenError, ProductErrorNode, DuplicateKeyError
 from .field import Field, FieldSpec, field, RenameStyle, rename_field, _MISSING
-from .util import FileOrPath, open_file, get_type_hints, list_phrase, KW_ONLY
+from .util import get_type_hints, list_phrase, KW_ONLY
+from . import io
 
 
 T = t.TypeVar('T')
@@ -163,7 +164,7 @@ class PaneBase:
         }
 
     @classmethod
-    def from_json(cls, f: FileOrPath, *,
+    def from_json(cls, f: io.FileOrPath, *,
                   custom: t.Optional[IntoConverterHandlers] = None) -> Self:
         """
         Load `cls` from a JSON file `f`
@@ -172,27 +173,10 @@ class PaneBase:
           f: File-like or path-like to load from
           custom: Custom converters to use
         """
-        import json
-        with open_file(f) as f:
-            obj = json.load(f)
-        return cls.from_data(obj, custom=custom)
+        return io.from_json(f, cls, custom=custom)
 
     @classmethod
-    def from_jsons(cls, s: str, *,
-                   custom: t.Optional[IntoConverterHandlers] = None) -> Self:
-        """
-        Load `cls` from a JSON string `s`
-
-        Parameters:
-          s: JSON string to load from
-          custom: Custom converters to use
-        """
-        import json
-        obj = json.loads(s)
-        return cls.from_data(obj, custom=custom)
-
-    @classmethod
-    def from_yaml(cls, f: FileOrPath, *,
+    def from_yaml(cls, f: io.FileOrPath, *,
                   custom: t.Optional[IntoConverterHandlers] = None) -> Self:
         """
         Load `cls` from a YAML file `f`
@@ -201,19 +185,10 @@ class PaneBase:
           f: File-like or path-like to load from
           custom: Custom converters to use
         """
-        import yaml
-        try:
-            from yaml import CSafeLoader as Loader
-        except ImportError:
-            from yaml import SafeLoader as Loader
-
-        with open_file(f) as f:
-            obj: t.Any = yaml.load(f, Loader)  # type: ignore
-
-        return cls.from_data(obj, custom=custom)
+        return io.from_yaml(f, cls, custom=custom)
 
     @classmethod
-    def from_yaml_all(cls, f: FileOrPath, *,
+    def from_yaml_all(cls, f: io.FileOrPath, *,
                   custom: t.Optional[IntoConverterHandlers] = None) -> t.List[Self]:
         """
         Load a list of `cls` from a YAML file `f`
@@ -222,16 +197,7 @@ class PaneBase:
           f: File-like or path-like to load from
           custom: Custom converters to use
         """
-        import yaml
-        try:
-            from yaml import CSafeLoader as Loader
-        except ImportError:
-            from yaml import SafeLoader as Loader
-
-        with open_file(f) as f:
-            objs: t.Any = list(yaml.load_all(f, Loader))  # type: ignore
-
-        return from_data(objs, t.List[cls], custom=custom)
+        return io.from_yaml_all(f, cls, custom=custom)
 
     @classmethod
     def from_yamls(cls, s: str, *,
@@ -244,9 +210,22 @@ class PaneBase:
           custom: Custom converters to use
         """
         from io import StringIO
-        return cls.from_yaml(StringIO(s), custom=custom)
+        return io.from_yaml(StringIO(s), cls, custom=custom)
 
-    def write_json(self, f: FileOrPath, *,
+    @classmethod
+    def from_jsons(cls, s: str, *,
+                   custom: t.Optional[IntoConverterHandlers] = None) -> Self:
+        """
+        Load `cls` from a JSON string `s`
+
+        Parameters:
+          s: JSON string to load from
+          custom: Custom converters to use
+        """
+        from io import StringIO
+        return io.from_json(StringIO(s), cls, custom=custom)
+
+    def write_json(self, f: io.FileOrPath, *,
                    indent: t.Union[str, int, None] = None,
                    sort_keys: bool = False,
                    custom: t.Optional[IntoConverterHandlers] = None):
@@ -259,12 +238,12 @@ class PaneBase:
           sort_keys: Whether to sort keys prior to serialization.
           custom: Custom converters to use
         """
-        import json
+        io.write_json(
+            self, f, ty=self.__class__,
+            indent=indent, sort_keys=sort_keys, custom=custom
+        )
 
-        with open_file(f, 'w') as f:
-            json.dump(self.into_data(custom=custom), f, indent=indent, sort_keys=sort_keys)
-
-    def write_yaml(self, f: FileOrPath, *,
+    def write_yaml(self, f: io.FileOrPath, *,
                    indent: t.Optional[int] = None, width: t.Optional[int] = None,
                    allow_unicode: bool = True,
                    explicit_start: bool = True, explicit_end: bool = False,
@@ -289,20 +268,14 @@ class PaneBase:
           sort_keys: Whether to sort keys prior to serialization.
           custom: Custom converters to use
         """
-        import yaml
-        try:
-            from yaml import CSafeDumper as Dumper
-        except ImportError:
-            from yaml import SafeDumper as Dumper
-
-        with open_file(f, 'w') as f:
-            yaml.dump(  # type: ignore
-                self.into_data(custom=custom), f, Dumper=Dumper,
-                indent=indent, width=width, allow_unicode=allow_unicode,
-                explicit_start=explicit_start, explicit_end=explicit_end,
-                default_style=default_style, default_flow_style=default_flow_style,
-                sort_keys=sort_keys
-            )
+        io.write_yaml(
+            self, f, ty=self.__class__,
+            indent=indent, width=width,
+            allow_unicode=allow_unicode,
+            explicit_start=explicit_start, explicit_end=explicit_end,
+            default_style=default_style, default_flow_style=default_flow_style,
+            sort_keys=sort_keys, custom=custom
+        )
 
     def into_json(self, *,
                   indent: t.Union[str, int, None] = None,
@@ -319,8 +292,9 @@ class PaneBase:
         from io import StringIO
 
         buf = StringIO()
-        self.write_json(
-            buf, indent=indent, sort_keys=sort_keys, custom=custom
+        io.write_json(
+            self, buf, ty=self.__class__,
+            indent=indent, sort_keys=sort_keys, custom=custom
         )
         return buf.getvalue()
 
@@ -351,16 +325,14 @@ class PaneBase:
         from io import StringIO
 
         buf = StringIO()
-        self.write_yaml(
-            buf, 
+        io.write_yaml(
+            self, buf, ty=self.__class__,
             indent=indent, width=width, allow_unicode=allow_unicode,
             explicit_start=explicit_start, explicit_end=explicit_end,
             default_style=default_style, default_flow_style=default_flow_style,
             sort_keys=sort_keys, custom=custom
         )
         return buf.getvalue()
-
-    
 
 
 @dataclasses.dataclass
