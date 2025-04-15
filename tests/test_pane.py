@@ -53,6 +53,10 @@ def test_pane_required_kw_only():
 class TestClass(pane.PaneBase, in_format=('tuple, struct'), out_format='tuple'):
     x: int = 3
     y: float = 5.
+    z: str = pane.field(init=False, exclude=True, repr=False, compare=False)
+
+    #def __post_init__(self):
+    #    object.__setattr__(self, 'z', 'init')
 
     __test__ = False
 
@@ -94,9 +98,6 @@ def test_pane_ord():
     check_ord(TestClass(x=2, y=1.), TestClass(x=2, y=1.), 0)
     with pytest.raises(TypeError):
         check_ord(TestClass(x=1, y=3.), 5, -1)
-
-
-
 
 
 class TestClassInherit(TestClass, out_format='struct'):

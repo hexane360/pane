@@ -94,7 +94,15 @@ class Field:
     out_name: str
     """Name this field converts into."""
     init: bool = True
-    """Whether to add this field to __init__ methods (and conversion)"""
+    """Whether to add this field to __init__ methods (and conversion from other types)"""
+    exclude: bool = False
+    """Whether to exclude this field when converting to other types"""
+    repr: bool = True
+    """Whether to include this field in __repr__"""
+    hash: bool = True
+    """Whether to include this field in the generated __hash__ method"""
+    compare: bool = True
+    """Whether to include this field in generated comparison methods (__eq__, __gt__, etc.)"""
     default: t.Union[t.Any, _Missing] = _MISSING
     """Default value for field"""
     default_factory: t.Optional[t.Callable[[], t.Any]] = None
@@ -137,7 +145,15 @@ class FieldSpec:
     out_name: t.Optional[str] = None
     """Name this field converts into."""
     init: bool = True
-    """Whether to add this field to __init__ methods (and conversion)"""
+    """Whether to add this field to __init__ methods (and conversion from other types)"""
+    exclude: bool = False
+    """Whether to exclude this field when converting to other types"""
+    repr: bool = True
+    """Whether to include this field in __repr__"""
+    hash: bool = True
+    """Whether to include this field in the generated __hash__ method."""
+    compare: bool = True
+    """Whether to include this field in generated comparison methods (__eq__, __gt__, etc.)"""
     default: t.Union[t.Any, _Missing] = _MISSING
     """Default value for field"""
     default_factory: t.Optional[t.Callable[[], t.Any]] = None
@@ -188,9 +204,12 @@ class FieldSpec:
             in_names = tuple(rename_field(name, style) for style in in_rename) if in_rename is not None else (name,)
 
         ty = t.cast(type, t.Any if self.ty is _MISSING else self.ty)
-        return Field(name=name, type=ty, out_name=out_name, in_names=in_names,
-                     init=self.init, default=self.default, default_factory=self.default_factory,
-                     kw_only=self.kw_only, converter=self.converter)
+        return Field(
+            name=name, type=ty, out_name=out_name, in_names=in_names, init=self.init, exclude=self.exclude,
+            repr=self.repr, hash=self.hash, compare=self.compare,
+            default=self.default, default_factory=self.default_factory,
+            kw_only=self.kw_only, converter=self.converter
+        )
 
 
 # only allow one of rename, in_names, and aliases
@@ -201,6 +220,10 @@ def field(*,
     aliases: None = None,
     out_name: t.Optional[str] = None,
     init: bool = True,
+    exclude: bool = False,
+    repr: bool = True,
+    hash: t.Optional[bool] = None,
+    compare: bool = True,
     default: t.Union[T, _Missing] = _MISSING,
     default_factory: t.Optional[t.Callable[[], T]] = None,
     kw_only: bool = False,
@@ -215,6 +238,10 @@ def field(*,
     aliases: None = None,
     out_name: t.Optional[str] = None,
     init: bool = True,
+    exclude: bool = False,
+    repr: bool = True,
+    hash: t.Optional[bool] = None,
+    compare: bool = True,
     default: t.Union[T, _Missing] = _MISSING,
     default_factory: t.Optional[t.Callable[[], T]] = None,
     kw_only: bool = False,
@@ -229,6 +256,10 @@ def field(*,
     aliases: t.Sequence[str],
     out_name: t.Optional[str] = None,
     init: bool = True,
+    exclude: bool = False,
+    repr: bool = True,
+    hash: t.Optional[bool] = None,
+    compare: bool = True,
     default: t.Union[T, _Missing] = _MISSING,
     default_factory: t.Optional[t.Callable[[], T]] = None,
     kw_only: bool = False,
@@ -243,6 +274,10 @@ def field(*,
     aliases: t.Optional[t.Sequence[str]] = None,
     out_name: t.Optional[str] = None,
     init: bool = True,
+    exclude: bool = False,
+    repr: bool = True,
+    hash: t.Optional[bool] = None,
+    compare: bool = True,
     default: t.Union[T, _Missing] = _MISSING,
     default_factory: t.Optional[t.Callable[[], T]] = None,
     kw_only: bool = False,
@@ -256,6 +291,10 @@ def field(*,
     aliases: t.Optional[t.Sequence[str]] = None,
     out_name: t.Optional[str] = None,
     init: bool = True,
+    exclude: bool = False,
+    repr: bool = True,
+    hash: t.Optional[bool] = None,
+    compare: bool = True,
     default: t.Union[T, _Missing] = _MISSING,
     default_factory: t.Optional[t.Callable[[], T]] = None,
     kw_only: bool = False,
@@ -270,14 +309,19 @@ def field(*,
       aliases: List of aliases (additional names) for this field. Includes the field name inside Python (unlike `in_names`).
       out_name: Name which this field should convert into.
       init: If `False`, this field won't be touched by `pane`, and it's up to the class to initialize it in `__post_init__`.
+      exclude: If `False`, this field is excluded from serialization and conversion to other datatypes (into_data, dict, write_json, etc.).
+      repr: Whether to include this field in the generated __repr__ method.
+      hash: Whether to include this field in the generated __hash__ method. Defaults to `compare`.
+      compare: Whether to include this field in generated comparison methods (`__eq__`, `__gt__`, etc.).
       default: Default value for field
       default_factory: Default value factory for field
       kw_only: Whether the field is keyword-only.
     """
     return FieldSpec(
         rename=rename, in_names=in_names, aliases=aliases, out_name=out_name,
-        init=init, default=default, default_factory=default_factory, kw_only=kw_only,
-        converter=converter
+        init=init, repr=repr, hash=hash if hash is not None else compare, compare=compare,
+        exclude=exclude, default=default, default_factory=default_factory,
+        kw_only=kw_only, converter=converter
     )
 
 

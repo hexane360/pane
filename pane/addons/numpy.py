@@ -67,7 +67,6 @@ try:
             dtype = t.Any if len(args) < 2 else args[1]
 
             _check_shape_typevar(arg1)
-            print(f"arg1: {arg1} dtype: {dtype}")
 
             if dtype is not t.Any:
                 dtype_ty, dtype_args = t.get_origin(dtype), t.get_args(dtype)

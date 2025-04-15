@@ -92,7 +92,10 @@ class PaneBase:
         return _make_subclass(cls, params)
 
     def __repr__(self) -> str:
-        inside = ", ".join(f"{field.name}={getattr(self, field.name)!r}" for field in self.__pane_info__.fields)
+        inside = ", ".join(
+            f"{field.name}={getattr(self, field.name)!r}" for field in self.__pane_info__.fields
+            if field.repr
+        )
         return f"{self.__class__.__name__}({inside})"
 
     def __setattr__(self, name: str, value: t.Any) -> None:
@@ -177,6 +180,7 @@ class PaneBase:
             }
         return {
             rename_field(field.name, rename): getattr(self, field.name) for field in self.__pane_info__.fields
+            if not field.exclude
         }
 
     @classmethod
@@ -385,6 +389,8 @@ class PaneOptions:
     """Whether dataclass fields are frozen"""
     init: bool = True
     """Whether to generate `__init__` method"""
+    unsafe_hash: bool = False
+    """Whether to generate a hash method """
     kw_only: bool = False
     """Whether all fields should be keyword-only"""
     out_format: ClassLayout = 'struct'
@@ -426,6 +432,8 @@ def _make_subclass(cls: t.Any, params: t.Tuple[t.Any, ...]) -> type:
 def _make_init(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
     params: t.List[Parameter] = []
     for f in fields:
+        if not f.init:
+            continue
         if f.default is not _MISSING:
             default = f.default
         elif f.default_factory is not None:
@@ -457,6 +465,8 @@ def _make_init(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
         set_fields: t.Set[str] = set()
 
         for f in self.__pane_info__.fields:
+            if not f.init:
+                continue
             if f.name in bound_args:
                 val = bound_args[f.name]
                 if checked:
@@ -504,7 +514,7 @@ def _make_eq(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
             return False
         return all(
             getattr(self, field.name) == getattr(other, field.name)
-            for field in fields
+            for field in fields if field.compare
         )
 
     setattr(cls, '__eq__', __eq__)
@@ -516,6 +526,8 @@ def _make_ord(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
         if self.__class__ != other.__class__:
             return NotImplemented  # type: ignore
         for f in fields:
+            if not f.compare:
+                continue
             if getattr(self, f.name) == getattr(other, f.name):
                 continue
             return 1 if getattr(self, f.name) > getattr(other, f.name) else -1
@@ -538,6 +550,58 @@ def _make_ord(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
     setattr(cls, '__le__', __le__)
     setattr(cls, '__gt__', __gt__)
     setattr(cls, '__ge__', __ge__)
+
+
+def _maybe_make_hash(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
+    opts = cls.__pane_info__.opts
+
+    class_hash = cls.__dict__.get('__hash__', _MISSING)
+    has_explicit_hash = not (class_hash is _MISSING or
+                             (class_hash is None and '__eq__' in cls.__dict__))
+
+    action = _hash_action[(bool(opts.unsafe_hash), bool(opts.eq), bool(opts.frozen), has_explicit_hash)]
+    if action is not None:
+        setattr(cls, '__hash__', action(cls, fields))
+
+
+def _set_hash_none(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
+    return None
+
+
+def _make_hash(cls: t.Type[PaneBase], fields: t.Sequence[Field]) -> t.Any:
+    def __hash__(self: PaneBase):
+        return hash(tuple(
+            getattr(self, field.name)
+            for field in fields if field.hash
+        ))
+
+    return __hash__
+
+
+def _hash_exception(cls: t.Type[PaneBase], fields: t.Sequence[Field]) -> t.Any:
+    raise TypeError("Cannot overwrite attribute __hash__ "
+                    f"in class {cls.__name__}")
+
+
+# (unsafe_hash, eq, frozen, hash_explicit_hash) -> action
+_hash_action: t.Dict[t.Tuple[bool, bool, bool, bool], t.Optional[t.Callable[[t.Type[PaneBase], t.Sequence[Field]], t.Any]]] = {
+    (False, False, False, False): None,
+    (False, False, False, True ): None,
+    (False, False, True,  False): None,
+    (False, False, True,  True ): None,
+    (False, True,  False, False): _set_hash_none,
+    (False, True,  False, True ): None,
+    (False, True,  True,  False): _make_hash,
+    (False, True,  True,  True ): None,
+    (True,  False, False, False): _make_hash,
+    (True,  False, False, True ): _hash_exception,
+    (True,  False, True,  False): _make_hash,
+    (True,  False, True,  True ): _hash_exception,
+    (True,  True,  False, False): _make_hash,
+    (True,  True,  False, True ): _hash_exception,
+    (True,  True,  True,  False): _make_hash,
+    (True,  True,  True,  True ): _hash_exception,
+}
 
 
 def _process(cls: t.Type[PaneBase], opts: PaneOptions):
@@ -591,6 +655,8 @@ def _process(cls: t.Type[PaneBase], opts: PaneOptions):
     min_len, max_len = (0, 0)
     seen_opt = False
     for f in fields:
+        if not f.init:
+            continue
         if f.kw_only:
             if not f.has_default() and 'tuple' in opts.in_format:
                 raise TypeError(f"Field '{f.name}' is kw_only but mandatory. This is incompatible with the 'tuple' in_format.")
@@ -611,7 +677,7 @@ def _process(cls: t.Type[PaneBase], opts: PaneOptions):
         name = str(f.name)
         # remove Fields from class, and set defaults
         if f.default is _MISSING:
-            if isinstance(getattr(cls, name, None), Field):
+            if isinstance(getattr(cls, name, None), (Field, FieldSpec)):
                 delattr(cls, name)
         else:
             setattr(cls, name, f.default)
@@ -622,6 +688,7 @@ def _process(cls: t.Type[PaneBase], opts: PaneOptions):
         _make_eq(cls, fields)
     if opts.order:
         _make_ord(cls, fields)
+    _maybe_make_hash(cls, fields)
 
     return cls
 
@@ -654,6 +721,8 @@ class PaneConverter(Converter[PaneBaseT]):
         self.field_map: t.Dict[str, int] = {}
 
         for (i, f) in enumerate(self.fields):
+            if not f.init:
+                continue
             self.field_map[f.name] = i
             for alias in f.in_names:
                 self.field_map[alias] = i
@@ -665,11 +734,13 @@ class PaneConverter(Converter[PaneBaseT]):
             return tuple(
                 conv.into_data(getattr(val, field.name))
                 for (field, conv) in zip(self.fields, self.field_converters)
+                if not field.exclude
             )
         elif self.opts.out_format == 'struct':
             return {
                 field.out_name: conv.into_data(getattr(val, field.name))
                 for (field, conv) in zip(self.fields, self.field_converters)
+                if not field.exclude
             }
         raise ValueError(f"Unknown 'out_format' '{self.opts.out_format}'")
 
@@ -718,7 +789,7 @@ class PaneConverter(Converter[PaneBaseT]):
             val = t.cast(t.Mapping[str, t.Any], val)
             if 'struct' not in self.opts.in_format:
                 return WrongTypeError(f'tuple {self.name}', val)
-            
+
             return self.collect_errors_struct(t.cast(t.Mapping[str, t.Any], val))
 
         return WrongTypeError(self.name, val)
@@ -743,7 +814,7 @@ class PaneConverter(Converter[PaneBaseT]):
                 raise ParseInterrupt()  # multiple values for key
             values[field.name] = conv.try_convert(v)
 
-        for field in filter(lambda field: field.name not in values, self.fields):
+        for field in filter(lambda field: field.init and field.name not in values, self.fields):
             if field.default is not _MISSING:
                 values[field.name] = field.default
             elif field.default_factory is not None:
@@ -785,7 +856,7 @@ class PaneConverter(Converter[PaneBaseT]):
 
         missing: t.Set[str] = set()
         for field in self.fields:
-            if field.name not in seen and not field.has_default():
+            if field.init and field.name not in seen and not field.has_default():
                 missing.add(field.name)
 
         if len(missing) or len(children) or len(extra):
@@ -806,11 +877,11 @@ class PaneConverter(Converter[PaneBaseT]):
     def try_convert_tuple(self, val: t.Sequence[t.Any]) -> PaneBaseT:
         """[`Converter.try_convert`][pane.converters.Converter.try_convert] for the 'tuple' data format"""
         (min_len, max_len) = self.cls_info.pos_args
-        if min_len < len(val) > max_len:
+        if not (min_len <= len(val) <= max_len):
             raise ParseInterrupt()
 
         vals: t.List[t.Any] = []
-        for (conv, v) in zip(self.field_converters, val):
+        for (conv, v) in zip((conv for (f, conv) in zip(self.fields, self.field_converters) if f.init), val):
             vals.append(conv.try_convert(v))
 
         try:
@@ -821,12 +892,12 @@ class PaneConverter(Converter[PaneBaseT]):
     def collect_errors_tuple(self, val: t.Sequence[t.Any]) -> t.Union[WrongTypeError, ProductErrorNode, WrongLenError, None]:
         """[`Converter.collect_errors`][pane.converters.Converter.collect_errors] for the 'tuple' data format"""
         (min_len, max_len) = self.cls_info.pos_args
-        if min_len < len(val) > max_len:
+        if not (min_len <= len(val) <= max_len):
             return WrongLenError(f'tuple {self.name}', (min_len, max_len), val, len(val))
 
         vals: t.List[t.Any] = []
         children: t.Dict[t.Union[str, int], ErrorNode] = {}
-        for (i, (conv, v)) in enumerate(zip(self.field_converters, val)):
+        for (i, (conv, v)) in enumerate(zip((conv for (f, conv) in zip(self.fields, self.field_converters) if f.init), val)):
             # this is a little tricky. we need to call convert() rather
             # than collect_errors to grab a successful value
             try:

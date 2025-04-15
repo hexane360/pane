@@ -4,11 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "py-pane"
-version = "0.10.0"
+version = "0.11.0"
 authors = [
 	{name = "Colin Gilgenbach", email = "hexane@mit.edu"},
 ]
-license = {file = "LICENSE.txt"}
+license = "MIT"
+license-files = ["LICENSE.txt"]
 description = "A modern dataclass & data conversion library, focused on speed and expressiveness."
 readme = "README.md"
 keywords = ["dataclass", "validation", "parsing", "conversion"]
