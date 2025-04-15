@@ -14,7 +14,7 @@ description = "A modern dataclass & data conversion library, focused on speed an
 readme = "README.md"
 keywords = ["dataclass", "validation", "parsing", "conversion"]
 classifiers = [
-  "License :: OSI Approved :: MIT License",
+  # "License :: OSI Approved :: MIT License",
   "Development Status :: 3 - Alpha",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.9",
