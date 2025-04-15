@@ -54,7 +54,6 @@ class PaneBase:
         eq: t.Optional[bool] = None,
         order: t.Optional[bool] = None,
         frozen: t.Optional[bool] = None,
-        init: t.Optional[bool] = None,
         kw_only: t.Optional[bool] = None,
         rename: t.Optional[RenameStyle] = None,
         in_rename: t.Optional[t.Union[RenameStyle, t.Sequence[RenameStyle]]] = None,
@@ -79,7 +78,7 @@ class PaneBase:
         opts: PaneOptions = getattr(cls, PANE_INFO).opts if hasattr(cls, PANE_INFO) else PaneOptions()
         opts = opts.replace(
             name=name, out_format=out_format, in_format=in_format,
-            eq=eq, order=order, frozen=frozen, init=init, allow_extra=allow_extra,
+            eq=eq, order=order, frozen=frozen, allow_extra=allow_extra,
             kw_only=kw_only, in_rename=in_rename, out_rename=out_rename,
             class_handlers=ConverterHandlers._process(custom),
         )
@@ -245,64 +244,27 @@ class PaneBase:
         from io import StringIO
         return io.from_json(StringIO(s), cls, custom=custom)
 
-    def write_json(self, f: io.FileOrPath, *,
-                   indent: t.Union[str, int, None] = None,
-                   sort_keys: bool = False,
-                   custom: t.Optional[IntoConverterHandlers] = None):
-        """
-        Write data to a JSON file `f`
-
-        Parameters:
-          f: File-like or path-like to write to
-          indent: Indent to format JSON with. Defaults to None (no indentation)
-          sort_keys: Whether to sort keys prior to serialization.
-          custom: Custom converters to use
-        """
-        io.write_json(
-            self, f, ty=self.__class__,
-            indent=indent, sort_keys=sort_keys, custom=custom
-        )
-
-    def write_yaml(self, f: io.FileOrPath, *,
-                   indent: t.Optional[int] = None, width: t.Optional[int] = None,
-                   allow_unicode: bool = True,
-                   explicit_start: bool = True, explicit_end: bool = False,
-                   default_style: t.Optional[t.Literal['"', '|', '>']] = None,
-                   default_flow_style: t.Optional[bool] = None,
-                   sort_keys: bool = False,
-                   custom: t.Optional[IntoConverterHandlers] = None):
-        """
-        Write data to a YAML file `f`
-
-        Parameters:
-          f: File-like or path-like to write to
-          indent: Number of spaces to indent blocks with
-          width: Maximum width of file created
-          allow_unicode: Whether to output unicode characters or escape them
-          explicit_start: Whether to include a YAML document start "---"
-          explicit_end: Whether to include a YAML document end "..."
-          default_style: Default style to use for scalar nodes.
-              See YAML documentation for more information.
-          default_flow_style: Whether to default to flow style or block style for collections.
-              See YAML documentation for more information.
-          sort_keys: Whether to sort keys prior to serialization.
-          custom: Custom converters to use
-        """
-        io.write_yaml(
-            self, f, ty=self.__class__,
-            indent=indent, width=width,
-            allow_unicode=allow_unicode,
-            explicit_start=explicit_start, explicit_end=explicit_end,
-            default_style=default_style, default_flow_style=default_flow_style,
-            sort_keys=sort_keys, custom=custom
-        )
-
-    def into_json(self, *,
+    @t.overload
+    def write_json(self, f: None = None, *,
                   indent: t.Union[str, int, None] = None,
                   sort_keys: bool = False,
                   custom: t.Optional[IntoConverterHandlers] = None) -> str:
+        ...
+
+    @t.overload
+    def write_json(self, f: io.FileOrPath, *,
+                  indent: t.Union[str, int, None] = None,
+                  sort_keys: bool = False,
+                  custom: t.Optional[IntoConverterHandlers] = None) -> None:
+        ...
+
+    def write_json(self, f: t.Optional[io.FileOrPath] = None, *,
+                  indent: t.Union[str, int, None] = None,
+                  sort_keys: bool = False,
+                  custom: t.Optional[IntoConverterHandlers] = None) -> t.Optional[str]:
         """
-        Write data to a JSON string.
+        Write data to a JSON file or string. If given a file `f`, write to that.
+        Otherwise, write to a string and return.
 
         Parameters:
           indent: Indent to format JSON with. Defaults to None (no indentation)
@@ -311,14 +273,26 @@ class PaneBase:
         """
         from io import StringIO
 
-        buf = StringIO()
+        buf = StringIO() if f is None else f
         io.write_json(
             self, buf, ty=self.__class__,
             indent=indent, sort_keys=sort_keys, custom=custom
         )
-        return buf.getvalue()
+        return buf.getvalue() if f is None else None  # type: ignore
 
-    def into_yaml(self, *,
+    @t.overload
+    def write_yaml(self, f: io.FileOrPath, *,
+                  indent: t.Optional[int] = None, width: t.Optional[int] = None,
+                  allow_unicode: bool = True,
+                  explicit_start: bool = True, explicit_end: bool = False,
+                  default_style: t.Optional[t.Literal['"', '|', '>']] = None,
+                  default_flow_style: t.Optional[bool] = None,
+                  sort_keys: bool = False,
+                  custom: t.Optional[IntoConverterHandlers] = None) -> None:
+        ...
+
+    @t.overload
+    def write_yaml(self, f: None = None, *,
                   indent: t.Optional[int] = None, width: t.Optional[int] = None,
                   allow_unicode: bool = True,
                   explicit_start: bool = True, explicit_end: bool = False,
@@ -326,8 +300,19 @@ class PaneBase:
                   default_flow_style: t.Optional[bool] = None,
                   sort_keys: bool = False,
                   custom: t.Optional[IntoConverterHandlers] = None) -> str:
+        ...
+
+    def write_yaml(self, f: t.Optional[io.FileOrPath] = None, *,
+                  indent: t.Optional[int] = None, width: t.Optional[int] = None,
+                  allow_unicode: bool = True,
+                  explicit_start: bool = True, explicit_end: bool = False,
+                  default_style: t.Optional[t.Literal['"', '|', '>']] = None,
+                  default_flow_style: t.Optional[bool] = None,
+                  sort_keys: bool = False,
+                  custom: t.Optional[IntoConverterHandlers] = None) -> t.Optional[str]:
         """
-        Write data to a YAML string.
+        Write data to a YAML file or string. If given a file `f`, write to that.
+        Otherwise, write to a string and return.
 
         Parameters:
           indent: Number of spaces to indent blocks with
@@ -344,7 +329,7 @@ class PaneBase:
         """
         from io import StringIO
 
-        buf = StringIO()
+        buf = StringIO() if f is None else f
         io.write_yaml(
             self, buf, ty=self.__class__,
             indent=indent, width=width, allow_unicode=allow_unicode,
@@ -352,7 +337,7 @@ class PaneBase:
             default_style=default_style, default_flow_style=default_flow_style,
             sort_keys=sort_keys, custom=custom
         )
-        return buf.getvalue()
+        return buf.getvalue() if f is None else None  # type: ignore
 
 
 @dataclasses.dataclass
@@ -387,8 +372,6 @@ class PaneOptions:
     """Whether to generate `__gt__`/`__ge__`/`__lt__`/`__le__` methods"""
     frozen: bool = True
     """Whether dataclass fields are frozen"""
-    init: bool = True
-    """Whether to generate `__init__` method"""
     unsafe_hash: bool = False
     """Whether to generate a hash method """
     kw_only: bool = False
@@ -427,6 +410,97 @@ def _make_subclass(cls: t.Any, params: t.Tuple[t.Any, ...]) -> type:
         '__origin__': cls,
         '__parameters__': getattr(alias, '__parameters__'),
     })
+
+
+def _process(cls: t.Type[PaneBase], opts: PaneOptions):
+    fields: t.List[Field] = []
+
+    specs: t.Dict[str, FieldSpec] = {}
+
+    # collect FieldSpecs from base classes
+    for base in reversed(cls.__mro__[1:]):
+        if not hasattr(base, PANE_INFO):
+            continue  # not a pane dataclass
+        cls_specs = getattr(base, PANE_INFO).specs
+
+        # apply typevar replacements
+        bound_vars = t.cast(t.Mapping[t.Union[t.TypeVar, ParamSpec], type], getattr(base, PANE_BOUNDVARS, {}))
+        specs.update(cls_specs)
+        specs = {k: spec.replace_typevars(bound_vars) for (k, spec) in specs.items()}
+
+    annotations = get_type_hints(cls)
+    kw_only = opts.kw_only  # current kw_only state
+    cls_specs: t.Dict[str, FieldSpec] = {}
+
+    for name, ty in annotations.items():
+        if ty is KW_ONLY:
+            # all further params are kw_only
+            kw_only = True
+            continue
+
+        if isinstance(getattr(cls, name, None), FieldSpec):
+            # process existing FieldSpec
+            spec: FieldSpec = getattr(cls, name)
+            spec.ty = ty
+        else:
+            # make new spec
+            spec = FieldSpec(ty=ty, default=getattr(cls, name, _MISSING))
+
+        spec.kw_only |= kw_only
+        cls_specs[name] = spec
+
+    # apply typevar replacements
+    bound_vars = getattr(cls, PANE_BOUNDVARS, {})
+    specs.update(cls_specs)
+    specs = {k: spec.replace_typevars(bound_vars) for (k, spec) in specs.items()}
+
+    # bake FieldSpecs into Fields
+    fields = [spec.make_field(name, opts.in_rename, opts.out_rename) for (name, spec) in specs.items()]
+    # reorder kw-only fields to end
+    fields = [*filter(lambda f: not f.kw_only, fields), *filter(lambda f: f.kw_only, fields)]
+
+    # positional argument lengths
+    min_len, max_len = (0, 0)
+    seen_opt = False
+    for f in fields:
+        if not f.init:
+            continue
+        if f.kw_only:
+            if not f.has_default() and 'tuple' in opts.in_format:
+                raise TypeError(f"Field '{f.name}' is kw_only but mandatory. This is incompatible with the 'tuple' in_format.")
+            continue
+        max_len += 1
+        if f.has_default():
+            seen_opt = True
+        else:
+            if seen_opt:
+                raise TypeError(f"Mandatory field '{f.name}' follows optional field")
+            min_len = max_len  # expand min length
+
+    cls.__pane_info__ = PaneInfo(
+        opts=opts, specs=cls_specs, fields=tuple(fields), pos_args=(min_len, max_len)
+    )
+
+    for f in fields:
+        name = str(f.name)
+        # remove Fields from class, and set defaults
+        if f.default is _MISSING:
+            if isinstance(getattr(cls, name, None), (Field, FieldSpec)):
+                delattr(cls, name)
+        else:
+            setattr(cls, name, f.default)
+
+    if True:  #opts.init:
+        if '__init__' in cls.__dict__:
+            raise TypeError(f"Can't overwrite __init__ function in class {cls.__name__}")
+        _make_init(cls, fields)
+    if opts.eq and '__eq__' not in cls.__dict__:
+        _make_eq(cls, fields)
+    if opts.order and not any(k in cls.__dict__ for k in ('__lt__', '__gt__', '__le__', '__ge__')):
+        _make_ord(cls, fields)
+    _maybe_make_hash(cls, fields)
+
+    return cls
 
 
 def _make_init(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
@@ -504,6 +578,7 @@ def _make_init(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
     sig2 = Signature([Parameter('cls', Parameter.POSITIONAL_OR_KEYWORD), Parameter('d', Parameter.POSITIONAL_OR_KEYWORD, annotation=t.Dict[str, t.Any])], return_annotation=cls)
     from_dict_unchecked.__func__.__signature__ = sig2  # type: ignore
     setattr(cls, 'from_dict_unchecked', from_dict_unchecked)
+
 
 
 def _make_eq(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
@@ -602,95 +677,6 @@ _hash_action: t.Dict[t.Tuple[bool, bool, bool, bool], t.Optional[t.Callable[[t.T
     (True,  True,  True,  False): _make_hash,
     (True,  True,  True,  True ): _hash_exception,
 }
-
-
-def _process(cls: t.Type[PaneBase], opts: PaneOptions):
-    fields: t.List[Field] = []
-
-    specs: t.Dict[str, FieldSpec] = {}
-
-    # collect FieldSpecs from base classes
-    for base in reversed(cls.__mro__[1:]):
-        if not hasattr(base, PANE_INFO):
-            continue  # not a pane dataclass
-        cls_specs = getattr(base, PANE_INFO).specs
-
-        # apply typevar replacements
-        bound_vars = t.cast(t.Mapping[t.Union[t.TypeVar, ParamSpec], type], getattr(base, PANE_BOUNDVARS, {}))
-        specs.update(cls_specs)
-        specs = {k: spec.replace_typevars(bound_vars) for (k, spec) in specs.items()}
-
-    annotations = get_type_hints(cls)
-    kw_only = opts.kw_only  # current kw_only state
-    cls_specs: t.Dict[str, FieldSpec] = {}
-
-    for name, ty in annotations.items():
-        if ty is KW_ONLY:
-            # all further params are kw_only
-            kw_only = True
-            continue
-
-        if isinstance(getattr(cls, name, None), FieldSpec):
-            # process existing FieldSpec
-            spec: FieldSpec = getattr(cls, name)
-            spec.ty = ty
-        else:
-            # make new spec
-            spec = FieldSpec(ty=ty, default=getattr(cls, name, _MISSING))
-
-        spec.kw_only |= kw_only
-        cls_specs[name] = spec
-
-    # apply typevar replacements
-    bound_vars = getattr(cls, PANE_BOUNDVARS, {})
-    specs.update(cls_specs)
-    specs = {k: spec.replace_typevars(bound_vars) for (k, spec) in specs.items()}
-
-    # bake FieldSpecs into Fields
-    fields = [spec.make_field(name, opts.in_rename, opts.out_rename) for (name, spec) in specs.items()]
-    # reorder kw-only fields to end
-    fields = [*filter(lambda f: not f.kw_only, fields), *filter(lambda f: f.kw_only, fields)]
-
-    # positional argument lengths
-    min_len, max_len = (0, 0)
-    seen_opt = False
-    for f in fields:
-        if not f.init:
-            continue
-        if f.kw_only:
-            if not f.has_default() and 'tuple' in opts.in_format:
-                raise TypeError(f"Field '{f.name}' is kw_only but mandatory. This is incompatible with the 'tuple' in_format.")
-            continue
-        max_len += 1
-        if f.has_default():
-            seen_opt = True
-        else:
-            if seen_opt:
-                raise TypeError(f"Mandatory field '{f.name}' follows optional field")
-            min_len = max_len  # expand min length
-
-    cls.__pane_info__ = PaneInfo(
-        opts=opts, specs=cls_specs, fields=tuple(fields), pos_args=(min_len, max_len)
-    )
-
-    for f in fields:
-        name = str(f.name)
-        # remove Fields from class, and set defaults
-        if f.default is _MISSING:
-            if isinstance(getattr(cls, name, None), (Field, FieldSpec)):
-                delattr(cls, name)
-        else:
-            setattr(cls, name, f.default)
-
-    if opts.init:
-        _make_init(cls, fields)
-    if opts.eq:
-        _make_eq(cls, fields)
-    if opts.order:
-        _make_ord(cls, fields)
-    _maybe_make_hash(cls, fields)
-
-    return cls
 
 
 class PaneConverter(Converter[PaneBaseT]):

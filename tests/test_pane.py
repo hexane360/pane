@@ -203,7 +203,7 @@ def test_pane_write_json():
     buf = io.StringIO()
     val.write_json(buf)
     assert buf.getvalue() == expected
-    assert val.into_json() == expected
+    assert val.write_json() == expected
 
 
 def test_pane_write_yaml():
@@ -218,7 +218,7 @@ z: 5.0
     buf = io.StringIO()
     val.write_yaml(buf, default_flow_style=False)
     assert buf.getvalue() == expected
-    assert val.into_yaml(default_flow_style=False) == expected
+    assert val.write_yaml(default_flow_style=False) == expected
 
 
 T = t.TypeVar('T')

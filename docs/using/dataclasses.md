@@ -87,8 +87,11 @@ to return only explicitly set fields, and `rename` may be specified to return us
 | [`from_data`][pane.classes.PaneBase.from_data] | classmethod | Instantiate a dataclass from interchange data |
 | [`from_json`][pane.classes.PaneBase.from_json] | classmethod | Instantiate a dataclass from a JSON file |
 | [`from_yaml`][pane.classes.PaneBase.from_yaml] | classmethod | Instantiate a dataclass from a YAML file |
+| [`from_yaml_all`][pane.classes.PaneBase.from_yaml_all] | classmethod | Instantiate a list of dataclasses from a YAML stream of multiple YAML documents |
 | [`from_jsons`][pane.classes.PaneBase.from_jsons] | classmethod | Instantiate a dataclass from a JSON string |
 | [`from_yamls`][pane.classes.PaneBase.from_yamls] | classmethod | Instantiate a dataclass from a YAML string |
+| [`write_json`][pane.classes.PaneBase.write_json] | classmethod | Write a dataclass to a JSON string or file |
+| [`write_yaml`][pane.classes.PaneBase.write_yaml] | classmethod | Write a dataclass to a YAML string or file |
 | [`into_data`][pane.classes.PaneBase.into_data] | instance method | Convert dataclass into interchange data |
 | [`dict`][pane.classes.PaneBase.dict] | instance method | Return dataclass fields as a dict (optionally, return only set fields) |
 
@@ -102,9 +105,10 @@ Args:
    - `out_format` ([`ClassLayout`][pane.classes.ClassLayout]): Format to serialize class in (default: `struct`)
    - `in_format` (`t.Sequence[ClassLayout]`): Formats class may be serialized from (default: `['struct', 'tuple']` if no keyword arguments, else `['struct']`)
    - `eq` (`bool`): Whether to add `__eq__` method
-   - `order` (`bool`): Whether to add `__ord__` method
+   - `order` (`bool`): Whether to add ordering methods (`__gt__`, `__le__`, etc.)
    - `frozen` (`bool`): Whether to freeze dataclass
-   - `init` (`bool`): Whether to add `__init__` method
+   - `unsafe_hash` (`bool`): Whether to add a `__hash__` method even for non-`frozen` dataclasses. Behaves
+     the same as `unsafe_hash` in vanilla dataclasses.
    - `kw_only` (`bool`): If true, make all parameters keyword-only
    - `rename` ([`RenameStyle`][pane.field.RenameStyle]): How to rename parameters upon conversion to data. Cannot be specified with `in_rename` or `out_rename`
    - `in_rename` (`RenameStyle` or `t.Sequence[RenameStyle]`): Allow inputs renamed from these formats
