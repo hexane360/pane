@@ -110,17 +110,23 @@ class PaneBase:
 
     def __copy__(self):
         return self.from_dict_unchecked(
-            {field.name: getattr(self, field.name) for field in self.__pane_info__.fields}
+            {field.name: getattr(self, field.name) for field in self.__pane_info__.fields},
+            set_fields=getattr(self, PANE_SET_FIELDS),
         )
 
     def __deepcopy__(self, memo: t.Any):
         from copy import deepcopy
         return self.from_dict_unchecked(
-            {field.name: deepcopy(getattr(self, field.name), memo) for field in self.__pane_info__.fields}
+            {field.name: deepcopy(getattr(self, field.name), memo) for field in self.__pane_info__.fields},
+            set_fields=getattr(self, PANE_SET_FIELDS),
         )
 
     def __replace__(self, /, **changes: t.Any) -> Self:
-        d = {field.name: getattr(self, field.name) for field in self.__pane_info__.fields}
+        set_fields = getattr(self, PANE_SET_FIELDS)
+        d = {
+            field.name: getattr(self, field.name)
+            for field in self.__pane_info__.fields if field.name in set_fields
+        }
         d.update(**changes)
         return self.__class__(**d)
 
@@ -136,7 +142,7 @@ class PaneBase:
         ...
 
     @classmethod
-    def from_dict_unchecked(cls, d: t.Dict[str, t.Any]) -> Self:
+    def from_dict_unchecked(cls, d: t.Dict[str, t.Any], *, set_fields: t.Optional[t.Set[str]] = None) -> Self:
         ...
 
     @classmethod
@@ -567,18 +573,24 @@ def _make_init(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
     def make_unchecked(cls, *args, **kwargs):  # type: ignore
         return cls(*args, **kwargs, _pane_checked=False)  # type: ignore
 
-    sig2 = Signature([Parameter('cls', Parameter.POSITIONAL_OR_KEYWORD), *params], return_annotation=cls)
+    sig2 = Signature([Parameter('cls', Parameter.POSITIONAL_OR_KEYWORD), *params], return_annotation=Self)
     make_unchecked.__func__.__signature__ = sig2  # type: ignore
     setattr(cls, 'make_unchecked', make_unchecked)
 
     @classmethod
-    def from_dict_unchecked(cls, d):  # type: ignore
-        return cls(_pane_from_dict=d)  # type: ignore
+    def from_dict_unchecked(cls: t.Type[PaneBase], d: t.Dict[str, t.Any], *, set_fields: t.Optional[t.Set[str]] = None) -> PaneBase:
+        self = cls(_pane_from_dict=d)  # type: ignore
+        if set_fields is not None:
+            object.__setattr__(self, PANE_SET_FIELDS, set_fields.copy())
+        return self
 
-    sig2 = Signature([Parameter('cls', Parameter.POSITIONAL_OR_KEYWORD), Parameter('d', Parameter.POSITIONAL_OR_KEYWORD, annotation=t.Dict[str, t.Any])], return_annotation=cls)
+    sig2 = Signature([
+        Parameter('cls', Parameter.POSITIONAL_OR_KEYWORD),
+        Parameter('d', Parameter.POSITIONAL_OR_KEYWORD, annotation=t.Dict[str, t.Any]),
+        Parameter('set_fields', Parameter.KEYWORD_ONLY, annotation=t.Optional[t.Set[str]], default=None),
+    ], return_annotation=Self)
     from_dict_unchecked.__func__.__signature__ = sig2  # type: ignore
     setattr(cls, 'from_dict_unchecked', from_dict_unchecked)
-
 
 
 def _make_eq(cls: t.Type[PaneBase], fields: t.Sequence[Field]):
@@ -800,6 +812,8 @@ class PaneConverter(Converter[PaneBaseT]):
                 raise ParseInterrupt()  # multiple values for key
             values[field.name] = conv.try_convert(v)
 
+        set_fields = set(values.keys())
+
         for field in filter(lambda field: field.init and field.name not in values, self.fields):
             if field.default is not _MISSING:
                 values[field.name] = field.default
@@ -809,7 +823,7 @@ class PaneConverter(Converter[PaneBaseT]):
                 raise ParseInterrupt()  # missing field
 
         try:
-            return self.cls.from_dict_unchecked(values)
+            return self.cls.from_dict_unchecked(values, set_fields=set_fields)
         except Exception:  # error in __post_init__
             raise ParseInterrupt()
 

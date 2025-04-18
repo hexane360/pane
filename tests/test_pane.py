@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import io
+import re
 import typing as t
 
 import pytest
@@ -152,12 +153,17 @@ def test_init_signature(cls, sig):
 
 
 @pytest.mark.parametrize(('cls', 'sig'), [
-    (TestClass, '(x: int = 3, y: float = 5.0) -> test_pane.TestClass'),
-    (TestClass2, '(x: int = 1, y: int = 2, *, z: int = 3, w: int = 4) -> test_pane.TestClass2'),
-    (TestClass3, '(*, x: int = 1, z: int = 3, y: int = 2, w: int) -> test_pane.TestClass3'),
+    (TestClass, '(x: int = 3, y: float = 5.0) -> Self'),
+    (TestClass2, '(x: int = 1, y: int = 2, *, z: int = 3, w: int = 4) -> Self'),
+    (TestClass3, '(*, x: int = 1, z: int = 3, y: int = 2, w: int) -> Self'),
 ])
-def test_make_unchecked_signature(cls, sig):
-    assert str(inspect.signature(cls.make_unchecked)) == sig
+def test_make_unchecked_signature(cls, sig: str):
+    assert str(inspect.signature(cls.make_unchecked)) in (sig, sig.replace("Self", "typing_extensions.Self"))
+
+
+def test_from_dict_unchecked_signature():
+    sig = '(d: Dict[str, Any], *, set_fields: Optional[Set[str]] = None) -> Self'
+    assert str(inspect.signature(TestClass.from_dict_unchecked)) in (sig, sig.replace("Self", "typing_extensions.Self"))
 
 
 @pytest.mark.parametrize(('cls', 'val', 'result'), [
@@ -179,6 +185,15 @@ def test_pane_convert(cls, val, result):
         assert e.value.tree == result
     else:
         assert pane.convert(val, cls) == result
+
+
+@pytest.mark.parametrize(('self'), [
+    TestClass(x=5),
+    TestClass.from_data({'x': 5}),
+    TestClass.from_data((5,)),
+])
+def test_pane_set_fields(self: TestClass):
+    assert self.__pane_set__ == {'x'}
 
 
 @pytest.mark.parametrize(('val', 'result'), [
