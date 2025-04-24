@@ -14,14 +14,15 @@ except ImportError:
 
 import pane
 from pane.errors import WrongTypeError, ProductErrorNode, ErrorNode, ConditionFailedError, SumErrorNode
-from pane.convert import convert, into_data, make_converter, ConvertError
+from pane.convert import convert, into_data, from_data, make_converter, ConvertError
 from pane.converters import Converter, NestedSequenceConverter
 from pane.annotations import broadcastable, shape
+from pane.addons.numpy import _is_ndarray
 
 @pytest.mark.parametrize(('input', 'conv'), [
-    (numpy.ndarray, NestedSequenceConverter(t.Any, numpy.array, ragged=False)),
-    (NDArray[numpy.generic], NestedSequenceConverter(numpy.generic, numpy.array, ragged=False)),
-    (NDArray[numpy.int_], NestedSequenceConverter(numpy.int_, numpy.array, ragged=False)),
+    (numpy.ndarray, NestedSequenceConverter(t.Any, numpy.array, ragged=False, isinstance_check=_is_ndarray)),
+    (NDArray[numpy.generic], NestedSequenceConverter(numpy.generic, numpy.array, ragged=False, isinstance_check=_is_ndarray)),
+    (NDArray[numpy.int_], NestedSequenceConverter(numpy.int_, numpy.array, ragged=False, isinstance_check=_is_ndarray)),
 ])
 def test_make_converter_numpy(input, conv: Converter):
     assert make_converter(input) == conv
@@ -70,6 +71,20 @@ def test_into_data_numpy(ty, val, result):
         actual = into_data(val, ty)
         assert actual == result
         assert type(actual) is type(result)
+
+
+@pytest.mark.parametrize(('ty', 'val', 'result'), [
+    (NDArray[int], numpy.array([1, 2, 3, 4]), numpy.array([1, 2, 3, 4])),
+])
+def test_from_data_numpy(ty, val, result):
+    if isinstance(result, ErrorNode):
+        with pytest.raises(ConvertError) as exc_info:
+            from_data(val, ty)
+        assert exc_info.value.tree == result
+    else:
+        actual = from_data(val, ty)
+        assert_array_equal(actual, result)
+        assert make_converter(ty).collect_errors(val) is None
 
 
 class PaneAnnotation(pane.PaneBase):

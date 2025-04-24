@@ -734,6 +734,8 @@ class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
     val_conv: Converter[U] = dataclasses.field(init=False)
     """[`Converter`][pane.converters.Converter] for value type"""
 
+    isinstance_check: t.Optional[t.Callable[[t.Any], bool]] = None
+
     def __post_init__(self):
         self.val_conv = make_converter(self.val_type, self.handlers)
 
@@ -770,6 +772,9 @@ class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
 
     def try_convert(self, val: t.Any) -> T:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
+        if self.isinstance_check is not None and self.isinstance_check(val):
+            return t.cast(T, val)
+
         result = self._try_convert(val)
         if not self.ragged:
             try:
@@ -787,6 +792,8 @@ class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
 
     def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
         """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
+        if self.isinstance_check is not None and self.isinstance_check(val):
+            return None
         if (node := self._collect_errors(val)) is not None:
             return node
         val = self._try_convert(val)

@@ -48,6 +48,10 @@ try:
         raise TypeError("Numpy shape types are currently unsupported.")
 
 
+    def _is_ndarray(val: t.Any) -> bool:
+        return isinstance(val, _numpy.ndarray)
+
+
     def numpy_converter_handler(ty: t.Any, args: t.Sequence[t.Any], *,
                                 handlers: 'ConverterHandlers') -> 'Converter[t.Any]':
         from ..convert import make_converter
@@ -78,7 +82,8 @@ try:
 
         from ..converters import NestedSequenceConverter
 
-        return NestedSequenceConverter(dtype, array, ragged=False, handlers=handlers)  # type: ignore
+        return NestedSequenceConverter(dtype, array, ragged=False, handlers=handlers,  # type: ignore
+                                       isinstance_check=_is_ndarray)
 
 except ImportError:
     if not t.TYPE_CHECKING:
