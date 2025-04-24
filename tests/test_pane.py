@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import inspect
 import io
-import re
 import typing as t
 
 import pytest

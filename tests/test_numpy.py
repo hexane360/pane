@@ -12,10 +12,11 @@ try:
 except ImportError:
     pytest.skip("skipping numpy tests", allow_module_level=True)
 
-from pane.errors import WrongTypeError, ProductErrorNode, ErrorNode, ConditionFailedError
+import pane
+from pane.errors import WrongTypeError, ProductErrorNode, ErrorNode, ConditionFailedError, SumErrorNode
 from pane.convert import convert, into_data, make_converter, ConvertError
 from pane.converters import Converter, NestedSequenceConverter
-from pane.annotations import broadcastable
+from pane.annotations import broadcastable, shape
 
 @pytest.mark.parametrize(('input', 'conv'), [
     (numpy.ndarray, NestedSequenceConverter(t.Any, numpy.array, ragged=False)),
@@ -68,4 +69,22 @@ def test_into_data_numpy(ty, val, result):
     else:
         actual = into_data(val, ty)
         assert actual == result
-        assert type(actual) == type(result)
+        assert type(actual) is type(result)
+
+
+class PaneAnnotation(pane.PaneBase):
+    affine: t.Optional[t.Annotated[NDArray[numpy.floating], shape((2, 2))]] = None
+
+
+def test_annotation_class():
+    assert_array_equal(
+        PaneAnnotation([[1., 2.], [3., 4.]]).affine,
+        numpy.array([[1., 2.], [3., 4.]], dtype=numpy.float64)
+    )
+
+    with pytest.raises(ConvertError) as exc_info:
+        PaneAnnotation([1., 2., 3.])
+    assert exc_info.value.tree == SumErrorNode([
+        ConditionFailedError('a n-d array of floats with shape (2, 2)', [1., 2., 3.], 'shape (2, 2)'),
+        WrongTypeError('null value', [1.0, 2.0, 3.0]),
+    ])
