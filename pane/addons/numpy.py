@@ -41,8 +41,8 @@ try:
         base = t.get_origin(ty) or ty
         args = t.get_args(ty)
 
-        # let tuple[int, ...] through
-        if issubclass(base, (tuple, t.Tuple)) and args == (int, Ellipsis):
+        # let tuple[int, ...], tuple[t.Any, ...] through
+        if issubclass(base, (tuple, t.Tuple)) and args[0] in (int, t.Any) and args[1] == Ellipsis: 
             return
 
         raise TypeError("Numpy shape types are currently unsupported.")
