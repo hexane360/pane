@@ -4,7 +4,7 @@ import typing as t
 
 import pytest
 
-from pane.convert import convert, make_converter, ConvertError
+from pane.convert import convert, make_converter
 from pane.types import PositiveInt, ListNotEmpty, ValueOrList, Range
 from pane.errors import ConvertError, ProductErrorNode, SumErrorNode, WrongTypeError, WrongLenError, ConditionFailedError, ErrorNode
 

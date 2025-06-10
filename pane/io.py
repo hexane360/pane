@@ -39,14 +39,12 @@ def from_yaml(f: FileOrPath, ty: t.Type[T], *,
         f: File-like or path-like to load from
         custom: Custom converters to use
     """
-    import yaml
-    try:
-        from yaml import CSafeLoader as Loader
-    except ImportError:
-        from yaml import SafeLoader as Loader
+    from ruamel.yaml import YAML
+
+    yaml = YAML(typ='safe', pure=True)
 
     with open_file(f) as f:
-        obj = t.cast(t.Any, yaml.load(f, Loader))  # type: ignore
+        obj = t.cast(t.Any, yaml.load(f))  # type: ignore
 
     return from_data(obj, ty, custom=custom)
 
@@ -60,14 +58,12 @@ def from_yaml_all(f: FileOrPath, ty: t.Type[T], *,
         f: File-like or path-like to load from
         custom: Custom converters to use
     """
-    import yaml
-    try:
-        from yaml import CSafeLoader as Loader
-    except ImportError:
-        from yaml import SafeLoader as Loader
+    from ruamel.yaml import YAML
+
+    yaml = YAML(typ='safe', pure=True)
 
     with open_file(f) as f:
-        obj = t.cast(t.List[t.Any], list(yaml.load_all(f, Loader)))  # type: ignore
+        obj = t.cast(t.List[t.Any], list(yaml.load_all(f)))  # type: ignore
 
     return from_data(obj, t.List[ty], custom=custom)
 
@@ -126,19 +122,21 @@ def write_yaml(obj: Convertible, f: FileOrPath, *,
       sort_keys: Whether to sort keys prior to serialization.
       custom: Custom converters to use
     """
-    import yaml
-    try:
-        from yaml import CSafeDumper as Dumper
-    except ImportError:
-        from yaml import SafeDumper as Dumper
+    from ruamel.yaml import YAML
+
+    yaml = YAML(typ='safe', pure=True)
+    yaml.indent = indent
+    yaml.width = width
+    yaml.allow_unicode = allow_unicode
+    yaml.explicit_start = explicit_start
+    yaml.explicit_end = explicit_end
+    yaml.default_style = default_style  # type: ignore
+    yaml.default_flow_style = default_flow_style
+    yaml.sort_base_mapping_type_on_output = sort_keys  # type: ignore
 
     with open_file(f, 'w') as f:
         yaml.dump(  # type: ignore
-            into_data(obj, ty, custom=custom), f, Dumper=Dumper,
-            indent=indent, width=width, allow_unicode=allow_unicode,
-            explicit_start=explicit_start, explicit_end=explicit_end,
-            default_style=default_style, default_flow_style=default_flow_style,
-            sort_keys=sort_keys
+            into_data(obj, ty, custom=custom), f
         )
 
 

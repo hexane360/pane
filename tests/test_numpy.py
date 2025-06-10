@@ -19,6 +19,7 @@ from pane.converters import Converter, NestedSequenceConverter
 from pane.annotations import broadcastable, shape
 from pane.addons.numpy import _is_ndarray
 
+
 @pytest.mark.parametrize(('input', 'conv'), [
     (numpy.ndarray, NestedSequenceConverter(t.Any, numpy.array, ragged=False, isinstance_check=_is_ndarray)),
     (NDArray[numpy.generic], NestedSequenceConverter(numpy.generic, numpy.array, ragged=False, isinstance_check=_is_ndarray)),

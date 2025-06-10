@@ -27,7 +27,7 @@ classifiers = [
 
 requires-python = ">=3.9"
 dependencies = [
-  'PyYAML >= 6.0',
+  'ruamel.yaml >= 0.18.14',
   'typing_extensions ~= 4.5'  # frozen_default
 ]
 
