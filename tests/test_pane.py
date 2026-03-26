@@ -162,7 +162,11 @@ def test_make_unchecked_signature(cls, sig: str):
 
 def test_from_dict_unchecked_signature():
     sig = '(d: Dict[str, Any], *, set_fields: Optional[Set[str]] = None) -> Self'
-    assert str(inspect.signature(TestClass.from_dict_unchecked)) in (sig, sig.replace("Self", "typing_extensions.Self"))
+    assert str(inspect.signature(TestClass.from_dict_unchecked)) in (
+        '(d: Dict[str, Any], *, set_fields: Optional[Set[str]] = None) -> typing_extensions.Self',
+        '(d: Dict[str, Any], *, set_fields: Optional[Set[str]] = None) -> Self',
+        '(d: Dict[str, Any], *, set_fields: Set[str] | None = None) -> Self',
+    )
 
 
 @pytest.mark.parametrize(('cls', 'val', 'result'), [

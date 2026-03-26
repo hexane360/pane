@@ -81,11 +81,17 @@ def test_make_converter_raises(input, error: Exception):
 
 @pytest.mark.parametrize(('input', 'conv', 's'), [
     (t.TypeVar('T'), AnyConverter(), "Unbound TypeVar '~T'. Will be interpreted as 'typing.Any'."),
-    (t.TypeVar('U', int, str), UnionConverter((int, str)), "Unbound TypeVar '~U'. Will be interpreted as 'typing.Union[int, str]'."),
+    (t.TypeVar('U', int, str), UnionConverter((int, str)), [
+        "Unbound TypeVar '~U'. Will be interpreted as 'typing.Union[int, str]'.",
+        "Unbound TypeVar '~U'. Will be interpreted as 'int | str'.",
+    ]),
     (t.TypeVar('V', bound=tuple), SequenceConverter(tuple, t.Any), "Unbound TypeVar '~V'. Will be interpreted as '<class 'tuple'>'."),
 ])
 def test_typevar_converters(input, conv, s):
-    with pytest.warns(UserWarning, match=re.escape(s)):
+    if isinstance(s, str):
+        s = [s]
+
+    with pytest.warns(UserWarning, match='|'.join(map(re.escape, s))):
         assert make_converter(input) == conv
 
 

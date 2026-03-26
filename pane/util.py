@@ -5,7 +5,7 @@ from itertools import zip_longest
 import operator
 import typing as t
 from threading import RLock
-from typing_extensions import ParamSpec
+from typing_extensions import ParamSpec, get_annotations
 
 
 T = t.TypeVar('T')
@@ -136,7 +136,7 @@ def get_type_hints(cls: type) -> t.Dict[str, t.Any]:
 
     This is a slightly modified version of [typing.get_type_hints]().
     """
-
+    return get_annotations(cls, eval_str=True)
     globalns = getattr(sys.modules.get(cls.__module__, None), '__dict__', {})
     localns = dict(vars(cls))
 

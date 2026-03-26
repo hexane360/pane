@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "py-pane"
-version = "0.11.3"
+version = "0.11.4"
 authors = [
 	{name = "Colin Gilgenbach", email = "hexane@mit.edu"},
 ]
@@ -22,13 +22,14 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Typing :: Typed",
 ]
 
 requires-python = ">=3.9"
 dependencies = [
   'PyYAML >= 6.0',
-  'typing_extensions ~= 4.5'  # frozen_default
+  'typing_extensions ~= 4.13'  # get_annotations
 ]
 
 [project.optional-dependencies]

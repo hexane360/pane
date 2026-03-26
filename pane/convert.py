@@ -265,7 +265,7 @@ def make_converter(ty: IntoConverter, handlers: ConverterHandlers = ConverterHan
         return EnumConverter(base, handlers=handlers)
 
     # pathlike converter
-    if issubclass(base, os.PathLike):
+    if issubclass(base, os.PathLike):  # pyright: ignore[reportGeneralTypeIssues]
         new_base = _ABSTRACT_MAPPING.get(base, base)  # type: ignore
         if inspect.isabstract(new_base):
             raise TypeError(f"No converter for abstract type '{ty}'")
