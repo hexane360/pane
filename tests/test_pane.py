@@ -161,7 +161,6 @@ def test_make_unchecked_signature(cls, sig: str):
 
 
 def test_from_dict_unchecked_signature():
-    sig = '(d: Dict[str, Any], *, set_fields: Optional[Set[str]] = None) -> Self'
     assert str(inspect.signature(TestClass.from_dict_unchecked)) in (
         '(d: Dict[str, Any], *, set_fields: Optional[Set[str]] = None) -> typing_extensions.Self',
         '(d: Dict[str, Any], *, set_fields: Optional[Set[str]] = None) -> Self',
