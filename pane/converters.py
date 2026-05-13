@@ -194,6 +194,31 @@ class NoneConverter(Converter[None]):
 
 
 @dataclasses.dataclass
+class BoolConverter(Converter[bool]):
+    """
+    Converter which accepts boolean values.
+    """
+
+    def try_convert(self, val: t.Any) -> bool:
+        """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
+        if isinstance(val, bool):
+            return val
+        if val in (0, 1):
+            return bool(val)
+        raise ParseInterrupt()
+
+    def expected(self, plural: bool = False) -> str:
+        """See [`Converter.expected`][pane.converters.Converter.expected]"""
+        return 'booleans' if plural else 'a boolean'
+
+    def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
+        """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
+        if isinstance(val, bool) or val in (0, 1):
+            return None
+        return WrongTypeError(self.expected(), val)
+
+
+@dataclasses.dataclass
 class LiteralConverter(Converter[T_co]):
     """
     Converter which accepts any of a list of literal values.
@@ -1159,6 +1184,7 @@ _BASIC_CONVERTERS: t.Dict[type, Converter[t.Any]] = {
     bytes: ScalarConverter(bytes, (bytes, bytearray), 'a bytestring', 'bytestrings'),
     bytearray: ScalarConverter(bytearray, (bytes, bytearray), 'a bytearray', 'bytearrays'),
     type(None): NoneConverter(),
+    bool: BoolConverter(),
     datetime.datetime: DatetimeConverter(datetime.datetime),
     datetime.time: DatetimeConverter(datetime.time),
     datetime.date: DatetimeConverter(datetime.date),

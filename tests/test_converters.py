@@ -14,7 +14,7 @@ import pytest
 from pane.errors import ErrorNode, SumErrorNode, ProductErrorNode, WrongTypeError, ConditionFailedError, ParseInterrupt
 from pane.convert import convert, from_data, into_data, make_converter, ConvertError
 from pane.converters import Converter, ScalarConverter, TupleConverter, SequenceConverter, TaggedUnionConverter, AnyConverter
-from pane.converters import StructConverter, UnionConverter, LiteralConverter, ConditionalConverter
+from pane.converters import StructConverter, UnionConverter, LiteralConverter, ConditionalConverter, BoolConverter
 from pane.converters import PatternConverter, DatetimeConverter
 from pane.annotations import Condition, Tagged, val_range, len_range
 
@@ -50,6 +50,7 @@ class TestConverter(Converter[TestConvertible]):
 
 @pytest.mark.parametrize(('input', 'conv'), [
     (int, ScalarConverter(int, int, 'an int', 'ints', int)),
+    (bool, BoolConverter()),
     ({'x': int, 'y': float}, StructConverter(dict, {'x': int, 'y': float})),
     (t.Tuple[int, ...], SequenceConverter(tuple, int)),
     (list[str], SequenceConverter(list, str)),
@@ -166,6 +167,9 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
     (int, 's', WrongTypeError('an int', 's')),
     (float, 5, 5.0),
     (complex, 6, 6.0+0j),
+    (bool, 0, False),
+    (bool, 1, True),
+    (bool, 2, WrongTypeError('a boolean', 2)),
     # bytes types
     (bytes, b'bytestring', b'bytestring'),
     (str, b'bytestring', WrongTypeError('a string', b'bytestring')),

@@ -404,3 +404,11 @@ def test_pane_custom_converters():
         {'x': 5, 'y': 'str', 'z': 'str', 'member': {'inner': 'str'}},
         PaneCustomChild, custom={int: make_converter(int), str: DoubleStrConverter()}
     ) == PaneCustomChild.make_unchecked(x=5, y='strstr', z='str', member=PaneCustomMember.make_unchecked('strstr'))
+
+
+def test_kw_only_order():
+    class KwOnlyOrder(pane.PaneBase, kw_only=True):
+        a: t.Optional[int] = None
+        b: int
+
+    assert KwOnlyOrder.from_data({'b': 5}) == KwOnlyOrder.make_unchecked(a=None, b=5)
