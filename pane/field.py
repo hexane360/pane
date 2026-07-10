@@ -5,7 +5,7 @@ import itertools
 import re
 import typing as t
 
-from typing_extensions import ParamSpec, Self, TypeAlias
+from typing_extensions import TypeVar, ParamSpec, TypeVarTuple, Self, TypeAlias
 
 from .util import replace_typevars, KW_ONLY
 from .converters import Converter
@@ -169,7 +169,10 @@ class FieldSpec:
         if isinstance(self.aliases, str):
             self.aliases = [self.aliases]
 
-    def replace_typevars(self, replacements: t.Mapping[t.Union[t.TypeVar, ParamSpec], t.Type[t.Any]]) -> Self:
+    def replace_typevars(
+            self,
+            replacements: t.Mapping[t.Union[TypeVar, ParamSpec, TypeVarTuple], t.Type[t.Any]]
+    ) -> Self:
         """
         Apply type variable replacements to `self`.
         """

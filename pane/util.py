@@ -5,7 +5,7 @@ from itertools import zip_longest
 import operator
 import typing as t
 from threading import RLock
-from typing_extensions import ParamSpec, TypeVarTuple, get_annotations
+from typing_extensions import TypeVar, ParamSpec, TypeVarTuple, get_annotations
 
 if t.TYPE_CHECKING:
     from typing_extensions import TypeAliasType
@@ -65,21 +65,21 @@ def remove_article(s: str) -> str:
     return s
 
 
-def _collect_typevars(d: t.Dict[t.Union[t.TypeVar, ParamSpec], None], ty: t.Any):
+def _collect_typevars(d: t.Dict[t.Union[TypeVar, ParamSpec], None], ty: t.Any):
     if isinstance(ty, type):
         pass
     elif isinstance(ty, (tuple, t.Sequence)):
         ty = t.cast(t.Sequence[t.Any], ty)
         for arg in ty:
             _collect_typevars(d, arg)
-    elif hasattr(ty, '__typing_subst__') or isinstance(ty, (t.TypeVar, ParamSpec)):
+    elif hasattr(ty, '__typing_subst__') or isinstance(ty, (TypeVar, ParamSpec)):
         d.setdefault(ty)
     else:
         for ty in getattr(ty, '__parameters__', ()):
             d.setdefault(ty)
 
 
-def collect_typevars(args: t.Any) -> t.Tuple[t.Union[t.TypeVar, ParamSpec], ...]:
+def collect_typevars(args: t.Any) -> t.Tuple[t.Union[TypeVar, ParamSpec], ...]:
     """
     Collect a list of type variables in `args`
 
@@ -88,7 +88,7 @@ def collect_typevars(args: t.Any) -> t.Tuple[t.Union[t.TypeVar, ParamSpec], ...]
 
     Loosely based on `typing._collect_parameters`.
     """
-    d: t.Dict[t.Union[t.TypeVar, ParamSpec], None] = {}  # relies on dicts preserving insertion order
+    d: t.Dict[t.Union[TypeVar, ParamSpec], None] = {}  # relies on dicts preserving insertion order
     _collect_typevars(d, args)
     return tuple(d)
 
@@ -106,13 +106,11 @@ def flatten_union_args(types: t.Iterable[T]) -> t.Iterator[T]:
             yield ty
 
 
-def replace_typevars(ty: t.Any,
-                     replacements: t.Mapping[t.Union[t.TypeVar, ParamSpec, TypeVarTuple],
-                                             t.Union[type, t.TypeVar, ParamSpec, TypeVarTuple]]) -> t.Any:
+def replace_typevars(ty: t.Any, replacements: t.Mapping[t.Union[TypeVar, ParamSpec, TypeVarTuple], t.Any]) -> t.Any:
     """
     Apply a list of type-variable replacements to `ty`, and return the modified type.
     """
-    if isinstance(ty, (t.TypeVar, ParamSpec)):
+    if isinstance(ty, (TypeVar, ParamSpec, TypeVarTuple)):
         return replacements.get(ty, ty)
     if isinstance(ty, t.Sequence) and not isinstance(ty, (str, bytes)):
         return type(ty)(replace_typevars(t, replacements) for t in ty)  # type: ignore
@@ -156,7 +154,7 @@ def resolve_type_aliases(ty: t.Any) -> t.Any:
 
     # need to run again on output (TODO: add guard here)
     return resolve_type_aliases(replace_typevars(
-        alias.__value__, dict(zip(alias.__type_params__, args))  # type: ignore
+        alias.__value__, dict(zip(alias.__type_params__, args))
     ))
 
 
