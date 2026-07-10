@@ -63,7 +63,7 @@ try:
                 handlers=handlers
             ))
 
-        if not (issubclass(ty, ndarray) or ty is NDArray):
+        if not (ty is NDArray or issubclass(ty, ndarray)):
             return NotImplemented
 
         if issubclass(ty, ndarray):

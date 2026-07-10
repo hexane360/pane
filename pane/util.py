@@ -5,12 +5,18 @@ from itertools import zip_longest
 import operator
 import typing as t
 from threading import RLock
-from typing_extensions import ParamSpec, get_annotations
+from typing_extensions import ParamSpec, TypeVarTuple, get_annotations
 
+if t.TYPE_CHECKING:
+    from typing_extensions import TypeAliasType
+else:
+    try:
+        from typing import TypeAliasType
+    except ImportError:
+        from typing_extensions import TypeAliasType
 
 T = t.TypeVar('T')
 P = ParamSpec('P')
-
 
 # mock KW_ONLY on python <3.10
 try:
@@ -88,7 +94,7 @@ def collect_typevars(args: t.Any) -> t.Tuple[t.Union[t.TypeVar, ParamSpec], ...]
 
 
 def type_union(types: t.Iterable[type]) -> type:
-    return functools.reduce(operator.or_, types)
+    return functools.reduce(operator.or_, types)  # type: ignore
 
 
 def flatten_union_args(types: t.Iterable[T]) -> t.Iterator[T]:
@@ -101,7 +107,8 @@ def flatten_union_args(types: t.Iterable[T]) -> t.Iterator[T]:
 
 
 def replace_typevars(ty: t.Any,
-                     replacements: t.Mapping[t.Union[t.TypeVar, ParamSpec], type]) -> t.Any:
+                     replacements: t.Mapping[t.Union[t.TypeVar, ParamSpec, TypeVarTuple],
+                                             t.Union[type, t.TypeVar, ParamSpec, TypeVarTuple]]) -> t.Any:
     """
     Apply a list of type-variable replacements to `ty`, and return the modified type.
     """
@@ -128,6 +135,29 @@ def replace_typevars(ty: t.Any,
             return next(iter(args))
 
     return base[tuple(args)]  # type: ignore
+
+
+def resolve_type_aliases(ty: t.Any) -> t.Any:
+    base = t.get_origin(ty) or ty
+    args = t.get_args(ty)
+
+    if getattr(base, '__class__', None) is not TypeAliasType:
+        if base and len(args):
+            # recurse into args
+            return base[tuple(map(resolve_type_aliases, t.get_args(ty)))]
+        return ty
+
+    alias = t.cast(TypeAliasType, base)
+    if len(args) > len(alias.__type_params__):
+        if len(alias.__type_params__):
+            raise TypeError(f"Too many type arguments supplied for '{alias.__name__}'; "
+                            f"expected {len(alias.__type_params__)} but received {len(args)}")
+        raise TypeError(f"Expected no type arguments for '{alias.__name__}'")
+
+    # need to run again on output (TODO: add guard here)
+    return resolve_type_aliases(replace_typevars(
+        alias.__value__, dict(zip(alias.__type_params__, args))  # type: ignore
+    ))
 
 
 def get_type_hints(cls: type) -> t.Dict[str, t.Any]:
@@ -269,6 +299,6 @@ def key_cache(key_f: t.Callable[P, t.Any], *, maxsize: t.Optional[int] = None) -
 
 __all__ = [
     'list_phrase', 'pluralize', 'remove_article',
-    'flatten_union_args', 'collect_typevars', 'replace_typevars', 'get_type_hints',
+    'flatten_union_args', 'collect_typevars', 'replace_typevars', 'get_type_hints', 'resolve_type_aliases',
     'KW_ONLY',
 ]

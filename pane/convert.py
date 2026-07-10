@@ -24,7 +24,7 @@ from typing_extensions import Self, TypeAlias
 
 from .errors import ConvertError, UnsupportedAnnotation
 from .addons import numpy as numpy
-from .util import key_cache
+from .util import key_cache, resolve_type_aliases
 
 if t.TYPE_CHECKING:
     from .converters import Converter
@@ -181,10 +181,11 @@ def make_converter(ty: IntoConverter, handlers: ConverterHandlers = ConverterHan
 
     Supports types, mappings of types, and sequences of types.
     """
-
     from .converters import AnyConverter, StructConverter, SequenceConverter, UnionConverter
     from .converters import LiteralConverter, DictConverter, TupleConverter, ScalarConverter
     from .converters import EnumConverter, DelegateConverter, _BASIC_CONVERTERS, _BASIC_WITH_ARGS
+
+    ty = resolve_type_aliases(ty)
 
     if ty is t.Any or ty is type(t.Any):
         return AnyConverter()
@@ -221,7 +222,6 @@ def make_converter(ty: IntoConverter, handlers: ConverterHandlers = ConverterHan
     # handle annotations
     if base is t.Annotated:
         return _annotated_converter(args[0], args[1:], handlers=handlers)
-
     # union converter
     if base is t.Union:
         return UnionConverter(args, handlers=handlers)

@@ -5,6 +5,7 @@ from typing_extensions import ParamSpec
 import pytest
 
 from pane.util import replace_typevars, collect_typevars, flatten_union_args, get_type_hints
+from pane.util import resolve_type_aliases, TypeAliasType
 from pane.util import pluralize, list_phrase, remove_article
 
 
@@ -13,6 +14,14 @@ U = t.TypeVar('U')
 K = t.TypeVar('K')
 V = t.TypeVar('V')
 P = ParamSpec('P')
+
+# mock `type X = ...` syntax,
+# type IntList = t.List[int]
+IntList = TypeAliasType('IntList', t.List[int])
+# type ListAlias[T] = t.List[T]
+ListAlias = TypeAliasType('ListAlias', t.List[T], type_params=(T,))
+# type NestedAlias[U] = t.Dict[str, ListAlias[U]]
+NestedAlias = TypeAliasType('NestedAlias', t.Dict[str, ListAlias[U]], type_params=(U,))
 
 
 @pytest.mark.parametrize(('input', 'output'), [
@@ -39,6 +48,22 @@ def test_replace_typevars(input, output):
 ])
 def test_collect_typevars(input, output):
     assert collect_typevars(input) == output
+
+
+@pytest.mark.parametrize(('input', 'output'), [
+    (int, int),  # non-alias types are returned unchanged
+    (IntList, list[int]),  # non-generic alias
+    (ListAlias[int], list[int]),  # generic alias
+    (t.List[ListAlias[int]], list[list[int]]),  # alias nested inside another generic
+    (NestedAlias[ListAlias[float]], dict[str, list[list[float]]]),  # alias nested inside another alias
+])
+def test_resolve_type_aliases(input, output):
+    assert resolve_type_aliases(input) == output
+
+
+def test_resolve_type_aliases_too_many_args():
+    with pytest.raises(TypeError, match='Too many type arguments'):
+        resolve_type_aliases(ListAlias[int, str])
 
 
 class TestClass:
