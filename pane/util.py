@@ -5,7 +5,7 @@ from itertools import zip_longest
 import operator
 import typing as t
 from threading import RLock
-from typing_extensions import TypeVar, ParamSpec, TypeVarTuple, get_annotations
+from typing_extensions import TypeVar, ParamSpec, TypeVarTuple, TypeAlias, get_annotations
 
 if t.TYPE_CHECKING:
     from typing_extensions import TypeAliasType
@@ -17,6 +17,7 @@ else:
 
 T = t.TypeVar('T')
 P = ParamSpec('P')
+TypeVarLike: TypeAlias = t.Union[TypeVar, ParamSpec, TypeVarTuple]
 
 # mock KW_ONLY on python <3.10
 try:
@@ -65,21 +66,21 @@ def remove_article(s: str) -> str:
     return s
 
 
-def _collect_typevars(d: t.Dict[t.Union[TypeVar, ParamSpec], None], ty: t.Any):
+def _collect_typevars(d: t.Dict[TypeVarLike, None], ty: t.Any):
     if isinstance(ty, type):
         pass
     elif isinstance(ty, (tuple, t.Sequence)):
         ty = t.cast(t.Sequence[t.Any], ty)
         for arg in ty:
             _collect_typevars(d, arg)
-    elif hasattr(ty, '__typing_subst__') or isinstance(ty, (TypeVar, ParamSpec)):
+    elif hasattr(ty, '__typing_subst__') or isinstance(ty, (TypeVar, ParamSpec, TypeVarTuple)):
         d.setdefault(ty)
     else:
         for ty in getattr(ty, '__parameters__', ()):
             d.setdefault(ty)
 
 
-def collect_typevars(args: t.Any) -> t.Tuple[t.Union[TypeVar, ParamSpec], ...]:
+def collect_typevars(args: t.Any) -> t.Tuple[TypeVarLike, ...]:
     """
     Collect a list of type variables in `args`
 
@@ -88,7 +89,7 @@ def collect_typevars(args: t.Any) -> t.Tuple[t.Union[TypeVar, ParamSpec], ...]:
 
     Loosely based on `typing._collect_parameters`.
     """
-    d: t.Dict[t.Union[TypeVar, ParamSpec], None] = {}  # relies on dicts preserving insertion order
+    d: t.Dict[TypeVarLike, None] = {}  # relies on dicts preserving insertion order
     _collect_typevars(d, args)
     return tuple(d)
 
@@ -106,7 +107,7 @@ def flatten_union_args(types: t.Iterable[T]) -> t.Iterator[T]:
             yield ty
 
 
-def replace_typevars(ty: t.Any, replacements: t.Mapping[t.Union[TypeVar, ParamSpec, TypeVarTuple], t.Any]) -> t.Any:
+def replace_typevars(ty: t.Any, replacements: t.Mapping[TypeVarLike, t.Any]) -> t.Any:
     """
     Apply a list of type-variable replacements to `ty`, and return the modified type.
     """
@@ -298,5 +299,5 @@ def key_cache(key_f: t.Callable[P, t.Any], *, maxsize: t.Optional[int] = None) -
 __all__ = [
     'list_phrase', 'pluralize', 'remove_article',
     'flatten_union_args', 'collect_typevars', 'replace_typevars', 'get_type_hints', 'resolve_type_aliases',
-    'KW_ONLY',
+    'KW_ONLY', 'TypeVarLike',
 ]

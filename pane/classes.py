@@ -11,7 +11,7 @@ from inspect import Signature, Parameter
 import traceback
 import typing as t
 
-from typing_extensions import dataclass_transform, ParamSpec, Self, TypeAlias
+from typing_extensions import dataclass_transform, Self, TypeAlias
 
 from .convert import DataType, Convertible, from_data, into_data, convert
 from .convert import ConverterHandler, ConverterHandlers, IntoConverterHandlers
@@ -19,7 +19,7 @@ from .converters import Converter, make_converter
 from .errors import ConvertError, ParseInterrupt, ErrorNode
 from .errors import WrongTypeError, WrongLenError, ProductErrorNode, DuplicateKeyError
 from .field import Field, FieldSpec, field, RenameStyle, rename_field, _MISSING
-from .util import get_type_hints, list_phrase, KW_ONLY
+from .util import TypeVarLike, get_type_hints, list_phrase, KW_ONLY
 from . import io
 
 
@@ -430,7 +430,7 @@ def _process(cls: t.Type[PaneBase], opts: PaneOptions):
         cls_specs = getattr(base, PANE_INFO).specs
 
         # apply typevar replacements
-        bound_vars = t.cast(t.Mapping[t.Union[t.TypeVar, ParamSpec], type], getattr(base, PANE_BOUNDVARS, {}))
+        bound_vars = t.cast(t.Mapping[TypeVarLike, type], getattr(base, PANE_BOUNDVARS, {}))
         specs.update(cls_specs)
         specs = {k: spec.replace_typevars(bound_vars) for (k, spec) in specs.items()}
 
