@@ -1,11 +1,18 @@
-import sys
-
 import functools
-from itertools import zip_longest
 import operator
+import sys
+import types
 import typing as t
+from itertools import zip_longest
 from threading import RLock
-from typing_extensions import TypeVar, ParamSpec, TypeVarTuple, TypeAlias, get_annotations
+
+from typing_extensions import (
+    ParamSpec,
+    TypeAlias,
+    TypeVar,
+    TypeVarTuple,
+    get_annotations,
+)
 
 if t.TYPE_CHECKING:
     from typing_extensions import TypeAliasType
@@ -98,10 +105,11 @@ def type_union(types: t.Iterable[type]) -> type:
     return functools.reduce(operator.or_, types)  # type: ignore
 
 
-def flatten_union_args(types: t.Iterable[T]) -> t.Iterator[T]:
+def flatten_union_args(tys: t.Iterable[T]) -> t.Iterator[T]:
     """Flatten nested unions, returning a single sequence of possible union types."""
-    for ty in types:
-        if t.get_origin(ty) is t.Union:
+    for ty in tys:
+        base = t.get_origin(ty)
+        if base is t.Union or base is types.UnionType:
             yield from flatten_union_args(t.get_args(ty))
         else:
             yield ty
@@ -124,7 +132,7 @@ def replace_typevars(ty: t.Any, replacements: t.Mapping[TypeVarLike, t.Any]) -> 
 
     args = (replace_typevars(ty, replacements) for ty in args)
 
-    if base is t.Union:
+    if base is t.Union or base is types.UnionType:
         args = tuple(flatten_union_args(args))
         # deduplicate union
         args = dict.fromkeys(args).keys()
@@ -297,7 +305,14 @@ def key_cache(key_f: t.Callable[P, t.Any], *, maxsize: t.Optional[int] = None) -
 
 
 __all__ = [
-    'list_phrase', 'pluralize', 'remove_article',
-    'flatten_union_args', 'collect_typevars', 'replace_typevars', 'get_type_hints', 'resolve_type_aliases',
-    'KW_ONLY', 'TypeVarLike',
+    'KW_ONLY',
+    'TypeVarLike',
+    'collect_typevars',
+    'flatten_union_args',
+    'get_type_hints',
+    'list_phrase',
+    'pluralize',
+    'remove_article',
+    'replace_typevars',
+    'resolve_type_aliases',
 ]

@@ -4,26 +4,25 @@ High-level interface to `pane`.
 
 # pyright: reportUnknownMemberType=none
 
-from __future__ import annotations
-
-import warnings
 import collections
 import collections.abc
-from dataclasses import dataclass
 import datetime
-from decimal import Decimal
 import enum
-from fractions import Fraction
-import itertools
 import inspect
+import itertools
 import os
 import pathlib
+import types
 import typing as t
+import warnings
+from dataclasses import dataclass
+from decimal import Decimal
+from fractions import Fraction
 
 from typing_extensions import Self, TypeAlias
 
+from .addons import numpy
 from .errors import ConvertError, UnsupportedAnnotation
-from .addons import numpy as numpy
 from .util import key_cache, resolve_type_aliases
 
 if t.TYPE_CHECKING:
@@ -39,8 +38,8 @@ class HasConverter(t.Protocol):
     """
 
     @classmethod
-    def _converter(cls: t.Type[T], *args: t.Type[Convertible],
-                   handlers: ConverterHandlers) -> Converter[T]:
+    def _converter(cls: t.Type[T], *args: t.Type['Convertible'],
+                   handlers: 'ConverterHandlers') -> 'Converter[T]':
         """
         Return a [`Converter`][pane.converters.Converter] capable of constructing `cls`.
 
@@ -102,7 +101,7 @@ class ConverterHandler(t.Protocol):
     """
 
     def __call__(self, ty: type, args: t.Tuple[t.Any, ...], /, *,
-                 handlers: ConverterHandlers) -> 'Converter[t.Any]':
+                 handlers: 'ConverterHandlers') -> 'Converter[t.Any]':
         ...
 
 
@@ -209,9 +208,9 @@ def make_converter(ty: IntoConverter, handlers: ConverterHandlers = ConverterHan
         return make_converter(var_ty, handlers)
     if isinstance(ty, (dict, t.Mapping)):
         return StructConverter(type(ty), ty, handlers=handlers)  # type: ignore
-    if isinstance(ty, (tuple, t.Tuple)):
+    if isinstance(ty, (tuple, t.Tuple)):  # noqa: UP006
         return TupleConverter(type(ty), ty, handlers=handlers)
-    if isinstance(ty, t.ForwardRef) or isinstance(ty, str):
+    if isinstance(ty, (t.ForwardRef, str)):
         raise TypeError(f"Unresolved forward reference '{ty}'")
 
     base = t.get_origin(ty) or ty
@@ -223,7 +222,7 @@ def make_converter(ty: IntoConverter, handlers: ConverterHandlers = ConverterHan
     if base is t.Annotated:
         return _annotated_converter(args[0], args[1:], handlers=handlers)
     # union converter
-    if base is t.Union:
+    if base is t.Union or base is types.UnionType:
         return UnionConverter(args, handlers=handlers)
     # literal converter
     if base is t.Literal:

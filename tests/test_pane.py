@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import inspect
 import io
+import types
 import typing as t
 
 import pytest
+from test_converters import DoubleIntConverter, DoubleStrConverter
 
 import pane
-from pane.errors import ErrorNode, ProductErrorNode, DuplicateKeyError, WrongTypeError
-from pane.convert import make_converter
 from pane.annotations import Tagged
-
-from test_converters import DoubleIntConverter, DoubleStrConverter
+from pane.convert import make_converter
+from pane.errors import DuplicateKeyError, ErrorNode, ProductErrorNode, WrongTypeError
 
 
 def check_ord(obj, other, ordering: t.Literal[-1, 0, 1]):
@@ -407,7 +407,18 @@ def test_pane_custom_converters():
 
 def test_kw_only_order():
     class KwOnlyOrder(pane.PaneBase, kw_only=True):
-        a: t.Optional[int] = None
+        a: t.Optional[int] = None  # noqa: UP045
         b: int
 
     assert KwOnlyOrder.from_data({'b': 5}) == KwOnlyOrder.make_unchecked(a=None, b=5)
+
+
+def test_pane_union():
+    if not hasattr(types, 'UnionType'):
+        pytest.skip("python <3.10 doesn't support unions")
+
+    class TestUnions:
+        old_style: t.Union[int, str]
+        new_style: (int | str)
+
+    assert TestUnions.from_data({'old_style': 'test', 'new_style': 5}) == TestUnions.make_unchecked(old_style='test', new_style=5)

@@ -5,12 +5,18 @@ Annotations supported by ``pane.convert()`` and dataclasses.
 from __future__ import annotations
 
 import abc
-from dataclasses import dataclass
 import math
+import types
 import typing as t
+from dataclasses import dataclass
 
-from .util import flatten_union_args, is_broadcastable
-from .util import list_phrase, pluralize, remove_article
+from .util import (
+    flatten_union_args,
+    is_broadcastable,
+    list_phrase,
+    pluralize,
+    remove_article,
+)
 
 if t.TYPE_CHECKING:
     from .convert import IntoConverter, ConverterHandlers
@@ -50,10 +56,10 @@ class Tagged(ConvertAnnotation):
 
         from .converters import TaggedUnionConverter
         origin = t.get_origin(inner_type)
-        if origin is not t.Union:
+        if origin is not t.Union and origin is not types.UnionType:
             raise TypeError("'Tagged' must surround a 'Union' type.")
-        types = tuple(flatten_union_args(t.get_args(inner_type)))
-        return TaggedUnionConverter(types, tag=self.tag, external=self.external, handlers=handlers)
+        tys = tuple(flatten_union_args(t.get_args(inner_type)))
+        return TaggedUnionConverter(tys, tag=self.tag, external=self.external, handlers=handlers)
 
 
 @dataclass(frozen=True)
@@ -216,7 +222,16 @@ NonEmpty = adjective_condition(lambda v: len(v) != 0, 'non-empty')
 
 
 __all__ = [
-    'ConvertAnnotation', 'Tagged', 'Condition', 'val_range', 'len_range',
-    'Positive', 'Negative', 'NonPositive', 'NonNegative',
-    'Finite', 'Empty', 'NonEmpty',
+    'Condition',
+    'ConvertAnnotation',
+    'Empty',
+    'Finite',
+    'Negative',
+    'NonEmpty',
+    'NonNegative',
+    'NonPositive',
+    'Positive',
+    'Tagged',
+    'len_range',
+    'val_range',
 ]
