@@ -100,6 +100,12 @@ def collect_typevars(args: t.Any) -> tuple[TypeVarLike, ...]:
     return tuple(d)
 
 
+def is_union(origin: t.Any) -> bool:
+    if origin is t.Union:
+        return True
+    return origin is getattr(types, 'UnionType', object())
+
+
 def type_union(types: t.Iterable[type]) -> type:
     return functools.reduce(operator.or_, types)  # type: ignore
 
@@ -107,8 +113,7 @@ def type_union(types: t.Iterable[type]) -> type:
 def flatten_union_args(tys: t.Iterable[T]) -> t.Iterator[T]:
     """Flatten nested unions, returning a single sequence of possible union types."""
     for ty in tys:
-        base = t.get_origin(ty)
-        if base is t.Union or base is types.UnionType:
+        if is_union(t.get_origin(ty)):
             yield from flatten_union_args(t.get_args(ty))
         else:
             yield ty
@@ -131,7 +136,8 @@ def replace_typevars(ty: t.Any, replacements: t.Mapping[TypeVarLike, t.Any]) -> 
 
     args = (replace_typevars(ty, replacements) for ty in args)
 
-    if base is t.Union or base is types.UnionType:
+    if is_union(base):
+        base = t.Union
         args = tuple(flatten_union_args(args))
         # deduplicate union
         args = dict.fromkeys(args).keys()
@@ -287,6 +293,7 @@ __all__ = [
     'KW_ONLY',
     'TypeVarLike',
     'collect_typevars',
+    'is_union',
     'flatten_union_args',
     'get_type_hints',
     'list_phrase',

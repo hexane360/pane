@@ -12,7 +12,6 @@ import inspect
 import itertools
 import os
 import pathlib
-import types
 import typing as t
 import warnings
 from dataclasses import dataclass
@@ -23,7 +22,7 @@ from typing_extensions import Self, TypeAlias
 
 from .addons import numpy
 from .errors import ConvertError, UnsupportedAnnotation
-from .util import key_cache, resolve_type_aliases
+from .util import is_union, key_cache, resolve_type_aliases
 
 if t.TYPE_CHECKING:
     from .converters import Converter
@@ -233,7 +232,7 @@ def make_converter(ty: IntoConverter, handlers: ConverterHandlers = ConverterHan
     if base is t.Annotated:
         return _annotated_converter(args[0], args[1:], handlers=handlers)
     # union converter
-    if base is t.Union or base is types.UnionType:
+    if is_union(base):
         return UnionConverter(args, handlers=handlers)
     # literal converter
     if base is t.Literal:

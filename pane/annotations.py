@@ -6,13 +6,13 @@ from __future__ import annotations
 
 import abc
 import math
-import types
 import typing as t
 from dataclasses import dataclass
 
 from .util import (
     flatten_union_args,
     is_broadcastable,
+    is_union,
     list_phrase,
     pluralize,
     remove_article,
@@ -55,8 +55,7 @@ class Tagged(ConvertAnnotation):
                    handlers: ConverterHandlers) -> Converter[t.Any]:
 
         from .converters import TaggedUnionConverter
-        origin = t.get_origin(inner_type)
-        if origin is not t.Union and origin is not types.UnionType:
+        if not is_union(t.get_origin(inner_type)):
             raise TypeError("'Tagged' must surround a 'Union' type.")
         tys = tuple(flatten_union_args(t.get_args(inner_type)))
         return TaggedUnionConverter(tys, tag=self.tag, external=self.external, handlers=handlers)
