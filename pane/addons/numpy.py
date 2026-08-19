@@ -4,16 +4,16 @@ import typing as t
 # pyright: reportUnknownMemberType=none
 
 try:
-    from numpy import generic, dtype, ndarray, array
-    from numpy.typing import NDArray
     import numpy as _numpy
+    from numpy import array, dtype, generic, ndarray
+    from numpy.typing import NDArray
 
     if t.TYPE_CHECKING:
-        from ..converters import Converter
         from ..convert import ConverterHandlers
+        from ..converters import Converter
 
 
-    def _dtype_map(ty: t.Union[t.Type[t.Any], t.Type[generic]]) -> type:
+    def _dtype_map(ty: t.Union[type[t.Any], type[generic]]) -> type:
         # TODO add a lookup table here
         # TODO add conditions to some types
         # e.g. unsigned int -> NonNegativeInt
@@ -42,7 +42,7 @@ try:
         args = t.get_args(ty)
 
         # let tuple[int, ...], tuple[t.Any, ...] through
-        if issubclass(base, (tuple, t.Tuple)) and args[0] in (int, t.Any) and args[1] == Ellipsis: 
+        if issubclass(base, (tuple, t.Tuple)) and args[0] in (int, t.Any) and args[1] == Ellipsis:   # noqa: UP006
             return
 
         raise TypeError("Numpy shape types are currently unsupported.")
@@ -87,7 +87,7 @@ try:
 
 except ImportError:
     if not t.TYPE_CHECKING:
-        class generic():
+        class generic:
             pass
 
         _DTypeScalar_co = t.TypeVar("_DTypeScalar_co", covariant=True, bound=generic)
@@ -101,10 +101,10 @@ except ImportError:
         class ndarray(t.Generic[_ShapeType, _DType_co]):
             pass
 
-        ScalarType = t.TypeVar("ScalarType", covariant=True, bound=generic)
-        NDArray = ndarray[t.Any, dtype[ScalarType]]
+        ScalarType_co = t.TypeVar("ScalarType_co", covariant=True, bound=generic)
+        NDArray = ndarray[t.Any, dtype[ScalarType_co]]
 
         # dummy handler
         def numpy_converter_handler(ty: t.Any, args: t.Sequence[t.Any], *,
-                                    custom: t.Optional[ConverterHandlers] = None):
+                                    custom: t.Optional['ConverterHandlers'] = None):
             return NotImplemented

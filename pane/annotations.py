@@ -19,8 +19,8 @@ from .util import (
 )
 
 if t.TYPE_CHECKING:
-    from .convert import IntoConverter, ConverterHandlers
-    from .converters import Converter, ConditionalConverter
+    from .convert import ConverterHandlers, IntoConverter
+    from .converters import ConditionalConverter, Converter
 
 
 class ConvertAnnotation(abc.ABC, t.Hashable):
@@ -37,7 +37,7 @@ class ConvertAnnotation(abc.ABC, t.Hashable):
 class Tagged(ConvertAnnotation):
     tag: str
     """Name of tag. This name will be searched in every Union member"""
-    external: t.Union[bool, t.Tuple[str, str]] = False
+    external: t.Union[bool, tuple[str, str]] = False
     """
     Tagged unions can be stored three ways:
      - Internally tagged (`external=False`, default). In this format, the tags are stored inside of each object: `{tag_name: tag_value, **obj}`
@@ -142,9 +142,9 @@ class Condition(ConvertAnnotation):
         )
 
 
-def val_range(*, min: t.Union[int, float, None] = None, max: t.Union[int, float, None] = None) -> Condition:
+def val_range(*, min: t.Union[float, None] = None, max: t.Union[float, None] = None) -> Condition:
     """`Condition` indicating that a value must be between `min` and `max` (inclusive)."""
-    conds: t.List[Condition] = []
+    conds: list[Condition] = []
     if min is not None:
         conds.append(Condition(lambda v: v >= min, f"v >= {min}"))
     if max is not None:
@@ -154,7 +154,7 @@ def val_range(*, min: t.Union[int, float, None] = None, max: t.Union[int, float,
 
 def len_range(*, min: t.Optional[int] = None, max: t.Optional[int] = None) -> Condition:
     """`Condition` indicating that a value must have between `min` and `max` elements (inclusive)."""
-    conds: t.List[Condition] = []
+    conds: list[Condition] = []
     if min is not None:
         conds.append(Condition(lambda v: len(v) >= min, f"at least {min} {pluralize('elem', min)}"))
     if max is not None:

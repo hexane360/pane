@@ -4,16 +4,19 @@ from __future__ import annotations
 import math
 import typing as t
 
-from typing_extensions import TypeAlias
+from typing_extensions import Self, TypeAlias
 
-from pane.classes import PaneBase, field
-from pane.converters import UnionConverter
-from pane.convert import Convertible, DataType, into_data, ConverterHandlers
 from pane.annotations import (
-    Positive, NonNegative, Negative, NonPositive, Finite,
+    Finite,
+    Negative,
+    NonNegative,
+    NonPositive,
+    Positive,
     len_range,
 )
-
+from pane.classes import PaneBase, field
+from pane.convert import ConverterHandlers, Convertible, DataType, into_data
+from pane.converters import UnionConverter
 
 T = t.TypeVar('T', bound=Convertible)
 U = t.TypeVar('U', bound=Convertible)
@@ -30,7 +33,7 @@ NegativeFloat: TypeAlias = t.Annotated[float, Negative]
 NonPositiveFloat: TypeAlias = t.Annotated[float, NonPositive]
 FiniteFloat: TypeAlias = t.Annotated[float, Finite]
 
-ListNotEmpty: TypeAlias = t.Annotated[t.List[T], len_range(min=1)]
+ListNotEmpty: TypeAlias = t.Annotated[list[T], len_range(min=1)]
 
 
 class Range(PaneBase, t.Generic[Num],
@@ -76,10 +79,10 @@ class Range(PaneBase, t.Generic[Num],
 
 
 class ValueOrList(t.Generic[T]):
-    _inner: t.Union[T, t.List[T]]
+    _inner: t.Union[T, list[T]]
     _is_val: bool
 
-    def __init__(self, val: t.Union[T, t.List[T]], _is_val: bool):
+    def __init__(self, val: t.Union[T, list[T]], _is_val: bool):
         self._inner = val
         self._is_val = _is_val
 
@@ -88,7 +91,7 @@ class ValueOrList(t.Generic[T]):
         return cls(val, True)
 
     @classmethod
-    def from_list(cls, list_val: t.List[T]) -> ValueOrList[T]:
+    def from_list(cls, list_val: list[T]) -> ValueOrList[T]:
         return cls(list_val, False)
 
     def __repr__(self) -> str:
@@ -97,35 +100,37 @@ class ValueOrList(t.Generic[T]):
     def __str__(self) -> str:
         return str(self._inner)
 
-    def __eq__(self, other: t.Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not self.__class__ == other.__class__:
             return False
+        if t.TYPE_CHECKING:
+            assert isinstance(other, self.__class__)
         return self._is_val == other._is_val and self._inner == other._inner
 
     @classmethod
-    def _converter(cls: t.Type[T], *args: t.Type[Convertible],
+    def _converter(cls: type[Self], *args: type[Convertible],
                    handlers: ConverterHandlers) -> ValueOrListConverter:
-        arg = t.cast(t.Type[Convertible], args[0] if len(args) > 0 else t.Any)
+        arg = t.cast(type[Convertible], args[0] if len(args) > 0 else t.Any)
         return ValueOrListConverter(arg, handlers=handlers)
 
     def __len__(self) -> int:
-        return 1 if self._is_val else len(t.cast(t.List[T], self._inner))
+        return 1 if self._is_val else len(t.cast(list[T], self._inner))
 
     def map(self, f: t.Callable[[T], U]) -> ValueOrList[U]:
         if self._is_val:
             return ValueOrList(f(t.cast(T, self._inner)), True)
-        return ValueOrList(list(map(f, t.cast(t.List[T], self._inner))), False)
+        return ValueOrList(list(map(f, t.cast(list[T], self._inner))), False)
 
     def __iter__(self) -> t.Iterator[T]:
         if self._is_val:
             yield t.cast(T, self._inner)
         else:
-            yield from t.cast(t.List[T], self._inner)
+            yield from t.cast(list[T], self._inner)
 
 
 class ValueOrListConverter(UnionConverter):
-    def __init__(self, ty: t.Type[Convertible], handlers: ConverterHandlers):
-        types = t.cast(t.Sequence[t.Type[Convertible]], (ty, t.List[ty]))
+    def __init__(self, ty: type[Convertible], handlers: ConverterHandlers):
+        types = t.cast(t.Sequence[type[Convertible]], (ty, list[ty]))
         super().__init__(types, constructor=lambda v, i: ValueOrList(v, i == 0), handlers=handlers)
         self.ty = ty
 
@@ -145,7 +150,6 @@ class YAMLDocList(list):  # type: ignore
     """
     `list` subclass representing a list of objects from YAML documents.
     """
-    ...
 
 
 __all__ = [

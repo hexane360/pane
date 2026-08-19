@@ -75,3 +75,15 @@ reportUnnecessaryComparison = "information"
 reportUnnecessaryCast = "warning"
 reportUntypedBaseClass = "information"
 reportConstantRedefinition = "none"
+
+[tool.ruff.lint]
+ignore = [
+  "RUF022",
+  "PLW0642",
+]
+
+[tool.ruff.lint.pyupgrade]
+keep-runtime-typing = true
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["pane.convert.ConverterHandlers"]

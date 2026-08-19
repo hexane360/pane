@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import abc
-from io import StringIO
+import dataclasses
 import sys
 import traceback
-import dataclasses
 import typing as t
+from io import StringIO
 
 
 class ParseInterrupt(Exception):
@@ -15,7 +15,6 @@ class ParseInterrupt(Exception):
     Raised by [`Converter`][pane.converters.Converter]s to indicate that a given parsing path has failed
     (without materializing a detailed error message).
     """
-    ...
 
 
 class UnsupportedAnnotation(Exception):
@@ -106,10 +105,12 @@ class WrongTypeError(ErrorNode):
     def __repr__(self) -> str:
         return f"WrongTypeError(expected={self.expected!r}, actual={self.actual!r}, cause={self._get_cause()!r}, info={self.info!r})"
 
-    def __eq__(self, other: t.Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         # mostly useful for testing
-        if not self.__class__ == other.__class__:
+        if not other.__class__ is self.__class__:
             return False
+        if t.TYPE_CHECKING:
+            assert isinstance(other, self.__class__)
 
         return (
             self.expected == other.expected and
@@ -123,7 +124,7 @@ class WrongTypeError(ErrorNode):
 class WrongLenError(ErrorNode):
     expected: str
     """Short description of expected value type"""
-    expected_len: t.Tuple[int, int]
+    expected_len: tuple[int, int]
     """(min, max) expected value length"""
     actual: t.Any
     """Actual value received"""
@@ -177,7 +178,7 @@ class DuplicateKeyError(ErrorNode):
 class ProductErrorNode(ErrorNode):
     expected: str
     """Short description of expected value type"""
-    children: t.Dict[t.Union[int, str], ErrorNode]
+    children: dict[t.Union[int, str], ErrorNode]
     """Map containing errors parsing subfields, if any"""
     actual: t.Any
     """Actual value received"""
@@ -192,9 +193,9 @@ class ProductErrorNode(ErrorNode):
             field, child = next(iter(self.children.items()))
             if not isinstance(child, ProductErrorNode):
                 break
-            children: t.Dict[t.Union[str, int], ErrorNode] = {f"{field}.{k}": v for (k, v) in child.children.items()}
-            missing = set(f"{field}.{f}" for f in child.missing)
-            extra = set(f"{field}.{f}" for f in child.extra)
+            children: dict[t.Union[str, int], ErrorNode] = {f"{field}.{k}": v for (k, v) in child.children.items()}
+            missing = {f"{field}.{f}" for f in child.missing}
+            extra = {f"{field}.{f}" for f in child.extra}
             self = ProductErrorNode(self.expected, children, self.actual, missing, extra)
 
         print(f"{'' if inside_sum else 'Expected '}{self.expected}", file=file)
@@ -213,7 +214,7 @@ class ProductErrorNode(ErrorNode):
 
 @dataclasses.dataclass
 class SumErrorNode(ErrorNode):
-    children: t.List[ErrorNode]
+    children: list[ErrorNode]
     """Map containing the errors while parsing as each variant"""
 
     def print_error(self, indent: str = "", inside_sum: bool = False, file: t.TextIO = sys.stdout):

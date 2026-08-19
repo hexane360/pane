@@ -1,12 +1,20 @@
 from __future__ import annotations
 
-from .convert import DataType, Convertible, from_data, into_data, convert
+from .annotations import (
+    Condition,
+    Empty,
+    Negative,
+    NonEmpty,
+    NonNegative,
+    NonPositive,
+    Positive,
+    len_range,
+    val_range,
+)
+from .classes import KW_ONLY, Field, PaneBase, PaneOptions, field
+from .convert import Convertible, DataType, convert, from_data, into_data
 from .errors import ConvertError
-from .annotations import Condition, val_range, len_range
-from .annotations import Positive, NonPositive, Negative, NonNegative, Empty, NonEmpty
-from .classes import PaneBase, PaneOptions, field, Field, KW_ONLY
 from .io import from_json, from_yaml, from_yaml_all, write_json, write_yaml
-
 
 __all__ = [
     # datatypes, convert() interface

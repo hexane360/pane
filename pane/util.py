@@ -1,6 +1,5 @@
 import functools
 import operator
-import sys
 import types
 import typing as t
 from itertools import zip_longest
@@ -35,10 +34,10 @@ except ImportError:
     KW_ONLY = _KW_ONLY_TYPE()
 
 
-def partition(f: t.Callable[[T], bool], iter: t.Iterable[T]) -> t.Tuple[t.Tuple[T, ...], t.Tuple[T, ...]]:
+def partition(f: t.Callable[[T], bool], iter: t.Iterable[T]) -> tuple[tuple[T, ...], tuple[T, ...]]:
     """Partition `iter` into values that satisfy `f` and those which don't."""
-    true: t.List[T] = []
-    false: t.List[T] = []
+    true: list[T] = []
+    false: list[T] = []
     for val in iter:
         if f(val):
             true.append(val)
@@ -73,7 +72,7 @@ def remove_article(s: str) -> str:
     return s
 
 
-def _collect_typevars(d: t.Dict[TypeVarLike, None], ty: t.Any):
+def _collect_typevars(d: dict[TypeVarLike, None], ty: t.Any):
     if isinstance(ty, type):
         pass
     elif isinstance(ty, (tuple, t.Sequence)):
@@ -83,11 +82,11 @@ def _collect_typevars(d: t.Dict[TypeVarLike, None], ty: t.Any):
     elif hasattr(ty, '__typing_subst__') or isinstance(ty, (TypeVar, ParamSpec, TypeVarTuple)):
         d.setdefault(ty)
     else:
-        for ty in getattr(ty, '__parameters__', ()):
-            d.setdefault(ty)
+        for param_ty in getattr(ty, '__parameters__', ()):
+            d.setdefault(param_ty)
 
 
-def collect_typevars(args: t.Any) -> t.Tuple[TypeVarLike, ...]:
+def collect_typevars(args: t.Any) -> tuple[TypeVarLike, ...]:
     """
     Collect a list of type variables in `args`
 
@@ -96,7 +95,7 @@ def collect_typevars(args: t.Any) -> t.Tuple[TypeVarLike, ...]:
 
     Loosely based on `typing._collect_parameters`.
     """
-    d: t.Dict[TypeVarLike, None] = {}  # relies on dicts preserving insertion order
+    d: dict[TypeVarLike, None] = {}  # relies on dicts preserving insertion order
     _collect_typevars(d, args)
     return tuple(d)
 
@@ -167,36 +166,16 @@ def resolve_type_aliases(ty: t.Any) -> t.Any:
     ))
 
 
-def get_type_hints(cls: type) -> t.Dict[str, t.Any]:
+def get_type_hints(cls: type) -> dict[str, t.Any]:
     """
     Extract a dict of type hints from `cls`. Evaluate forward refs if possible.
 
     This is a slightly modified version of [typing.get_type_hints]().
     """
     return get_annotations(cls, eval_str=True)
-    globalns = getattr(sys.modules.get(cls.__module__, None), '__dict__', {})
-    localns = dict(vars(cls))
-
-    d: t.Dict[str, t.Any] = {}
-    for name, value in cls.__dict__.get('__annotations__', {}).items():
-        if value is None:
-            value = type(None)
-        if isinstance(value, str):
-            value = t.ForwardRef(value, is_argument=False, is_class=True)
-        if isinstance(value, t.ForwardRef):
-            # hack to handle top-level KW_ONLY
-            val = value.__forward_value__ if value.__forward_evaluated__ else eval(value.__forward_code__, globalns, localns)
-            if val is KW_ONLY:
-                d[name] = KW_ONLY
-                continue
-        # private access inside typing module
-        value = t._eval_type(value, globalns, localns)  # type: ignore
-        d[name] = value
-
-    return d
 
 
-def broadcast_shapes(*args: t.Sequence[int]) -> t.Tuple[int, ...]:
+def broadcast_shapes(*args: t.Sequence[int]) -> tuple[int, ...]:
     """
     Attempt to broadcast the given shapes together using numpy semantics.
 
@@ -209,7 +188,7 @@ def broadcast_shapes(*args: t.Sequence[int]) -> t.Tuple[int, ...]:
         pass
 
     # our own implementation, with worse error messages
-    out_shape: t.List[int] = []
+    out_shape: list[int] = []
     for ax_lens in zip_longest(*(reversed(arg) for arg in args), fillvalue=1):
         bcast = max(ax_lens)
         if not all(ax_len in (1, bcast) for ax_len in ax_lens):
@@ -237,9 +216,9 @@ class KeyCache(t.Generic[P, T]):
         self.maxsize: t.Optional[int] = maxsize
         self.key_f: t.Callable[P, t.Any] = key_f
         self.inner_f: t.Callable[P, T] = f
-        self.cache: t.Dict[t.Tuple[t.Tuple[t.Any, ...], t.Tuple[t.Tuple[str, t.Any], ...]], t.Any] = {}
+        self.cache: dict[tuple[tuple[t.Any, ...], tuple[tuple[str, t.Any], ...]], t.Any] = {}
 
-        self._root: t.List[t.Any] = []
+        self._root: list[t.Any] = []
         self._root[:] = [self._root, self._root, None, None]
         self._lock = RLock()
 

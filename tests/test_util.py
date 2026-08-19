@@ -1,13 +1,21 @@
 import collections.abc
 import typing as t
 
-from typing_extensions import ParamSpec
 import pytest
+from typing_extensions import ParamSpec
 
-from pane.util import replace_typevars, collect_typevars, flatten_union_args, get_type_hints
-from pane.util import resolve_type_aliases, TypeAliasType
-from pane.util import pluralize, list_phrase, remove_article
+from pane.util import (
+    TypeAliasType,
+    collect_typevars,
+    flatten_union_args,
+    get_type_hints,
+    list_phrase,
+    remove_article,
+    replace_typevars,
+    resolve_type_aliases,
+)
 
+# ruff: noqa: UP006
 
 T = t.TypeVar('T')
 U = t.TypeVar('U')

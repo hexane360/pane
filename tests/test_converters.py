@@ -1,25 +1,46 @@
 from __future__ import annotations
 
-import re
-import datetime
 import collections
+import datetime
+import os
+import pathlib
+import re
+import typing as t
 from decimal import Decimal
 from fractions import Fraction
-import pathlib
-import os
-import typing as t
 
 import pytest
 
-from pane.errors import ErrorNode, SumErrorNode, ProductErrorNode, WrongTypeError, ConditionFailedError, ParseInterrupt
-from pane.convert import convert, from_data, into_data, make_converter, ConvertError
-from pane.converters import Converter, ScalarConverter, TupleConverter, SequenceConverter, TaggedUnionConverter, AnyConverter
-from pane.converters import StructConverter, UnionConverter, LiteralConverter, ConditionalConverter, BoolConverter
-from pane.converters import PatternConverter, DatetimeConverter
-from pane.annotations import Condition, Tagged, val_range, len_range
+from pane.annotations import Condition, Tagged, len_range, val_range
+from pane.convert import ConvertError, convert, from_data, into_data, make_converter
+from pane.converters import (
+    AnyConverter,
+    BoolConverter,
+    ConditionalConverter,
+    Converter,
+    DatetimeConverter,
+    LiteralConverter,
+    PatternConverter,
+    ScalarConverter,
+    SequenceConverter,
+    StructConverter,
+    TaggedUnionConverter,
+    TupleConverter,
+    UnionConverter,
+)
+from pane.errors import (
+    ConditionFailedError,
+    ErrorNode,
+    ParseInterrupt,
+    ProductErrorNode,
+    SumErrorNode,
+    WrongTypeError,
+)
+
+# ruff: noqa: UP006
 
 
-class TestConvertible():
+class TestConvertible:
     @classmethod
     def _converter(cls, *args, handlers=None) -> Converter[TestConvertible]:
         return TestConverter()  # type: ignore
@@ -55,7 +76,7 @@ class TestConverter(Converter[TestConvertible]):
     (t.Tuple[int, ...], SequenceConverter(tuple, int)),
     (list[str], SequenceConverter(list, str)),
     (tuple, SequenceConverter(tuple, t.Any)),
-    (t.Tuple[int, str], TupleConverter(tuple, (int, str))),
+    (tuple[int, str], TupleConverter(tuple, (int, str))),
     (t.Tuple[()], TupleConverter(tuple, ())),
     (TestConvertible, TestConverter()),
     (t.Union[str, int], UnionConverter((str, int))),
@@ -235,7 +256,7 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
     (re.Pattern[str], '(', WrongTypeError('a string regex pattern', '(', cause=re.error('missing ), unterminated subpattern at position 0'))),
     (re.Pattern[bytes], re.compile(b'abcde'), re.compile(b'abcde')),
     # datetime (from str)
-    (datetime.datetime, "2023-09-05 11:11:11", datetime.datetime(2023, 9, 5, 11, 11, 11)),
+    (datetime.datetime, "2023-09-05 11:11:11", datetime.datetime(2023, 9, 5, 11, 11, 11)),  # noqa: DTZ001
     (datetime.time, "11:11:11", datetime.time(11, 11, 11)),
     (datetime.date, "2023-09-05", datetime.date(2023, 9, 5)),
     (datetime.date, "11:11:11", WrongTypeError('a date', "11:11:11", cause=ValueError("Invalid isoformat string: '11:11:11'"))),
@@ -243,7 +264,7 @@ def test_converter_expected(conv: Converter, plural: bool, expected: str):
     # TODO should we accept this?
     (datetime.time, "2023-09-05 11:11:11", WrongTypeError('a time', "2023-09-05 11:11:11", cause=ValueError("Invalid isoformat string: '2023-09-05 11:11:11'"))),
     # fraction/decimal
-    (Decimal, 5, Decimal('5')),
+    (Decimal, 5, Decimal('5')),  # noqa: FURB157
     (Decimal, '5.123', Decimal('5.123')),
     (Decimal, 1.1, Decimal('1.100000000000000088817841970012523233890533447265625')),
     (Fraction, '1/5', Fraction(1, 5)),

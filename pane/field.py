@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import dataclasses
 import itertools
 import re
@@ -7,8 +5,8 @@ import typing as t
 
 from typing_extensions import Self, TypeAlias
 
-from .util import TypeVarLike, replace_typevars, KW_ONLY
 from .converters import Converter
+from .util import KW_ONLY, TypeVarLike, replace_typevars
 
 
 class _Missing:
@@ -23,7 +21,7 @@ RenameStyle: TypeAlias = t.Literal['snake', 'camel', 'pascal', 'kebab', 'scream'
 """List of supported field-renaming styles"""
 
 
-_CONVERT_FNS: t.Dict[RenameStyle, t.Callable[[t.Sequence[str]], str]] = {
+_CONVERT_FNS: dict[RenameStyle, t.Callable[[t.Sequence[str]], str]] = {
     'snake': lambda parts: '_'.join(part.lower() for part in parts),
     'scream': lambda parts: '_'.join(part.upper() for part in parts),
     'kebab': lambda parts: '-'.join(part.lower() for part in parts),
@@ -32,7 +30,7 @@ _CONVERT_FNS: t.Dict[RenameStyle, t.Callable[[t.Sequence[str]], str]] = {
 }
 
 
-def _pairwise(it: t.Iterable[T]) -> t.Iterator[t.Tuple[T, T]]:
+def _pairwise(it: t.Iterable[T]) -> t.Iterator[tuple[T, T]]:
     it = iter(it)
     while True:
         try:
@@ -113,9 +111,9 @@ class Field:
     """Custom converter to use for this field."""
 
     @classmethod
-    def make(cls, name: str, ty: type,
+    def make(cls: t.Type[Self], name: str, ty: t.Type[t.Any],  # noqa: UP006
              in_rename: t.Optional[t.Sequence[RenameStyle]] = None,
-             out_rename: t.Optional[RenameStyle] = None) -> Field:
+             out_rename: t.Optional[RenameStyle] = None) -> Self:
         in_names = tuple(rename_field(name, style) for style in in_rename) if in_rename is not None else (name,)
         out_name = rename_field(name, out_rename) if out_rename is not None else name
         return cls(name=name, type=ty, in_names=in_names, out_name=out_name)
@@ -171,7 +169,7 @@ class FieldSpec:
 
     def replace_typevars(
             self,
-            replacements: t.Mapping[TypeVarLike, t.Type[t.Any]]
+            replacements: t.Mapping[TypeVarLike, type[t.Any]]
     ) -> Self:
         """
         Apply type variable replacements to `self`.

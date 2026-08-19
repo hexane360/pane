@@ -6,18 +6,25 @@ import pytest
 
 try:
     import numpy
-    from numpy.typing import NDArray
     from numpy.testing import assert_array_equal
+    from numpy.typing import NDArray
 
 except ImportError:
     pytest.skip("skipping numpy tests", allow_module_level=True)
 
 import pane
-from pane.errors import WrongTypeError, ProductErrorNode, ErrorNode, ConditionFailedError, SumErrorNode
-from pane.convert import convert, into_data, from_data, make_converter, ConvertError
-from pane.converters import Converter, NestedSequenceConverter
-from pane.annotations import broadcastable, shape
 from pane.addons.numpy import _is_ndarray
+from pane.annotations import broadcastable, shape
+from pane.convert import ConvertError, convert, from_data, into_data, make_converter
+from pane.converters import Converter, NestedSequenceConverter
+from pane.errors import (
+    ConditionFailedError,
+    ErrorNode,
+    ProductErrorNode,
+    SumErrorNode,
+    WrongTypeError,
+)
+
 
 @pytest.mark.parametrize(('input', 'conv'), [
     (numpy.ndarray, NestedSequenceConverter(t.Any, numpy.array, ragged=False, isinstance_check=_is_ndarray)),

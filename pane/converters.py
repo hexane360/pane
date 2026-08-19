@@ -6,20 +6,34 @@ Converter types, which do the hard work of recursive validation.
 
 import abc
 import dataclasses
-import re
-import traceback
 import datetime
 import enum
-from fractions import Fraction
-from decimal import Decimal
+import re
+import traceback
 import typing as t
-from typing_extensions import TypeGuard, TypeAlias
+from decimal import Decimal
+from fractions import Fraction
 
-from .convert import DataType, Convertible, IntoConverter, make_converter, into_data, ConverterHandlers
-from .util import list_phrase, pluralize, flatten_union_args, type_union, KW_ONLY
-from .errors import ConvertError, ParseInterrupt, WrongTypeError, ConditionFailedError
-from .errors import ErrorNode, SumErrorNode, ProductErrorNode
+from typing_extensions import TypeAlias, TypeGuard
 
+from .convert import (
+    ConverterHandlers,
+    Convertible,
+    DataType,
+    IntoConverter,
+    into_data,
+    make_converter,
+)
+from .errors import (
+    ConditionFailedError,
+    ConvertError,
+    ErrorNode,
+    ParseInterrupt,
+    ProductErrorNode,
+    SumErrorNode,
+    WrongTypeError,
+)
+from .util import KW_ONLY, flatten_union_args, list_phrase, pluralize, type_union
 
 T_co = t.TypeVar('T_co', covariant=True)
 T = t.TypeVar('T')
@@ -29,7 +43,7 @@ FromDataK = t.TypeVar('FromDataK', bound=Convertible)
 FromDataV = t.TypeVar('FromDataV', bound=Convertible)
 NestedSequence: TypeAlias = t.Union[T, t.Sequence['NestedSequence[T]']]
 DatetimeT = t.TypeVar('DatetimeT', bound=t.Union[datetime.datetime, datetime.date, datetime.time])
-_ProductErrorChildren: TypeAlias = t.Dict[t.Union[int, str], ErrorNode]
+_ProductErrorChildren: TypeAlias = dict[t.Union[int, str], ErrorNode]
 
 
 def data_is_sequence(val: t.Any) -> TypeGuard[t.Sequence[t.Any]]:
@@ -116,7 +130,6 @@ class AnyConverter(Converter[t.Any]):
 
     def collect_errors(self, val: t.Any) -> None:
         """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
-        return None
 
 
 @dataclasses.dataclass
@@ -127,9 +140,9 @@ class ScalarConverter(Converter[T]):
     """
 
     # TODO this needs to handle into_data better
-    ty: t.Type[T]
+    ty: type[T]
     """Type to convert into."""
-    allowed: t.Union[type, t.Tuple[type, ...]]
+    allowed: t.Union[type, tuple[type, ...]]
     """Type or list of allowed types."""
     expect: t.Optional[str] = None
     """Singular form of expected value."""
@@ -153,7 +166,7 @@ class ScalarConverter(Converter[T]):
         if isinstance(val, self.allowed):
             try:
                 return self.ty(val)  # type: ignore
-            except Exception:
+            except Exception:  # noqa: BLE001
                 raise ParseInterrupt()
         raise ParseInterrupt()
 
@@ -163,7 +176,7 @@ class ScalarConverter(Converter[T]):
             try:
                 self.ty(val)  # type: ignore
                 return None
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 tb = e.__traceback__.tb_next  # type: ignore
                 tb = traceback.TracebackException(type(e), e, tb)
                 return WrongTypeError(self.expected(), val, tb)
@@ -250,9 +263,9 @@ class UnionConverter(Converter[t.Any]):
     Converter for an untagged union of subtypes.
     Unions are always evaluated left-to-right.
     """
-    types: t.Tuple[IntoConverter, ...]
+    types: tuple[IntoConverter, ...]
     """List of potential types"""
-    converters: t.Tuple[Converter[t.Any], ...]
+    converters: tuple[Converter[t.Any], ...]
     """List of type converters"""
     constructor: t.Optional[t.Callable[[t.Any, int], t.Any]]
     """
@@ -298,7 +311,7 @@ class UnionConverter(Converter[t.Any]):
                 val = conv.try_convert(val)
                 try:
                     return self.construct(val, i)
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
             except ParseInterrupt:
                 pass
@@ -306,7 +319,7 @@ class UnionConverter(Converter[t.Any]):
 
     def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
         """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
-        failed_children: t.List[ErrorNode] = []
+        failed_children: list[ErrorNode] = []
         for (i, conv) in enumerate(self.converters):
             # if one branch is successful, the whole type is successful
             try:
@@ -317,7 +330,7 @@ class UnionConverter(Converter[t.Any]):
             try:
                 self.construct(conv_val, i)
                 return None
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 tb = e.__traceback__.tb_next  # type: ignore
                 tb = traceback.TracebackException(type(e), e, tb)
                 failed_children.append(WrongTypeError(self.expected(), val, tb))
@@ -341,9 +354,9 @@ class TaggedUnionConverter(UnionConverter):
     ``{t: tag, c: content}``
     """
     tag: str
-    tag_map: t.Dict[t.Any, int]
+    tag_map: dict[t.Any, int]
     """Map from tags to indices into self.types/self.converters"""
-    external: t.Union[bool, t.Tuple[str, str]] = False
+    external: t.Union[bool, tuple[str, str]] = False
     """
     Tagged union representation.
     False: internal representation
@@ -352,7 +365,7 @@ class TaggedUnionConverter(UnionConverter):
     """
 
     def __init__(self, types: t.Sequence[t.Any], tag: str,
-                 external: t.Union[bool, t.Tuple[str, str]] = False, *,
+                 external: t.Union[bool, tuple[str, str]] = False, *,
                  handlers: ConverterHandlers = ConverterHandlers()):
         super().__init__(types, handlers=handlers)
         self.tag = tag
@@ -392,7 +405,7 @@ class TaggedUnionConverter(UnionConverter):
         else:
             # adjacently tagged
             (t, c) = self.external 
-            return f"{mapping} {repr(t)} => {tag}, {repr(c)} => {obj}"
+            return f"{mapping} {t!r} => {tag}, {c!r} => {obj}"
 
     def into_data(self, val: t.Any) -> DataType:
         """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
@@ -412,7 +425,7 @@ class TaggedUnionConverter(UnionConverter):
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if not data_is_mapping(val):
             raise ParseInterrupt()
-        val = t.cast(t.Dict[str, t.Any], val)
+        val = t.cast(dict[str, t.Any], val)
         tag: t.Any
 
         if self.external is False:
@@ -444,7 +457,7 @@ class TaggedUnionConverter(UnionConverter):
         """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         if not data_is_mapping(val):
             return WrongTypeError(self.expected(), val)
-        val = t.cast(t.Dict[str, t.Any], val)
+        val = t.cast(dict[str, t.Any], val)
         tag: t.Any
 
         if self.external is False:
@@ -479,7 +492,7 @@ class StructConverter(Converter[T]):
     Converter for a simple, hetereogeneous struct-like type, constructible from a dict.
     """
 
-    ty: t.Type[T]
+    ty: type[T]
     """Type to convert into. Must be constructible from a dict/mapping."""
     fields: t.Mapping[str, IntoConverter]
     """List of fields and their types"""
@@ -490,9 +503,9 @@ class StructConverter(Converter[T]):
 
     handlers: ConverterHandlers = ConverterHandlers()
 
-    opt_fields: t.Set[str] = dataclasses.field(default_factory=set[str])
+    opt_fields: set[str] = dataclasses.field(default_factory=set[str])
     """Set of fields which are optional"""
-    field_converters: t.Dict[str, Converter[t.Any]] = dataclasses.field(init=False)
+    field_converters: dict[str, Converter[t.Any]] = dataclasses.field(init=False)
     """Dict of sub-converters for each field"""
 
     def __post_init__(self):
@@ -506,21 +519,22 @@ class StructConverter(Converter[T]):
     def into_data(self, val: t.Any) -> DataType:
         """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
         assert data_is_mapping(val)
-        d: t.Dict[DataType, DataType] = {}
+        d: dict[DataType, DataType] = {}
         for (k, v) in t.cast(t.Mapping[str, t.Any], val).items():
-            if (ty := self.fields.get(k)) is not None and ty not in (t.Any, type(t.Any)):
-                if (conv := self.field_converters.get(k)) is not None:
+            if (ty := self.fields.get(k)) is not None \
+                and ty not in (t.Any, type(t.Any)) \
+                and (conv := self.field_converters.get(k)) is not None:
                     d[k] = conv.into_data(v)
                     continue
-            d[k] = make_converter(t.cast(t.Type[t.Any], type(v)), self.handlers).into_data(v)
+            d[k] = make_converter(t.cast(type[t.Any], type(v)), self.handlers).into_data(v)
         return d
 
     def try_convert(self, val: t.Any) -> T:
         """See [`Converter.try_convert`][pane.converters.Converter.try_convert]"""
         if not data_is_mapping(val):
             raise ParseInterrupt()
-        val = t.cast(t.Dict[str, t.Any], val)
-        d: t.Dict[str, t.Any] = {}
+        val = t.cast(dict[str, t.Any], val)
+        d: dict[str, t.Any] = {}
         for (k, v) in val.items():
             if k not in self.fields:
                 raise ParseInterrupt()  # unknown field
@@ -534,10 +548,10 @@ class StructConverter(Converter[T]):
         """See [`Converter.collect_errors`][pane.converters.Converter.collect_errors]"""
         if not data_is_mapping(val):
             return WrongTypeError(self.expected(), val)
-        val = t.cast(t.Dict[str, t.Any], val)
+        val = t.cast(dict[str, t.Any], val)
 
-        children: t.Dict[t.Union[str, int], t.Any] = {}
-        extra: t.Set[str] = set()
+        children: dict[t.Union[str, int], t.Any] = {}
+        extra: set[str] = set()
         for (k, v) in val.items():
             if k not in self.fields:
                 extra.add(k)
@@ -551,14 +565,14 @@ class StructConverter(Converter[T]):
 
 
 @dataclasses.dataclass(init=False)
-class TupleConverter(t.Generic[T], Converter[T]):
+class TupleConverter(Converter[T], t.Generic[T]):
     """Converter for a simple, heterogeneous tuple-like type"""
-    ty: t.Type[T]
+    ty: type[T]
     """Type to convert into. Must be constructible from an iterable"""
-    converters: t.Tuple[Converter[t.Any], ...]
+    converters: tuple[Converter[t.Any], ...]
     """List of sub-converters for each field"""
 
-    def __init__(self, ty: t.Type[T], types: t.Sequence[IntoConverter], *,
+    def __init__(self, ty: type[T], types: t.Sequence[IntoConverter], *,
                  handlers: ConverterHandlers = ConverterHandlers()):
         self.ty = ty
         self.converters = tuple(make_converter(ty, handlers) for ty in types)
@@ -598,20 +612,20 @@ class TupleConverter(t.Generic[T], Converter[T]):
 
 
 @dataclasses.dataclass(init=False)
-class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDataK, FromDataV]]):
+class DictConverter(Converter[t.Mapping[FromDataK, FromDataV]], t.Generic[FromDataK, FromDataV]):
     """Converter for a homogenous dict-like type."""
-    ty: t.Type[t.Mapping[FromDataK, FromDataV]]
+    ty: type[t.Mapping[FromDataK, FromDataV]]
     """Type to convert into. Must be constructible from a dict (unless `constructor` is specified)"""
     k_conv: Converter[FromDataK]
     """Sub-converter for keys"""
     v_conv: Converter[FromDataV]
     """Sub-converter for values"""
-    constructor: t.Callable[[t.Dict[t.Any, t.Any]], t.Mapping[FromDataK, FromDataV]]
+    constructor: t.Callable[[dict[t.Any, t.Any]], t.Mapping[FromDataK, FromDataV]]
     handlers: ConverterHandlers
 
-    def __init__(self, ty: t.Type[t.Dict[t.Any, t.Any]],
-                 k: t.Type[FromDataK] = type(t.Any), v: t.Type[FromDataV] = type(t.Any),  # type: ignore
-                 constructor: t.Optional[t.Callable[[t.Dict[t.Any, t.Any]], t.Mapping[FromDataK, FromDataV]]] = None,
+    def __init__(self, ty: type[dict[t.Any, t.Any]],
+                 k: type[FromDataK] = type(t.Any), v: type[FromDataV] = type(t.Any),  # type: ignore # noqa: B008
+                 constructor: t.Optional[t.Callable[[dict[t.Any, t.Any]], t.Mapping[FromDataK, FromDataV]]] = None,
                  *, handlers: ConverterHandlers = ConverterHandlers()):
         self.ty = ty
         self.k_conv = make_converter(k, handlers)
@@ -623,14 +637,14 @@ class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDat
         """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
         if isinstance(self.k_conv, AnyConverter):
             def _k_into_data(k: t.Any) -> DataType:
-                return make_converter(t.cast(t.Type[t.Any], type(k)), self.handlers).into_data(k)
+                return make_converter(t.cast(type[t.Any], type(k)), self.handlers).into_data(k)
         else:
             def _k_into_data(k: t.Any) -> DataType:
                 return self.k_conv.into_data(k)
 
         if isinstance(self.v_conv, AnyConverter):
             def _v_into_data(v: t.Any) -> DataType:
-                return make_converter(t.cast(t.Type[t.Any], type(v)), self.handlers).into_data(v)
+                return make_converter(t.cast(type[t.Any], type(v)), self.handlers).into_data(v)
         else:
             def _v_into_data(v: t.Any) -> DataType:
                 return self.v_conv.into_data(v)
@@ -669,7 +683,7 @@ class DictConverter(t.Generic[FromDataK, FromDataV], Converter[t.Mapping[FromDat
 
 
 @dataclasses.dataclass(init=False)
-class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
+class SequenceConverter(Converter[t.Sequence[FromDataT]], t.Generic[FromDataT]):
     """Converter for a homogenous sequence-like type"""
     ty: type
     """Type to convert into. Must be constructible from an iterator."""
@@ -678,7 +692,7 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
     constructor: t.Callable[[t.Iterable[t.Any]], t.Sequence[t.Any]]
     handlers: ConverterHandlers
 
-    def __init__(self, ty: t.Type[t.Sequence[t.Any]], v: t.Type[FromDataT] = t.cast(t.Type[t.Any], type(t.Any)), *,
+    def __init__(self, ty: type[t.Sequence[t.Any]], v: type[FromDataT] = t.cast(type[t.Any], type(t.Any)), *,  # noqa: B008
                  handlers: ConverterHandlers = ConverterHandlers(),
                  constructor: t.Optional[t.Callable[[t.Iterable[t.Any]], t.Sequence[t.Any]]] = None):
         self.ty = ty
@@ -711,7 +725,7 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
             raise ParseInterrupt
         try:
             return self.constructor(self.v_conv.try_convert(v) for v in val)  # type: ignore
-        except Exception:
+        except Exception:  # noqa: BLE001
             raise ParseInterrupt()
 
     def collect_errors(self, val: t.Any) -> t.Union[None, WrongTypeError, ProductErrorNode]:
@@ -719,8 +733,8 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
         if not data_is_sequence(val):
             return WrongTypeError(self.expected(), val)
 
-        nodes: t.Dict[t.Union[int, str], ErrorNode] = {}
-        vals: t.List[FromDataT] = []
+        nodes: dict[t.Union[int, str], ErrorNode] = {}
+        vals: list[FromDataT] = []
         for (i, v) in enumerate(val):
             try:
                 vals.append(self.v_conv.convert(v))
@@ -733,19 +747,19 @@ class SequenceConverter(t.Generic[FromDataT], Converter[t.Sequence[FromDataT]]):
         try:
             self.constructor(iter(vals))
             return None
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             tb = e.__traceback__.tb_next  # type: ignore
             tb = traceback.TracebackException(type(e), e, tb)
             return WrongTypeError(self.expected(), val, tb)
 
 
 @dataclasses.dataclass
-class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
+class NestedSequenceConverter(Converter[T], t.Generic[T, U]):
     """
     Converter which delegates to a sub-converter, and then attempts
     to construct a different type
     """
-    val_type: t.Type[U]
+    val_type: type[U]
     """Inner type to convert to"""
     constructor: t.Callable[[NestedSequence[U]], T]
     """Constructor to call."""
@@ -777,12 +791,12 @@ class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
     def _into_data(self, val: t.Any) -> DataType:
         if data_is_iterable(val):
             return list(map(self._into_data, val))
-        if self.val_type in (t.Any, t.cast(t.Type[t.Any], type(t.Any))):
-            return make_converter(t.cast(t.Type[t.Any], type(val)), self.handlers).into_data(val)
+        if self.val_type in (t.Any, t.cast(type[t.Any], type(t.Any))):
+            return make_converter(t.cast(type[t.Any], type(val)), self.handlers).into_data(val)
         return self.val_conv.into_data(val)
 
     @staticmethod
-    def _check_shape(val: NestedSequence[t.Any], dim: int = 0) -> t.Tuple[int, ...]:
+    def _check_shape(val: NestedSequence[t.Any], dim: int = 0) -> tuple[int, ...]:
         if not data_is_sequence(val):
             # single value
             return ()
@@ -829,7 +843,7 @@ class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
                 return WrongTypeError(self.expected(), val, info=e.args[0])
         try:
             self.constructor(val)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             tb = e.__traceback__.tb_next  # type: ignore
             tb = traceback.TracebackException(type(e), e, tb)
             return WrongTypeError(self.expected(), val, tb)
@@ -846,7 +860,7 @@ class NestedSequenceConverter(t.Generic[T, U], Converter[T]):
 
 
 @dataclasses.dataclass
-class ConditionalConverter(t.Generic[FromDataT], Converter[FromDataT]):
+class ConditionalConverter(Converter[FromDataT], t.Generic[FromDataT]):
     """
     Converter which applies an arbitrary pre-condition to the converted value.
     """
@@ -867,7 +881,7 @@ class ConditionalConverter(t.Generic[FromDataT], Converter[FromDataT]):
         if isinstance(self.inner_type, Converter):
             self.inner = self.inner_type
         else:
-            self.inner = make_converter(t.cast(t.Type[FromDataT], self.inner_type), self.handlers)
+            self.inner = make_converter(t.cast(type[FromDataT], self.inner_type), self.handlers)
 
     def into_data(self, val: t.Any) -> DataType:
         """See [`Converter.into_data`][pane.converters.Converter.into_data]"""
@@ -883,7 +897,7 @@ class ConditionalConverter(t.Generic[FromDataT], Converter[FromDataT]):
         try:
             if self.condition(val):
                 return val
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
         raise ParseInterrupt()
 
@@ -898,7 +912,7 @@ class ConditionalConverter(t.Generic[FromDataT], Converter[FromDataT]):
             # condition failed
             if not self.condition(conv_val):
                 return ConditionFailedError(self.expected(), val, self.condition_name)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             tb = e.__traceback__.tb_next  # type: ignore
             tb = traceback.TracebackException(type(e), e, tb)
             return ConditionFailedError(self.expected(), val, self.condition_name, tb)
@@ -906,11 +920,11 @@ class ConditionalConverter(t.Generic[FromDataT], Converter[FromDataT]):
 
 
 class EnumConverter(Converter[enum.Enum]):
-    def __init__(self, ty: t.Type[enum.Enum], handlers: ConverterHandlers = ConverterHandlers()):
+    def __init__(self, ty: type[enum.Enum], handlers: ConverterHandlers = ConverterHandlers()):
         from pane.convert import _DataType  # type: ignore
         if issubclass(ty, enum.Flag):
             raise TypeError("Flag enums are not currently supported")
-        self.ty: t.Type[enum.Enum] = ty
+        self.ty: type[enum.Enum] = ty
 
         members = ty.__members__.values()
         try:
@@ -958,12 +972,12 @@ class EnumConverter(Converter[enum.Enum]):
 
 
 @dataclasses.dataclass
-class DelegateConverter(t.Generic[T, U], Converter[T]):
+class DelegateConverter(Converter[T], t.Generic[T, U]):
     """
     Converter which delegates to a sub-converter, and then attempts
     to construct a different type
     """
-    from_type: t.Type[U]
+    from_type: type[U]
     """Inner type to convert to"""
     constructor: t.Callable[[U], T]
     """Constructor for outer type"""
@@ -984,7 +998,7 @@ class DelegateConverter(t.Generic[T, U], Converter[T]):
         # TODO: this is a hack, because we can't easily convert T back to U
         try:
             return self.inner.into_data(val)
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
         return into_data(val)
 
@@ -1001,7 +1015,7 @@ class DelegateConverter(t.Generic[T, U], Converter[T]):
         val = self.inner.try_convert(val)
         try:
             return self.constructor(val)
-        except Exception:
+        except Exception:  # noqa: BLE001
             raise ParseInterrupt from None
 
     def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
@@ -1013,18 +1027,18 @@ class DelegateConverter(t.Generic[T, U], Converter[T]):
             return self.inner.collect_errors(val)
         try:
             self.constructor(conv_val)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             tb = e.__traceback__.tb_next  # type: ignore
             tb = traceback.TracebackException(type(e), e, tb)
             return WrongTypeError(self.expected(), val, tb)
 
 
 @dataclasses.dataclass(init=False)
-class PatternConverter(t.Generic[t.AnyStr], Converter[re.Pattern[t.AnyStr]]):
-    ty: t.Type[t.AnyStr]
+class PatternConverter(Converter[re.Pattern[t.AnyStr]], t.Generic[t.AnyStr]):
+    ty: type[t.AnyStr]
     ty_conv: Converter[t.AnyStr]
 
-    def __init__(self, ty: t.Type[t.AnyStr] = str, *args: t.Any,
+    def __init__(self, ty: type[t.AnyStr] = str, *args: t.Any,
                  handlers: ConverterHandlers = ConverterHandlers()):
         if len(args) > 0:
             raise TypeError("PatternConverter takes only one type argument")
@@ -1047,8 +1061,8 @@ class PatternConverter(t.Generic[t.AnyStr], Converter[re.Pattern[t.AnyStr]]):
         s = self.ty_conv.try_convert(val)
         try:
             return re.compile(s)
-        except Exception:
-            raise ParseInterrupt from None
+        except Exception:  # noqa: BLE001
+            raise ParseInterrupt() from None
 
     def collect_errors(self, val: t.Any) -> t.Optional[ErrorNode]:
         if isinstance(val, re.Pattern):
@@ -1071,27 +1085,30 @@ class DatetimeConverter(Converter[DatetimeT], t.Generic[DatetimeT]):
     Converter for a simple scalar type,
     constructible from a list of allowed types.
     """
-    _date_types: t.Tuple[type, ...] = (datetime.date, datetime.time, datetime.datetime)
+    _date_types: tuple[type, ...] = (datetime.date, datetime.time, datetime.datetime)
     _expected: t.Mapping[type, str] = {
         datetime.date: "date",
         datetime.datetime: "datetime",
         datetime.time: "time",
     }
 
-    def __init__(self, ty: t.Type[DatetimeT]):
+    def __init__(self, ty: type[DatetimeT]):
         self.ty = ty
-        self.super_ty: t.Type[DatetimeT]
+        self.super_ty: type[DatetimeT]
         if ty in self._date_types:
-            self.super_ty = t.cast(t.Type[DatetimeT], ty)
+            self.super_ty = t.cast(type[DatetimeT], ty)
             return
         for date_ty in self._date_types:
             if issubclass(ty, date_ty):
-                self.super_ty = t.cast(t.Type[DatetimeT], date_ty)
+                self.super_ty = t.cast(type[DatetimeT], date_ty)
                 return
         raise TypeError(f"Only types {list_phrase([repr(str(ty)) for ty in self._date_types])} are supported")
 
-    def __eq__(self, other: t.Any) -> bool:
-        return type(self) is type(other) and self.ty is other.ty
+    def __eq__(self, other: object) -> bool:
+        if self.__class__ is not other.__class__:
+            return False
+        if t.TYPE_CHECKING: assert isinstance(other, self.__class__)
+        return self.ty is other.ty
 
     def expected(self, plural: bool = False) -> str:
         """See [`Converter.expected`][pane.converters.Converter.expected]"""
@@ -1147,10 +1164,9 @@ class DatetimeConverter(Converter[DatetimeT], t.Generic[DatetimeT]):
             # from time, to time only
             if self.super_ty == datetime.time:
                 return t.cast(DatetimeT, val)
-        elif isinstance(val, datetime.date):
+        elif isinstance(val, datetime.date) and self.super_ty != datetime.time:
             # from date, to date or datetime
-            if self.super_ty != datetime.time:
-                return self.from_date(val)
+            return self.from_date(val)
         raise ParseInterrupt()
 
     def collect_errors(self, val: t.Any) -> t.Optional[WrongTypeError]:
@@ -1169,14 +1185,13 @@ class DatetimeConverter(Converter[DatetimeT], t.Generic[DatetimeT]):
         elif isinstance(val, datetime.time):
             if self.super_ty == datetime.time:
                 return None
-        elif isinstance(val, datetime.date):
-            if self.super_ty != datetime.time:
-                return None
+        elif isinstance(val, datetime.date) and self.super_ty != datetime.time:
+            return None
         return WrongTypeError(self.expected(), val)
 
 
 # converters for scalar types
-_BASIC_CONVERTERS: t.Dict[type, Converter[t.Any]] = {
+_BASIC_CONVERTERS: dict[type, Converter[t.Any]] = {
     complex: ScalarConverter(complex, (int, float, complex), 'a complex float', 'complex floats', complex),
     float: ScalarConverter(float, (int, float), 'a float', 'floats', float),
     int: ScalarConverter(int, int, 'an int', 'ints', int),
@@ -1193,7 +1208,7 @@ _BASIC_CONVERTERS: t.Dict[type, Converter[t.Any]] = {
 }
 """Built-in scalar converters for some basic types"""
 
-_BASIC_WITH_ARGS: t.Dict[type, t.Type[Converter[t.Any]]] = {
+_BASIC_WITH_ARGS: dict[type, type[Converter[t.Any]]] = {
     re.Pattern: PatternConverter,
     t.Pattern: PatternConverter,
 }

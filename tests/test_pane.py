@@ -162,9 +162,9 @@ def test_make_unchecked_signature(cls, sig: str):
 
 def test_from_dict_unchecked_signature():
     assert str(inspect.signature(TestClass.from_dict_unchecked)) in (
-        '(d: Dict[str, Any], *, set_fields: Optional[Set[str]] = None) -> typing_extensions.Self',
-        '(d: Dict[str, Any], *, set_fields: Optional[Set[str]] = None) -> Self',
-        '(d: Dict[str, Any], *, set_fields: Set[str] | None = None) -> Self',
+        '(d: dict[str, typing.Any], *, set_fields: Optional[set[str]] = None) -> typing_extensions.Self',
+        '(d: dict[str, typing.Any], *, set_fields: Optional[set[str]] = None) -> Self',
+        '(d: dict[str, typing.Any], *, set_fields: set[str] | None = None) -> Self',
     )
 
 
@@ -407,7 +407,7 @@ def test_pane_custom_converters():
 
 def test_kw_only_order():
     class KwOnlyOrder(pane.PaneBase, kw_only=True):
-        a: t.Optional[int] = None  # noqa: UP045
+        a: t.Optional[int] = None
         b: int
 
     assert KwOnlyOrder.from_data({'b': 5}) == KwOnlyOrder.make_unchecked(a=None, b=5)
@@ -417,7 +417,7 @@ def test_pane_union():
     if not hasattr(types, 'UnionType'):
         pytest.skip("python <3.10 doesn't support unions")
 
-    class TestUnions:
+    class TestUnions(pane.PaneBase):
         old_style: t.Union[int, str]
         new_style: (int | str)
 

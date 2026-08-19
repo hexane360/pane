@@ -1,21 +1,23 @@
-from contextlib import AbstractContextManager, nullcontext
-from io import TextIOBase, IOBase, TextIOWrapper, BufferedIOBase
-from pathlib import Path
 import typing as t
+from contextlib import AbstractContextManager, nullcontext
+from io import BufferedIOBase, IOBase, TextIOBase, TextIOWrapper
+from pathlib import Path
 
 from typing_extensions import TypeAlias
 
 from .convert import (
-    from_data, into_data, IntoConverterHandlers,
-    Convertible, IntoConverter
+    Convertible,
+    IntoConverter,
+    IntoConverterHandlers,
+    from_data,
+    into_data,
 )
-
 
 T = t.TypeVar('T', bound='Convertible')
 FileOrPath: TypeAlias = t.Union[str, Path, TextIOBase, t.TextIO]
 
 
-def from_json(f: FileOrPath, ty: t.Type[T], *,
+def from_json(f: FileOrPath, ty: type[T], *,
               custom: t.Optional[IntoConverterHandlers] = None) -> T:
     """
     Load an object of type `ty` from a JSON file `f`
@@ -25,12 +27,12 @@ def from_json(f: FileOrPath, ty: t.Type[T], *,
         custom: Custom converters to use
     """
     import json
-    with open_file(f) as f:
-        obj = json.load(f)
+    with open_file(f) as file:
+        obj = json.load(file)
     return from_data(obj, ty, custom=custom)
 
 
-def from_yaml(f: FileOrPath, ty: t.Type[T], *,
+def from_yaml(f: FileOrPath, ty: type[T], *,
               custom: t.Optional[IntoConverterHandlers] = None) -> T:
     """
     Load an object of type `ty` from a YAML file `f`
@@ -45,14 +47,14 @@ def from_yaml(f: FileOrPath, ty: t.Type[T], *,
     except ImportError:
         from yaml import SafeLoader as Loader
 
-    with open_file(f) as f:
-        obj = t.cast(t.Any, yaml.load(f, Loader))  # type: ignore
+    with open_file(f) as file:
+        obj = t.cast(t.Any, yaml.load(file, Loader))  # type: ignore
 
     return from_data(obj, ty, custom=custom)
 
 
-def from_yaml_all(f: FileOrPath, ty: t.Type[T], *,
-                  custom: t.Optional[IntoConverterHandlers] = None) -> t.List[T]:
+def from_yaml_all(f: FileOrPath, ty: type[T], *,
+                  custom: t.Optional[IntoConverterHandlers] = None) -> list[T]:
     """
     Load an object of type `ty` from a YAML file `f`
 
@@ -66,10 +68,10 @@ def from_yaml_all(f: FileOrPath, ty: t.Type[T], *,
     except ImportError:
         from yaml import SafeLoader as Loader
 
-    with open_file(f) as f:
-        obj = t.cast(t.List[t.Any], list(yaml.load_all(f, Loader)))  # type: ignore
+    with open_file(f) as file:
+        obj = t.cast(list[t.Any], list(yaml.load_all(file, Loader)))  # type: ignore
 
-    return from_data(obj, t.List[ty], custom=custom)
+    return from_data(obj, list[ty], custom=custom)
 
 
 def write_json(obj: Convertible, f: FileOrPath, *,
@@ -90,10 +92,10 @@ def write_json(obj: Convertible, f: FileOrPath, *,
     """
     import json
 
-    with open_file(f, 'w') as f:
+    with open_file(f, 'w') as file:
         json.dump(
             into_data(obj, ty, custom=custom),
-            f, indent=indent, sort_keys=sort_keys
+            file, indent=indent, sort_keys=sort_keys
         )
 
 
@@ -132,9 +134,9 @@ def write_yaml(obj: Convertible, f: FileOrPath, *,
     except ImportError:
         from yaml import SafeDumper as Dumper
 
-    with open_file(f, 'w') as f:
+    with open_file(f, 'w') as file:
         yaml.dump(  # type: ignore
-            into_data(obj, ty, custom=custom), f, Dumper=Dumper,
+            into_data(obj, ty, custom=custom), file, Dumper=Dumper,
             indent=indent, width=width, allow_unicode=allow_unicode,
             explicit_start=explicit_start, explicit_end=explicit_end,
             default_style=default_style, default_flow_style=default_flow_style,
@@ -142,16 +144,15 @@ def write_yaml(obj: Convertible, f: FileOrPath, *,
         )
 
 
-def _validate_file(f: t.Union[t.IO[t.AnyStr], IOBase], mode: t.Union[t.Literal['r'], t.Literal['w']]):
+def _validate_file(f: t.Union[t.IO[t.AnyStr], IOBase], mode: t.Literal['r', 'w']):
     if f.closed:
-        raise IOError("Error: Provided file is closed.")
+        raise OSError("Error: Provided file is closed.")
 
     if mode == 'r':
         if not f.readable():
-            raise IOError("Error: Provided file not readable.")
-    elif mode == 'w':
-        if not f.writable():
-            raise IOError("Error: Provided file not writable.")
+            raise OSError("Error: Provided file not readable.")
+    elif mode == 'w' and not f.writable():
+        raise OSError("Error: Provided file not writable.")
 
 
 def open_file(f: FileOrPath,
